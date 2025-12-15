@@ -114,7 +114,7 @@ StarList is a gamified productivity application that integrates task management 
 ## 👥 Authors
 
 - **Ofri K** - *creator* - [ofriK1708](https://github.com/ofriK1708)
-- **Yael Moshkovish** - *creator* - _add Github link here_
+- **Yael Moshkovish** - *creator* - [yaelmosh](https://github.com/yaelmosh)
 
 ---
 
