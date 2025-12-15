@@ -2,7 +2,7 @@
 
 **Turn Your Tasks into Stars, Build Your Galaxy!**
 
-StarList is a gamified productivity application that integrates task management and habit tracking with a visual motivational page, "Your Galaxy." It uniquely rewards users with virtual coins, proportional to a task's difficulty, which are then used to build out their personalized galaxy, maintaining long-term engagement.
+StarList is a gamified productivity application that integrates task management and habit tracking with a visual motivational page, "Your Galaxy." It uniquely rewards users with virtual coins, proportional to a task's difficulty, which are then used to build out their personalized galaxy, maintaining long-term engagement. It also offers an AI chat feature to assist users in creating and defining tasks and habits
 
 ---
 
@@ -25,6 +25,7 @@ StarList is a gamified productivity application that integrates task management 
 - **Build Your Universe**: Use earned coins to expand and customize your personal galaxy
 - **Visual Progress**: Watch your galaxy grow as you complete tasks and build habits
 - **Long-term Engagement**: Stay motivated with an ever-evolving visual representation of your productivity journey
+- **Start each month anew**: see how each month you build your galaxy, and see how it compares with other months
 
 ### 💰 Coin Reward System
 - **Difficulty-Based Rewards**: Harder tasks = more coins
@@ -32,33 +33,26 @@ StarList is a gamified productivity application that integrates task management 
 - **Spend Wisely**: Use coins to unlock new stars, planets, and cosmic elements
 - **Endless Possibilities**: Continuously expand your galaxy as you stay productive
 
+### ✨ AI Capabilities: 
+- Assist users in creating and defining tasks and habits
+- Determining their difficulty and duration
+- Tracking progress and improvements through discussions
+
+### 📊 Statistics Dashboard:
+- Provides charts to track progress, patterns, and trends across tasks and habits.
+
+### 📅 Calendar Overview
+- Offers a view of monthly performance, completion rates, and consistency.
+
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Java Development Kit (JDK) 11 or higher
-- Your favorite IDE (IntelliJ IDEA, Eclipse, VS Code, etc.)
+*right now not needed, maybe add that later.*
 
 ### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/ofriK1708/StarList.git
-cd StarList
-```
-
-2. Build the project:
-```bash
-# Instructions will be added as the project develops
-```
-
-3. Run the application:
-```bash
-# Instructions will be added as the project develops
-```
-
----
+*right now not needed, maybe add that later.*
 
 ## 📖 Usage
 
@@ -80,33 +74,25 @@ cd StarList
 3. Check in daily to maintain your streak
 4. Earn bonus coins for consistent habit tracking!
 
+### Using AI Chat
+1. Access the AI chat feature.
+2. Discuss upcoming tasks and habits with the AI.
+3. Use the AI to help define and determine the difficulty and duration of new items.
+4. Track progress and improvements through your conversation.
+
+### Reviewing Your Progress (Statistics Dashboard)
+1. Navigate to the "Statistics Dashboard" or "Calendar Overview" section.
+2. Review trends and patterns across your completed tasks and habits.
+3. Check monthly performance, completion rates, and consistency to stay on track.
+   
 ---
 
 ## 🛠️ Technology Stack
 
-- **Language**: Java
+- **Language**: Java / _maybe more added later_
 - **Framework**: _To be determined_
 - **Database**: _To be determined_
 - **UI**: _To be determined_
-
----
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Here's how you can help:
-
-1. **Fork** the repository
-2. **Create** a new branch for your feature (`git checkout -b feature/AmazingFeature`)
-3. **Commit** your changes (`git commit -m 'Add some AmazingFeature'`)
-4. **Push** to the branch (`git push origin feature/AmazingFeature`)
-5. **Open** a Pull Request
-
-### Development Guidelines
-- Write clean, readable code
-- Follow Java best practices and conventions
-- Comment complex logic
-- Test your changes thoroughly
-- Update documentation as needed
 
 ---
 
@@ -125,30 +111,10 @@ We welcome contributions from the community! Here's how you can help:
 
 ---
 
-## 📄 License
-
-This project's license will be determined as the project develops.
-
----
-
 ## 👥 Authors
 
-- **Ofri K** - *Initial work* - [ofriK1708](https://github.com/ofriK1708)
-
----
-
-## 🙏 Acknowledgments
-
-- Inspired by the need to make productivity fun and engaging
-- Thanks to all future contributors!
-- Special thanks to everyone who believes in gamifying personal growth
-
----
-
-## 📧 Contact & Support
-
-- **GitHub Issues**: For bug reports and feature requests
-- **Project Link**: [https://github.com/ofriK1708/StarList](https://github.com/ofriK1708/StarList)
+- **Ofri K** - *creator* - [ofriK1708](https://github.com/ofriK1708)
+- **Yael Moshkovish** - *creator* - _add Github link here_
 
 ---
 
@@ -156,6 +122,6 @@ This project's license will be determined as the project develops.
 
 **Made with ❤️ and ☕**
 
-*Transform your productivity journey into a cosmic adventure!*
+*Transform your productivity journey into a cosmic adventure!* 🪐
 
 </div>
