@@ -1,0 +1,15 @@
+spring:
+  profiles:
+    active: dev
+  application:
+    name: starlist-backend
+
+logging:
+  level:
+    root: INFO
+  file:
+    name: logs/request-trace.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{HH:mm:ss.SSS} [%-5level] %msg%n"
+

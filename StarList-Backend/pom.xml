@@ -11,6 +11,7 @@
     <groupId>com.starlist</groupId>
     <artifactId>backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
     <name>StarList-Backend</name>
     <description>StarList-Backend</description>
     <url/>
@@ -20,6 +21,12 @@
     <developers>
         <developer/>
     </developers>
+    <modules>
+        <module>app</module>
+        <module>controller</module>
+        <module>repository</module>
+        <module>service</module>
+    </modules>
     <scm>
         <connection/>
         <developerConnection/>
@@ -65,18 +72,6 @@
                             <artifactId>lombok</artifactId>
                         </path>
                     </annotationProcessorPaths>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
                 </configuration>
             </plugin>
         </plugins>
