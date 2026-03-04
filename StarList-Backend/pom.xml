@@ -26,6 +26,7 @@
         <module>controller</module>
         <module>repository</module>
         <module>service</module>
+        <module>model</module>
     </modules>
     <scm>
         <connection/>
