@@ -1,4 +1,4 @@
-package model;
+package repositroy.entity;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -32,7 +32,7 @@ import lombok.Setter;
         @Index(name = "idx_users_galaxy_reset_date", columnList = "galaxy_reset_date"),
         @Index(name = "idx_users_last_login", columnList = "last_login")
 })
-public class User {
+public class UserEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -71,27 +71,27 @@ public class User {
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Task> tasks = new ArrayList<>();
+    private List<TaskEntity> taskEntities = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Habit> habits = new ArrayList<>();
+    private List<HabitEntity> habitEntities = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<HabitCompletion> habitCompletions = new ArrayList<>();
+    private List<HabitCompletionEntity> habitCompletionEntities = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<GalaxyItem> galaxyItems = new ArrayList<>();
+    private List<GalaxyItemEntity> galaxyItemEntities = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<CoinTransaction> coinTransactions = new ArrayList<>();
+    private List<CoinTransactionEntity> coinTransactionEntities = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<AiConversation> aiConversations = new ArrayList<>();
+    private List<AiConversationEntity> aiConversationEntities = new ArrayList<>();
 
     @PrePersist
     void onCreate() {

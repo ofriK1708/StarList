@@ -1,4 +1,4 @@
-package model.enums;
+package repositroy.entity.enums;
 
 public enum TransactionType {
     TASK_COMPLETION,

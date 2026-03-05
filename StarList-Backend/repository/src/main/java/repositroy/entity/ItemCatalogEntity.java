@@ -1,4 +1,4 @@
-package model;
+package repositroy.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,8 +19,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import model.enums.ItemType;
-import model.enums.RarityLevel;
+import repositroy.entity.enums.ItemType;
+import repositroy.entity.enums.RarityLevel;
 
 @Getter
 @Setter
@@ -33,7 +33,7 @@ import model.enums.RarityLevel;
         @Index(name = "idx_item_catalog_available", columnList = "is_available"),
         @Index(name = "idx_item_catalog_unlock_requirement", columnList = "unlock_requirement")
 })
-public class ItemCatalog {
+public class ItemCatalogEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
