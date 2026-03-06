@@ -1,5 +1,6 @@
-package repositroy.entity;
+package model;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,16 +12,18 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import repositroy.entity.enums.ReferenceType;
-import repositroy.entity.enums.TransactionType;
+import model.enums.ConversationType;
 
 @Getter
 @Setter
@@ -28,12 +31,12 @@ import repositroy.entity.enums.TransactionType;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "coin_transactions", indexes = {
-        @Index(name = "idx_coin_transactions_user_id", columnList = "user_id"),
-        @Index(name = "idx_coin_transactions_transaction_type", columnList = "transaction_type"),
-        @Index(name = "idx_coin_transactions_created_at", columnList = "created_at")
+@Table(name = "ai_conversations", indexes = {
+        @Index(name = "idx_ai_conversations_user_id", columnList = "user_id"),
+        @Index(name = "idx_ai_conversations_type", columnList = "conversation_type"),
+        @Index(name = "idx_ai_conversations_created_at", columnList = "created_at")
 })
-public class CoinTransactionEntity {
+public class AiConversation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,36 +44,37 @@ public class CoinTransactionEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private UserEntity userEntity;
-
-    @Column(name = "amount", nullable = false)
-    private Integer amount;
+    private User user;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_type", nullable = false, length = 32)
-    private TransactionType transactionType;
+    @Column(name = "conversation_type", nullable = false, length = 32)
+    private ConversationType conversationType;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "reference_type", length = 24)
-    private ReferenceType referenceType;
+    @Column(name = "user_message", nullable = false, columnDefinition = "TEXT")
+    private String userMessage;
 
-    @Column(name = "reference_id")
-    private Long referenceId;
+    @Column(name = "ai_response", nullable = false, columnDefinition = "TEXT")
+    private String aiResponse;
 
-    @Column(name = "description", length = 500)
-    private String description;
+    @Column(name = "tasks_created", nullable = false)
+    private Integer tasksCreated;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "aiConversation")
+    private List<Task> tasks = new ArrayList<>();
 
     @PrePersist
     void onCreate() {
         if (createdAt == null) {
             createdAt = Instant.now();
         }
-        if (amount == null) {
-            amount = 0;
+        if (tasksCreated == null) {
+            tasksCreated = 0;
         }
     }
 }
+
 

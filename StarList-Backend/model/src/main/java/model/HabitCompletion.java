@@ -1,4 +1,4 @@
-package repositroy.entity;
+package model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,7 +35,7 @@ import lombok.Setter;
                 @Index(name = "idx_habit_completions_habit_id", columnList = "habit_id"),
                 @Index(name = "idx_habit_completions_completed_date", columnList = "completed_date")
         })
-public class HabitCompletionEntity {
+public class HabitCompletion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,11 +43,11 @@ public class HabitCompletionEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "habit_id", nullable = false)
-    private HabitEntity habitEntity;
+    private Habit habit;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private UserEntity userEntity;
+    private User user;
 
     @Column(name = "completed_date", nullable = false)
     private LocalDate completedDate;

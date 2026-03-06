@@ -1,4 +1,4 @@
-package repositroy.entity;
+package model;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -26,8 +26,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import repositroy.entity.enums.DifficultyLevel;
-import repositroy.entity.enums.HabitFrequency;
+import model.enums.DifficultyLevel;
+import model.enums.HabitFrequency;
 
 @Getter
 @Setter
@@ -40,7 +40,7 @@ import repositroy.entity.enums.HabitFrequency;
         @Index(name = "idx_habits_frequency", columnList = "frequency"),
         @Index(name = "idx_habits_deleted_at", columnList = "deleted_at")
 })
-public class HabitEntity {
+public class Habit {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,7 +48,7 @@ public class HabitEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private UserEntity userEntity;
+    private User user;
 
     @NotBlank
     @Column(name = "title", nullable = false)
@@ -99,7 +99,7 @@ public class HabitEntity {
 
     @Builder.Default
     @OneToMany(mappedBy = "habit", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<HabitCompletionEntity> completions = new ArrayList<>();
+    private List<HabitCompletion> completions = new ArrayList<>();
 
     @PrePersist
     void onCreate() {

@@ -1,4 +1,4 @@
-package repositroy.entity.enums;
+package model.enums;
 
 public enum TaskStatus {
     PENDING,

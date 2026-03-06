@@ -1,4 +1,4 @@
-package repositroy.entity;
+package model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,8 +21,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import repositroy.entity.enums.DifficultyLevel;
-import repositroy.entity.enums.TaskStatus;
+import model.enums.DifficultyLevel;
+import model.enums.TaskStatus;
 
 @Getter
 @Setter
@@ -37,7 +37,7 @@ import repositroy.entity.enums.TaskStatus;
         @Index(name = "idx_tasks_deleted_at", columnList = "deleted_at"),
         @Index(name = "idx_tasks_ai_conversation_id", columnList = "ai_conversation_id")
 })
-public class TaskEntity {
+public class Task {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,7 +45,7 @@ public class TaskEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private UserEntity userEntity;
+    private User user;
 
     @NotBlank
     @Column(name = "title", nullable = false)
@@ -90,7 +90,7 @@ public class TaskEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ai_conversation_id")
-    private AiConversationEntity aiConversationEntity;
+    private AiConversation aiConversation;
 
     @PrePersist
     void onCreate() {
