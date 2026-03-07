@@ -1,6 +1,5 @@
-package model;
+package repository.entity;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -36,7 +35,7 @@ import model.enums.ConversationType;
         @Index(name = "idx_ai_conversations_type", columnList = "conversation_type"),
         @Index(name = "idx_ai_conversations_created_at", columnList = "created_at")
 })
-public class AiConversation {
+public class AiConversationEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,7 +43,7 @@ public class AiConversation {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private UserEntity user;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "conversation_type", nullable = false, length = 32)
@@ -64,7 +63,7 @@ public class AiConversation {
 
     @Builder.Default
     @OneToMany(mappedBy = "aiConversation")
-    private List<Task> tasks = new ArrayList<>();
+    private List<TaskEntity> tasks = new ArrayList<>();
 
     @PrePersist
     void onCreate() {
@@ -76,5 +75,3 @@ public class AiConversation {
         }
     }
 }
-
-

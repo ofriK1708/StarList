@@ -1,4 +1,4 @@
-package model;
+package repository.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,8 +13,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,7 +35,7 @@ import model.enums.TaskStatus;
         @Index(name = "idx_tasks_deleted_at", columnList = "deleted_at"),
         @Index(name = "idx_tasks_ai_conversation_id", columnList = "ai_conversation_id")
 })
-public class Task {
+public class TaskEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,9 +43,8 @@ public class Task {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private UserEntity user;
 
-    @NotBlank
     @Column(name = "title", nullable = false)
     private String title;
 
@@ -61,11 +58,9 @@ public class Task {
     @Column(name = "duration_minutes")
     private Integer durationMinutes;
 
-    @Min(0)
     @Column(name = "coin_reward", nullable = false)
     private Integer coinReward;
 
-    @Min(0)
     @Column(name = "coin_penalty")
     private Integer coinPenalty;
 
@@ -90,7 +85,7 @@ public class Task {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ai_conversation_id")
-    private AiConversation aiConversation;
+    private AiConversationEntity aiConversation;
 
     @PrePersist
     void onCreate() {
@@ -108,6 +103,3 @@ public class Task {
         }
     }
 }
-
-
-

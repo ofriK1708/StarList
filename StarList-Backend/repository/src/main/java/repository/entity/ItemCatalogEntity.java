@@ -1,4 +1,4 @@
-package model;
+package repository.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,8 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -33,13 +31,12 @@ import model.enums.RarityLevel;
         @Index(name = "idx_item_catalog_available", columnList = "is_available"),
         @Index(name = "idx_item_catalog_unlock_requirement", columnList = "unlock_requirement")
 })
-public class ItemCatalog {
+public class ItemCatalogEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank
     @Column(name = "item_name", nullable = false, unique = true)
     private String itemName;
 
@@ -50,7 +47,6 @@ public class ItemCatalog {
     @Column(name = "description", length = 2000)
     private String description;
 
-    @Min(0)
     @Column(name = "cost_coins", nullable = false)
     private Integer costCoins;
 
@@ -73,7 +69,6 @@ public class ItemCatalog {
     @Column(name = "rotation", precision = 6, scale = 2)
     private BigDecimal rotation;
 
-    @Min(0)
     @Column(name = "unlock_requirement")
     private Integer unlockRequirement;
 
@@ -99,6 +94,3 @@ public class ItemCatalog {
         }
     }
 }
-
-
-

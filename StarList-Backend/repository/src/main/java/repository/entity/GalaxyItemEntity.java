@@ -1,4 +1,4 @@
-package model;
+package repository.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,7 +29,7 @@ import lombok.Setter;
         @Index(name = "idx_galaxy_items_catalog_item_id", columnList = "catalog_item_id"),
         @Index(name = "idx_galaxy_items_purchase_date", columnList = "purchase_date")
 })
-public class GalaxyItem {
+public class GalaxyItemEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,11 +37,11 @@ public class GalaxyItem {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private UserEntity user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "catalog_item_id", nullable = false)
-    private ItemCatalog catalogItem;
+    private ItemCatalogEntity catalogItem;
 
     @Column(name = "purchase_date", nullable = false, updatable = false)
     private Instant purchaseDate;
@@ -65,4 +65,3 @@ public class GalaxyItem {
         }
     }
 }
-

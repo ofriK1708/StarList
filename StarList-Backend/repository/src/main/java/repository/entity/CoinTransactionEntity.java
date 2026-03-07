@@ -1,4 +1,4 @@
-package model;
+package repository.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -33,7 +33,7 @@ import model.enums.TransactionType;
         @Index(name = "idx_coin_transactions_transaction_type", columnList = "transaction_type"),
         @Index(name = "idx_coin_transactions_created_at", columnList = "created_at")
 })
-public class CoinTransaction {
+public class CoinTransactionEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,7 +41,7 @@ public class CoinTransaction {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private UserEntity user;
 
     @Column(name = "amount", nullable = false)
     private Integer amount;
@@ -73,4 +73,3 @@ public class CoinTransaction {
         }
     }
 }
-

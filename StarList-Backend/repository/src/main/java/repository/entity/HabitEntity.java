@@ -1,4 +1,4 @@
-package model;
+package repository.entity;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -15,8 +15,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -40,7 +38,7 @@ import model.enums.HabitFrequency;
         @Index(name = "idx_habits_frequency", columnList = "frequency"),
         @Index(name = "idx_habits_deleted_at", columnList = "deleted_at")
 })
-public class Habit {
+public class HabitEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,9 +46,8 @@ public class Habit {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private UserEntity user;
 
-    @NotBlank
     @Column(name = "title", nullable = false)
     private String title;
 
@@ -65,23 +62,18 @@ public class Habit {
     @Column(name = "difficulty_level", nullable = false, length = 16)
     private DifficultyLevel difficultyLevel;
 
-    @Min(0)
     @Column(name = "coin_reward", nullable = false)
     private Integer coinReward;
 
-    @Min(0)
     @Column(name = "coin_penalty")
     private Integer coinPenalty;
 
-    @Min(0)
     @Column(name = "current_streak", nullable = false)
     private Integer currentStreak;
 
-    @Min(0)
     @Column(name = "best_streak", nullable = false)
     private Integer bestStreak;
 
-    @Min(0)
     @Column(name = "total_completions", nullable = false)
     private Integer totalCompletions;
 
@@ -99,7 +91,7 @@ public class Habit {
 
     @Builder.Default
     @OneToMany(mappedBy = "habit", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<HabitCompletion> completions = new ArrayList<>();
+    private List<HabitCompletionEntity> completions = new ArrayList<>();
 
     @PrePersist
     void onCreate() {
@@ -123,6 +115,3 @@ public class Habit {
         }
     }
 }
-
-
-

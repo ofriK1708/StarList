@@ -1,4 +1,4 @@
-package model;
+package repository.entity;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -10,8 +10,6 @@ import jakarta.persistence.Index;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -32,22 +30,18 @@ import lombok.Setter;
         @Index(name = "idx_users_galaxy_reset_date", columnList = "galaxy_reset_date"),
         @Index(name = "idx_users_last_login", columnList = "last_login")
 })
-public class User {
+public class UserEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Email
-    @NotBlank
     @Column(name = "email", nullable = false, unique = true, updatable = false)
     private String email;
 
-    @NotBlank
     @Column(name = "cognito_user_id", nullable = false, unique = true, updatable = false)
     private String cognitoUserId;
 
-    @NotBlank
     @Column(name = "display_name", nullable = false)
     private String displayName;
 
@@ -71,27 +65,27 @@ public class User {
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Task> tasks = new ArrayList<>();
+    private List<TaskEntity> tasks = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Habit> habits = new ArrayList<>();
+    private List<HabitEntity> habits = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<HabitCompletion> habitCompletions = new ArrayList<>();
+    private List<HabitCompletionEntity> habitCompletions = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<GalaxyItem> galaxyItems = new ArrayList<>();
+    private List<GalaxyItemEntity> galaxyItems = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<CoinTransaction> coinTransactions = new ArrayList<>();
+    private List<CoinTransactionEntity> coinTransactions = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<AiConversation> aiConversations = new ArrayList<>();
+    private List<AiConversationEntity> aiConversations = new ArrayList<>();
 
     @PrePersist
     void onCreate() {
@@ -112,4 +106,3 @@ public class User {
         }
     }
 }
-
