@@ -2,11 +2,14 @@ package app;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.persistence.autoconfigure.EntityScan;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-@SpringBootApplication(scanBasePackages = {"app", "controller"})
+@SpringBootApplication(scanBasePackages = {"app", "controller", "service", "repository"})
+@EntityScan("repository.entity")
+@EnableJpaRepositories("repository.api")
 public class StarListApp {
-    static void main(String[] args) {
+    public static void main(String[] args) {
         SpringApplication.run(StarListApp.class, args);
-
     }
 }
