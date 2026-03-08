@@ -15,12 +15,14 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+        show_sql: true
+        format_sql: true
 
 logging:
   level:
-    root: DEBUG
-    app: TRACE
-    controller: TRACE
+    root: INFO
+    app: INFO
+    controller: INFO
   file:
     name: logs/request-trace.log
   pattern:

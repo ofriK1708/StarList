@@ -11,6 +11,7 @@ import model.enums.TaskStatus;
 @Builder
 public class AddTaskResponse {
 
+    Long taskId;
     String title;
     String description;
     DifficultyLevel difficultyLevel;
@@ -23,6 +24,7 @@ public class AddTaskResponse {
 
     public static AddTaskResponse from(Task task) {
         return AddTaskResponse.builder()
+                .taskId(task.getId())
                 .title(task.getTitle())
                 .description(task.getDescription())
                 .difficultyLevel(task.getDifficultyLevel())
