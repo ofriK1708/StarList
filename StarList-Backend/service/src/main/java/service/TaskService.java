@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import repository.service.TaskStore;
 import repository.service.UserStore;
@@ -23,6 +24,7 @@ public class TaskService {
         this.taskStore = taskStore;
     }
 
+    @Transactional
     public AddTaskResponse addTask(Long userId, @NonNull AddTaskRequest request) {
         if (!userStore.existsById(userId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + userId);
