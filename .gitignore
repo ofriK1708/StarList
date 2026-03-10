@@ -24,3 +24,9 @@ hs_err_pid*
 replay_pid*
 # ignore idea files
 .idea/
+
+# Frontend (React / Vite)
+node_modules/
+dist/
+dist-ssr/
+*.local
