@@ -1,0 +1,44 @@
+name: Label Issues
+
+on:
+  push:
+    branches: ['copilot/label-issues-in-repo']
+  workflow_dispatch:
+
+jobs:
+  label-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const issueLabels = [
+              { issue: 15, labels: ['backend'] },
+              { issue: 16, labels: ['backend'] },
+              { issue: 17, labels: ['backend'] },
+              { issue: 18, labels: ['frontend'] },
+              { issue: 19, labels: ['frontend'] },
+              { issue: 20, labels: ['backend', 'frontend', 'cloud'] },
+              { issue: 21, labels: ['backend'] },
+              { issue: 22, labels: ['frontend'] },
+              { issue: 23, labels: ['cloud'] },
+              { issue: 24, labels: ['frontend', 'backend', 'cloud'] },
+              { issue: 27, labels: ['frontend', 'backend'] },
+              { issue: 28, labels: ['frontend', 'backend'] },
+              { issue: 29, labels: ['backend', 'cloud', 'frontend'] },
+              { issue: 30, labels: ['frontend'] },
+              { issue: 31, labels: ['cloud'] },
+              { issue: 32, labels: ['frontend', 'backend', 'cloud'] },
+            ];
+
+            for (const { issue, labels } of issueLabels) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue,
+                labels,
+              });
+              console.log(`Labeled issue #${issue} with: ${labels.join(', ')}`);
+            }
