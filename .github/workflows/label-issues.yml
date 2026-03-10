@@ -34,11 +34,15 @@ jobs:
             ];
 
             for (const { issue, labels } of issueLabels) {
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue,
-                labels,
-              });
-              console.log(`Labeled issue #${issue} with: ${labels.join(', ')}`);
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue,
+                  labels,
+                });
+                console.log(`Labeled issue #${issue} with: ${labels.join(', ')}`);
+              } catch (err) {
+                console.error(`Failed to label issue #${issue}: ${err.message}`);
+              }
             }
