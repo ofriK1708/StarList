@@ -25,8 +25,53 @@
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>logs/request-trace-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
-            <maxHistory>30</maxHistory>
-            <totalSizeCap>1GB</totalSizeCap>
+            <maxHistory>3</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Dump file appender - attached to root; receives all logs -->
+    <appender name="DUMP_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/app-dump.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>utf8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/app-dump-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>3</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Task entity file appender - ONLY for TaskService -->
+    <appender name="TASK_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/tasks.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>utf8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/tasks-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>3</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- User entity file appender - ONLY for UserService -->
+    <appender name="USER_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/users.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>utf8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/users-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>3</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
@@ -35,6 +80,7 @@
     <springProfile name="dev">
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="DUMP_FILE"/>
         </root>
         <!-- Only REQUEST_TRACE logger writes to the file -->
         <logger name="REQUEST_TRACE" level="INFO" additivity="false">
@@ -43,6 +89,12 @@
         </logger>
         <logger name="app" level="INFO"/>
         <logger name="controller" level="INFO"/>
+        <logger name="service.TaskService" level="INFO" additivity="true">
+            <appender-ref ref="TASK_FILE"/>
+        </logger>
+        <logger name="service.UserService" level="INFO" additivity="true">
+            <appender-ref ref="USER_FILE"/>
+        </logger>
     </springProfile>
 
     <!-- Test Profile -->
@@ -57,12 +109,19 @@
         </logger>
         <logger name="app" level="TRACE"/>
         <logger name="controller" level="TRACE"/>
+        <logger name="service.TaskService" level="INFO" additivity="true">
+            <appender-ref ref="TASK_FILE"/>
+        </logger>
+        <logger name="service.UserService" level="INFO" additivity="true">
+            <appender-ref ref="USER_FILE"/>
+        </logger>
     </springProfile>
 
     <!-- Prod Profile -->
     <springProfile name="prod">
         <root level="WARN">
             <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="DUMP_FILE"/>
         </root>
         <!-- Only REQUEST_TRACE logger writes to the file -->
         <logger name="REQUEST_TRACE" level="WARN" additivity="false">
@@ -71,6 +130,11 @@
         </logger>
         <logger name="app" level="WARN"/>
         <logger name="controller" level="WARN"/>
+        <logger name="service.TaskService" level="WARN" additivity="true">
+            <appender-ref ref="TASK_FILE"/>
+        </logger>
+        <logger name="service.UserService" level="WARN" additivity="true">
+            <appender-ref ref="USER_FILE"/>
+        </logger>
     </springProfile>
 </configuration>
-

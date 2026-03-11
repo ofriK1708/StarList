@@ -1,17 +1,26 @@
 package service;
 
+import java.time.Instant;
+import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import model.domain.Task;
 import model.enums.DifficultyLevel;
+import model.enums.TaskStatus;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import repository.api.TaskRepository;
+import repository.entity.TaskEntity;
 import repository.entity.UserEntity;
 import repository.mapper.TaskMapper;
 import service.dto.AddTaskRequest;
 import service.dto.AddTaskResponse;
+import service.dto.TaskResponse;
+import service.dto.UpdateTaskRequest;
+import service.exceptions.TaskNotFoundException;
 
+@Slf4j
 @Service
 public class TaskService {
 
@@ -27,6 +36,7 @@ public class TaskService {
 
     @Transactional
     public AddTaskResponse addTask(Long userId, @NonNull AddTaskRequest request) {
+        log.info("About to add task for user {}", userId);
 
         UserEntity userEntity = userService.findEntityById(userId);
 
@@ -48,6 +58,67 @@ public class TaskService {
                 taskMapper.toDomain(
                         taskRepository.save(
                                 taskMapper.fromDomain(task, userEntity))));
+    }
+
+    @Transactional(readOnly = true)
+    public TaskResponse getTask(Long taskId) {
+        log.info("About to get task {}", taskId);
+
+        TaskEntity entity = loadActiveTask(taskId);
+
+        return TaskResponse.from(taskMapper.toDomain(entity));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> getUserTasks(Long userId) {
+        log.info("About to list tasks for user {}", userId);
+
+        return taskRepository.findAllByUser_IdAndDeletedAtIsNull(userId)
+                .stream()
+                .map(taskMapper::toDomain)
+                .map(TaskResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public TaskResponse updateTask(Long taskId, @NonNull UpdateTaskRequest request) {
+        log.info("About to update task {}", taskId);
+        TaskEntity entity = loadActiveTask(taskId);
+
+        boolean difficultyChanged = !entity.getDifficultyLevel().equals(request.getDifficultyLevel());
+
+        entity.setTitle(request.getTitle());
+        entity.setDescription(request.getDescription());
+        entity.setDifficultyLevel(request.getDifficultyLevel());
+        entity.setDurationMinutes(request.getDurationMinutes());
+        entity.setDueDate(request.getDueDate());
+
+        if (difficultyChanged) {
+            int[] coins = computeCoins(request.getDifficultyLevel());
+            entity.setCoinReward(coins[0]);
+            entity.setCoinPenalty(coins[1]);
+        }
+
+        return TaskResponse.from(taskMapper.toDomain(taskRepository.save(entity)));
+    }
+
+    @Transactional
+    public void deleteTask(Long taskId) {
+        log.info("About to delete task {}", taskId);
+
+        TaskEntity entity = loadActiveTask(taskId);
+        entity.setDeletedAt(Instant.now());
+        entity.setStatus(TaskStatus.DELETED);
+        taskRepository.save(entity);
+    }
+
+    /**
+     * Loads a task entity by ID, throwing {@link TaskNotFoundException} if absent or soft-deleted.
+     */
+    private TaskEntity loadActiveTask(Long taskId) {
+        return taskRepository.findById(taskId)
+                .filter(e -> e.getDeletedAt() == null)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
     }
 
     @Contract(pure = true)

@@ -28,6 +28,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
     }
 
+    @ExceptionHandler(TaskNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleTaskNotFound(TaskNotFoundException e,
+                                                            HttpServletRequest request) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        problemDetail.setTitle("Task not found");
+        problemDetail.setDetail(e.getMessage());
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> handleValidationErrors(
             MethodArgumentNotValidException ex,
