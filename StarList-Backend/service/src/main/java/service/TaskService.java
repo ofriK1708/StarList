@@ -2,6 +2,7 @@ package service;
 
 import java.time.Instant;
 import java.util.List;
+
 import lombok.extern.slf4j.Slf4j;
 import model.domain.Task;
 import model.enums.DifficultyLevel;
@@ -40,15 +41,15 @@ public class TaskService {
 
         UserEntity userEntity = userService.findEntityById(userId);
 
-        int[] coins = computeCoins(request.getDifficultyLevel());
+        int[] coins = computeCoins(request.difficultyLevel());
 
         Task task = Task.builder()
                 .userId(userId)
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .difficultyLevel(request.getDifficultyLevel())
-                .durationMinutes(request.getDurationMinutes())
-                .dueDate(request.getDueDate())
+                .title(request.title())
+                .description(request.description())
+                .difficultyLevel(request.difficultyLevel())
+                .durationMinutes(request.durationMinutes())
+                .dueDate(request.dueDate())
                 .coinReward(coins[0])
                 .coinPenalty(coins[1])
                 .createdByAi(false)
@@ -99,7 +100,9 @@ public class TaskService {
             entity.setCoinPenalty(coins[1]);
         }
 
-        return TaskResponse.from(taskMapper.toDomain(taskRepository.save(entity)));
+        return TaskResponse.from(
+                taskMapper.toDomain(
+                        taskRepository.save(entity)));
     }
 
     @Transactional

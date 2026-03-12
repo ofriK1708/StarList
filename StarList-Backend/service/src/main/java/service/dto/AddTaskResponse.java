@@ -2,25 +2,23 @@ package service.dto;
 
 import java.time.Instant;
 import lombok.Builder;
-import lombok.Value;
 import model.domain.Task;
 import model.enums.DifficultyLevel;
 import model.enums.TaskStatus;
 
-@Value
 @Builder
-public class AddTaskResponse {
-
-    Long taskId;
-    String title;
-    String description;
-    DifficultyLevel difficultyLevel;
-    Integer durationMinutes;
-    Integer coinReward;
-    Integer coinPenalty;
-    TaskStatus status;
-    Instant dueDate;
-    Instant createdAt;
+public record AddTaskResponse(
+        Long taskId,
+        String title,
+        String description,
+        DifficultyLevel difficultyLevel,
+        Integer durationMinutes,
+        Integer coinReward,
+        Integer coinPenalty,
+        TaskStatus status,
+        Instant dueDate,
+        Instant createdAt
+) {
 
     public static AddTaskResponse from(Task task) {
         return AddTaskResponse.builder()

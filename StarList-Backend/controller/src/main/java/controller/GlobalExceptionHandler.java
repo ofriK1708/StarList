@@ -39,6 +39,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
     }
 
+    @ExceptionHandler(HabitNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleHabitNotFound(HabitNotFoundException e,
+                                                             HttpServletRequest request) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        problemDetail.setTitle("Habit not found");
+        problemDetail.setDetail(e.getMessage());
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> handleValidationErrors(
             MethodArgumentNotValidException ex,
