@@ -6,7 +6,6 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import model.domain.Habit;
 import model.enums.DifficultyLevel;
-import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,11 +26,13 @@ public class HabitService {
     private final UserService userService;
     private final HabitRepository habitRepository;
     private final HabitMapper habitMapper;
+    private final CoinCalculator coinCalculator;
 
-    public HabitService(UserService userService, HabitRepository habitRepository, HabitMapper habitMapper) {
+    public HabitService(UserService userService, HabitRepository habitRepository, HabitMapper habitMapper, CoinCalculator coinCalculator) {
         this.userService = userService;
         this.habitRepository = habitRepository;
         this.habitMapper = habitMapper;
+        this.coinCalculator = coinCalculator;
     }
 
     @Transactional
@@ -40,7 +41,7 @@ public class HabitService {
 
         UserEntity userEntity = userService.findEntityById(userId);
 
-        int[] coins = computeCoins(request.difficultyLevel());
+        int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
 
         Habit habit = Habit.builder()
                 .userId(userId)
@@ -91,7 +92,7 @@ public class HabitService {
         entity.setDifficultyLevel(request.getDifficultyLevel());
 
         if (difficultyChanged) {
-            int[] coins = computeCoins(request.getDifficultyLevel());
+            int[] coins = coinCalculator.computeBaseCoins(request.getDifficultyLevel());
             entity.setCoinReward(coins[0]);
             entity.setCoinPenalty(coins[1]);
         }
@@ -119,15 +120,4 @@ public class HabitService {
                 .orElseThrow(() -> new HabitNotFoundException(habitId));
     }
 
-    @Contract(pure = true)
-    private int @NonNull [] computeCoins(DifficultyLevel level) {
-        return switch (level) {
-            case NONE -> new int[]{0, 0};
-            case EASY -> new int[]{10, 5};
-            case MEDIUM -> new int[]{25, 10};
-            case HARD -> new int[]{50, 25};
-            case VERY_HARD -> new int[]{100, 50};
-            case EXTREME -> new int[]{200, 100};
-        };
-    }
 }
