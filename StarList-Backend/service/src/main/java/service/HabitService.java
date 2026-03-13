@@ -1,11 +1,14 @@
 package service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 import model.domain.Habit;
 import model.enums.DifficultyLevel;
+import model.enums.ReferenceType;
+import model.enums.TransactionType;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +19,9 @@ import repository.mapper.HabitMapper;
 import service.dto.AddHabitRequest;
 import service.dto.AddHabitResponse;
 import service.dto.HabitResponse;
+import service.dto.MarkHabitDoneResponse;
 import service.dto.UpdateHabitRequest;
+import service.exceptions.HabitAlreadyCompletedTodayException;
 import service.exceptions.HabitNotFoundException;
 
 @Slf4j
@@ -24,12 +29,18 @@ import service.exceptions.HabitNotFoundException;
 public class HabitService {
 
     private final UserService userService;
+    private final HabitCompletionService habitCompletionService;
+    private final CoinTransactionService coinTransactionService;
     private final HabitRepository habitRepository;
     private final HabitMapper habitMapper;
     private final CoinCalculator coinCalculator;
 
-    public HabitService(UserService userService, HabitRepository habitRepository, HabitMapper habitMapper, CoinCalculator coinCalculator) {
+    public HabitService(UserService userService, HabitCompletionService habitCompletionService,
+                        CoinTransactionService coinTransactionService, HabitRepository habitRepository,
+                        HabitMapper habitMapper, CoinCalculator coinCalculator) {
         this.userService = userService;
+        this.habitCompletionService = habitCompletionService;
+        this.coinTransactionService = coinTransactionService;
         this.habitRepository = habitRepository;
         this.habitMapper = habitMapper;
         this.coinCalculator = coinCalculator;
@@ -100,6 +111,45 @@ public class HabitService {
         return HabitResponse.from(
                 habitMapper.toDomain(
                         habitRepository.save(entity)));
+    }
+
+    @Transactional
+    public MarkHabitDoneResponse completeHabit(Long habitId) {
+        log.info("About to complete habit {}", habitId);
+
+        HabitEntity entity = loadActiveHabit(habitId);
+
+        if (habitCompletionService.existsToday(habitId)) {
+            throw new HabitAlreadyCompletedTodayException(habitId);
+        }
+
+        LocalDate today = LocalDate.now();
+
+        int newStreak = today.minusDays(1).equals(entity.getLastCompletedDate()) ?
+                entity.getCurrentStreak() + 1 : 1;
+        int newBestStreak = Math.max(newStreak, entity.getBestStreak());
+
+        entity.setCurrentStreak(newStreak);
+        entity.setBestStreak(newBestStreak);
+        entity.setTotalCompletions(entity.getTotalCompletions() + 1);
+        entity.setLastCompletedDate(today);
+        habitRepository.save(entity);
+
+        int coinsEarned = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
+        UserEntity user = entity.getUser();
+
+        habitCompletionService.record(entity, user, today, coinsEarned, newStreak);
+        coinTransactionService.record(user, coinsEarned, TransactionType.HABIT_COMPLETION,
+                ReferenceType.HABIT, habitId, "Completed habit: " + entity.getTitle());
+        userService.addCoins(user, coinsEarned);
+
+        return MarkHabitDoneResponse.builder()
+                .habitId(habitId)
+                .coinsEarned(coinsEarned)
+                .newTotalCoins(user.getTotalCoins())
+                .currentStreak(newStreak)
+                .bestStreak(newBestStreak)
+                .build();
     }
 
     @Transactional

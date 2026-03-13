@@ -17,6 +17,7 @@ import service.HabitService;
 import service.dto.AddHabitRequest;
 import service.dto.AddHabitResponse;
 import service.dto.HabitResponse;
+import service.dto.MarkHabitDoneResponse;
 import service.dto.UpdateHabitRequest;
 
 @RestController
@@ -53,6 +54,11 @@ public class HabitController {
             @PathVariable Long habitId,
             @Valid @RequestBody UpdateHabitRequest request) {
         return ResponseEntity.ok(habitService.updateHabit(habitId, request));
+    }
+
+    @PostMapping("/{habitId}/complete")
+    public ResponseEntity<MarkHabitDoneResponse> completeHabit(@PathVariable Long habitId) {
+        return ResponseEntity.ok(habitService.completeHabit(habitId));
     }
 
     @DeleteMapping("/{habitId}")

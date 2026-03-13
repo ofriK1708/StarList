@@ -13,10 +13,14 @@ import repository.api.TaskRepository;
 import repository.entity.TaskEntity;
 import repository.entity.UserEntity;
 import repository.mapper.TaskMapper;
+import model.enums.ReferenceType;
+import model.enums.TransactionType;
 import service.dto.AddTaskRequest;
 import service.dto.AddTaskResponse;
+import service.dto.MarkTaskDoneResponse;
 import service.dto.TaskResponse;
 import service.dto.UpdateTaskRequest;
+import service.exceptions.TaskAlreadyCompletedException;
 import service.exceptions.TaskNotFoundException;
 
 @Slf4j
@@ -24,12 +28,15 @@ import service.exceptions.TaskNotFoundException;
 public class TaskService {
 
     private final UserService userService;
+    private final CoinTransactionService coinTransactionService;
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
     private final CoinCalculator coinCalculator;
 
-    public TaskService(UserService userService, TaskRepository taskRepository, TaskMapper taskMapper, CoinCalculator coinCalculator) {
+    public TaskService(UserService userService, CoinTransactionService coinTransactionService,
+                       TaskRepository taskRepository, TaskMapper taskMapper, CoinCalculator coinCalculator) {
         this.userService = userService;
+        this.coinTransactionService = coinTransactionService;
         this.taskRepository = taskRepository;
         this.taskMapper = taskMapper;
         this.coinCalculator = coinCalculator;
@@ -103,6 +110,34 @@ public class TaskService {
         return TaskResponse.from(
                 taskMapper.toDomain(
                         taskRepository.save(entity)));
+    }
+
+    @Transactional
+    public MarkTaskDoneResponse completeTask(Long taskId) {
+        log.info("About to complete task {}", taskId);
+
+        TaskEntity entity = loadActiveTask(taskId);
+
+        if (entity.getStatus() == TaskStatus.COMPLETED) {
+            throw new TaskAlreadyCompletedException(taskId);
+        }
+
+        entity.setStatus(TaskStatus.COMPLETED);
+        entity.setCompletedAt(Instant.now());
+        taskRepository.save(entity);
+
+        UserEntity user = entity.getUser();
+        int coinsEarned = entity.getCoinReward();
+
+        coinTransactionService.record(user, coinsEarned, TransactionType.TASK_COMPLETION,
+                ReferenceType.TASK, taskId, "Completed task: " + entity.getTitle());
+        userService.addCoins(user, coinsEarned);
+
+        return MarkTaskDoneResponse.builder()
+                .taskId(taskId)
+                .coinsEarned(coinsEarned)
+                .newTotalCoins(user.getTotalCoins())
+                .build();
     }
 
     @Transactional

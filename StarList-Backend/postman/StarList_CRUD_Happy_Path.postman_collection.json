@@ -111,7 +111,48 @@
           }
         },
         {
-          "name": "5. Delete task",
+          "name": "5. Complete task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('taskId matches', () => pm.expect(body.taskId).to.eql(+pm.collectionVariables.get('taskId')));",
+                  "pm.test('coinsEarned is 50 (HARD reward)', () => pm.expect(body.coinsEarned).to.eql(50));",
+                  "pm.test('newTotalCoins increased', () => pm.expect(body.newTotalCoins).to.be.a('number').and.at.least(50));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/tasks/{{taskId}}/complete"
+          }
+        },
+        {
+          "name": "6. Get completed task → status COMPLETED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('status is COMPLETED', () => pm.expect(body.status).to.eql('COMPLETED'));",
+                  "pm.test('completedAt is set', () => pm.expect(body.completedAt).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tasks/{{taskId}}"
+          }
+        },
+        {
+          "name": "7. Delete task",
           "event": [
             {
               "listen": "test",
@@ -128,7 +169,7 @@
           }
         },
         {
-          "name": "6. Get deleted task → 404",
+          "name": "8. Get deleted task → 404",
           "event": [
             {
               "listen": "test",
@@ -252,7 +293,54 @@
           }
         },
         {
-          "name": "5. Delete habit",
+          "name": "5. Complete habit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('habitId matches', () => pm.expect(body.habitId).to.eql(+pm.collectionVariables.get('habitId')));",
+                  "pm.test('coinsEarned is 25 (MEDIUM, streak 1, no multiplier)', () => pm.expect(body.coinsEarned).to.eql(25));",
+                  "pm.test('currentStreak is 1', () => pm.expect(body.currentStreak).to.eql(1));",
+                  "pm.test('bestStreak is 1', () => pm.expect(body.bestStreak).to.eql(1));",
+                  "pm.test('newTotalCoins increased', () => pm.expect(body.newTotalCoins).to.be.a('number').and.at.least(25));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/habits/{{habitId}}/complete"
+          }
+        },
+        {
+          "name": "6. Get completed habit → streak and completions updated",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('currentStreak is 1', () => pm.expect(body.currentStreak).to.eql(1));",
+                  "pm.test('totalCompletions is 1', () => pm.expect(body.totalCompletions).to.eql(1));",
+                  "pm.test('lastCompletedDate is today', () => {",
+                  "  const today = new Date().toISOString().slice(0, 10);",
+                  "  pm.expect(body.lastCompletedDate).to.eql(today);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/habits/{{habitId}}"
+          }
+        },
+        {
+          "name": "7. Delete habit",
           "event": [
             {
               "listen": "test",
@@ -269,7 +357,7 @@
           }
         },
         {
-          "name": "6. Get deleted habit → 404",
+          "name": "8. Get deleted habit → 404",
           "event": [
             {
               "listen": "test",

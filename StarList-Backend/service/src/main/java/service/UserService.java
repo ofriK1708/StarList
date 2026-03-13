@@ -3,6 +3,7 @@ package service;
 import lombok.extern.slf4j.Slf4j;
 import model.domain.User;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import repository.api.UserRepository;
 import repository.entity.UserEntity;
 import repository.mapper.UserMapper;
@@ -49,5 +50,17 @@ public class UserService {
     public User save(User user) {
         log.info("Saving user {}", user.getEmail());
         return userMapper.toDomain(userRepository.save(userMapper.fromDomain(user)));
+    }
+
+    /**
+     * Adds {@code amount} to the user's {@code totalCoins} and {@code lifetimeCoinsEarned},
+     * then persists the entity.
+     */
+    @Transactional
+    public void addCoins(UserEntity user, int amount) {
+        log.info("Adding {} coins to user {}", amount, user.getId());
+        user.setTotalCoins(user.getTotalCoins() + amount);
+        user.setLifetimeCoinsEarned(user.getLifetimeCoinsEarned() + amount);
+        userRepository.save(user);
     }
 }

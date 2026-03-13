@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import service.TaskService;
 import service.dto.AddTaskRequest;
 import service.dto.AddTaskResponse;
+import service.dto.MarkTaskDoneResponse;
 import service.dto.TaskResponse;
 import service.dto.UpdateTaskRequest;
 
@@ -53,6 +54,11 @@ public class TaskController {
             @PathVariable Long taskId,
             @Valid @RequestBody UpdateTaskRequest request) {
         return ResponseEntity.ok(taskService.updateTask(taskId, request));
+    }
+
+    @PostMapping("/{taskId}/complete")
+    public ResponseEntity<MarkTaskDoneResponse> completeTask(@PathVariable Long taskId) {
+        return ResponseEntity.ok(taskService.completeTask(taskId));
     }
 
     @DeleteMapping("/{taskId}")

@@ -50,6 +50,28 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
     }
 
+    @ExceptionHandler(TaskAlreadyCompletedException.class)
+    public ResponseEntity<ProblemDetail> handleTaskAlreadyCompleted(TaskAlreadyCompletedException e,
+                                                                    HttpServletRequest request) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        problemDetail.setTitle("Task already completed");
+        problemDetail.setDetail(e.getMessage());
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
+    }
+
+    @ExceptionHandler(HabitAlreadyCompletedTodayException.class)
+    public ResponseEntity<ProblemDetail> handleHabitAlreadyCompletedToday(HabitAlreadyCompletedTodayException e,
+                                                                          HttpServletRequest request) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        problemDetail.setTitle("Habit already completed today");
+        problemDetail.setDetail(e.getMessage());
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> handleValidationErrors(
             MethodArgumentNotValidException ex,
