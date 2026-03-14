@@ -59,8 +59,10 @@ public class UserService {
     @Transactional
     public void addCoins(UserEntity user, int amount) {
         log.info("Adding {} coins to user {}", amount, user.getId());
-        user.setTotalCoins(user.getTotalCoins() + amount);
+        int before = user.getTotalCoins();
+        user.setTotalCoins(before + amount);
         user.setLifetimeCoinsEarned(user.getLifetimeCoinsEarned() + amount);
+        log.debug("User {} total coins: {} -> {}", user.getId(), before, user.getTotalCoins());
         userRepository.save(user);
     }
 }

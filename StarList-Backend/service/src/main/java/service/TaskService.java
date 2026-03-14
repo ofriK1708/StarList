@@ -49,6 +49,7 @@ public class TaskService {
         UserEntity userEntity = userService.findEntityById(userId);
 
         int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
+        log.debug("Computed coins for {}: reward={}, penalty={}", request.difficultyLevel(), coins[0], coins[1]);
 
         Task task = Task.builder()
                 .userId(userId)
@@ -94,6 +95,9 @@ public class TaskService {
         TaskEntity entity = loadActiveTask(taskId);
 
         boolean difficultyChanged = !entity.getDifficultyLevel().equals(request.getDifficultyLevel());
+        if (difficultyChanged) {
+            log.debug("Difficulty changed for task {}: {} -> {}", taskId, entity.getDifficultyLevel(), request.getDifficultyLevel());
+        }
 
         entity.setTitle(request.getTitle());
         entity.setDescription(request.getDescription());
@@ -105,6 +109,7 @@ public class TaskService {
             int[] coins = coinCalculator.computeBaseCoins(request.getDifficultyLevel());
             entity.setCoinReward(coins[0]);
             entity.setCoinPenalty(coins[1]);
+            log.debug("Recalculated coins for task {}: reward={}, penalty={}", taskId, coins[0], coins[1]);
         }
 
         return TaskResponse.from(
@@ -128,6 +133,8 @@ public class TaskService {
 
         UserEntity user = entity.getUser();
         int coinsEarned = entity.getCoinReward();
+        log.debug("Task {} '{}' completed: earning {} coins (user total before: {})",
+                taskId, entity.getTitle(), coinsEarned, user.getTotalCoins());
 
         coinTransactionService.record(user, coinsEarned, TransactionType.TASK_COMPLETION,
                 ReferenceType.TASK, taskId, "Completed task: " + entity.getTitle());
@@ -145,6 +152,7 @@ public class TaskService {
         log.info("About to delete task {}", taskId);
 
         TaskEntity entity = loadActiveTask(taskId);
+        log.debug("Soft-deleting task '{}' (id={})", entity.getTitle(), taskId);
         entity.setDeletedAt(Instant.now());
         entity.setStatus(TaskStatus.DELETED);
         taskRepository.save(entity);

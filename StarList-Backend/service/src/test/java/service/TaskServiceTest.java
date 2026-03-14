@@ -30,21 +30,29 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class TaskServiceTest {
 
-    @Mock TaskRepository taskRepository;
-    @Mock UserService userService;
-    @Mock CoinTransactionService coinTransactionService;
-    @Mock TaskMapper taskMapper;
-    @Mock CoinCalculator coinCalculator;
+    @Mock
+    TaskRepository taskRepository;
+    @Mock
+    UserService userService;
+    @Mock
+    CoinTransactionService coinTransactionService;
+    @Mock
+    TaskMapper taskMapper;
+    @Mock
+    CoinCalculator coinCalculator;
 
-    @InjectMocks TaskService taskService;
+    @InjectMocks
+    TaskService taskService;
+    long testTaskID = 42L;
 
     // ── completeTask happy path ───────────────────────────────────────────────
 
     @Test
     void completeTask_pendingTask_setsCompletedAndAwardsCoins() {
+
         UserEntity user = UserEntity.builder().id(1L).totalCoins(100).lifetimeCoinsEarned(0).build();
         TaskEntity task = TaskEntity.builder()
-                .id(42L)
+                .id(testTaskID)
                 .title("Learn testing")
                 .status(TaskStatus.PENDING)
                 .difficultyLevel(DifficultyLevel.HARD)
@@ -52,14 +60,14 @@ class TaskServiceTest {
                 .user(user)
                 .build();
 
-        when(taskRepository.findById(42L)).thenReturn(Optional.of(task));
+        when(taskRepository.findById(testTaskID)).thenReturn(Optional.of(task));
 
-        MarkTaskDoneResponse response = taskService.completeTask(42L);
+        MarkTaskDoneResponse response = taskService.completeTask(testTaskID);
 
         // response fields
-        assertThat(response.taskId()).isEqualTo(42L);
+        assertThat(response.taskId()).isEqualTo(testTaskID);
         assertThat(response.coinsEarned()).isEqualTo(50);
-        assertThat(response.newTotalCoins()).isEqualTo(100); // user.totalCoins as-is (addCoins is mocked)
+        assertThat(response.newTotalCoins()).isEqualTo(100);// (addCoins is mocked, we late check it in verify)
 
         // task entity was mutated correctly
         assertThat(task.getStatus()).isEqualTo(TaskStatus.COMPLETED);
@@ -69,8 +77,8 @@ class TaskServiceTest {
         verify(taskRepository).save(task);
         verify(coinTransactionService).record(
                 eq(user), eq(50), eq(TransactionType.TASK_COMPLETION),
-                eq(ReferenceType.TASK), eq(42L), any(String.class));
-        verify(userService).addCoins(user, 50);
+                eq(ReferenceType.TASK), eq(testTaskID), any(String.class));
+        verify(userService).addCoins(user, 50); // check if the user received his rewards
     }
 
     // ── completeTask sad paths ────────────────────────────────────────────────
@@ -78,13 +86,13 @@ class TaskServiceTest {
     @Test
     void completeTask_alreadyCompleted_throwsTaskAlreadyCompletedException() {
         TaskEntity task = TaskEntity.builder()
-                .id(42L)
+                .id(testTaskID)
                 .status(TaskStatus.COMPLETED)
                 .build();
 
-        when(taskRepository.findById(42L)).thenReturn(Optional.of(task));
+        when(taskRepository.findById(testTaskID)).thenReturn(Optional.of(task));
 
-        assertThatThrownBy(() -> taskService.completeTask(42L))
+        assertThatThrownBy(() -> taskService.completeTask(testTaskID))
                 .isInstanceOf(TaskAlreadyCompletedException.class);
 
         verifyNoInteractions(coinTransactionService, userService);
@@ -102,14 +110,14 @@ class TaskServiceTest {
     void completeTask_softDeletedTask_throwsTaskNotFoundException() {
         // soft-deleted tasks (deletedAt != null) are treated the same as not found
         TaskEntity deleted = TaskEntity.builder()
-                .id(42L)
+                .id(testTaskID)
                 .status(TaskStatus.DELETED)
                 .deletedAt(java.time.Instant.now())
                 .build();
 
-        when(taskRepository.findById(42L)).thenReturn(Optional.of(deleted));
+        when(taskRepository.findById(testTaskID)).thenReturn(Optional.of(deleted));
 
-        assertThatThrownBy(() -> taskService.completeTask(42L))
+        assertThatThrownBy(() -> taskService.completeTask(testTaskID))
                 .isInstanceOf(TaskNotFoundException.class);
     }
 }
