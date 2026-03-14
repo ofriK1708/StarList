@@ -10,6 +10,7 @@ import { NavigationBar } from "./components/NavigationBar";
 import { AddTaskModal } from "./components/AddTaskModal";
 import { AddHabitModal } from "./components/AddHabitModal";
 import { HabitTracker } from "./components/HabitTracker";
+import confetti from 'canvas-confetti';
 import { CheckCircle, AlertCircle } from "lucide-react";
 
 type Screen = 'tasks' | 'habits' | 'galaxy' | 'chat' | 'profile' | 'shop' | 'statistics';
@@ -37,7 +38,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [currentScreen, setCurrentScreen] = useState<Screen>('galaxy');
-  const [coinBalance, setCoinBalance] = useState(1250);
+  const [coinBalance, setCoinBalance] = useState(1250000);
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -46,13 +47,25 @@ export default function App() {
     setTimeout(() => setToast(null), 3000); // נעלם אחרי 3 שניות
   };
 
+  const triggerConfetti = () => {
+    confetti({
+      particleCount: 100,
+      spread: 90,
+      origin: { y: 0.6 },
+      scalar: 2,
+      gravity: 1.2,
+      ticks: 150, // The amount of time the particles live
+      colors: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'],
+    });
+  };
+
   const [tasks, setTasks] = useState([
-    { id: '1', title: 'Complete project proposal', description: 'Write and submit the Q1 project proposal for the new initiative', difficulty: 'hard' as const, completed: false, reward: 50, duration: '2 hours' },
-    { id: '2', title: 'Review pull requests', description: 'Check and approve pending code reviews', difficulty: 'medium' as const, completed: true, reward: 30, duration: '45 min' },
-    { id: '3', title: 'Daily standup meeting', description: 'Attend the team sync meeting at 10 AM', difficulty: 'easy' as const, completed: true, reward: 10, duration: '15 min' },
-    { id: '4', title: 'Update documentation', description: 'Add API documentation for new endpoints', difficulty: 'medium' as const, completed: false, reward: 25, duration: '1 hour' },
-    { id: '5', title: 'Client presentation', description: 'Present quarterly results to the client', difficulty: 'hard' as const, completed: false, reward: 60, duration: '3 hours' },
-    { id: '6', title: 'Respond to emails', description: 'Clear inbox and respond to pending emails', difficulty: 'easy' as const, completed: false, reward: 15, duration: '30 min' },
+    { id: '1', title: 'Complete project proposal', description: 'Write and submit the Q1 project proposal for the new initiative', difficulty: 'hard' as const, completed: false, reward: 50, duration: '2 hours', dueDate: '2026-03-15' },
+    { id: '2', title: 'Review pull requests', description: 'Check and approve pending code reviews', difficulty: 'medium' as const, completed: true, reward: 30, duration: '45 min', dueDate: '2026-03-15' },
+    { id: '3', title: 'Daily standup meeting', description: 'Attend the team sync meeting at 10 AM', difficulty: 'easy' as const, completed: true, reward: 10, duration: '15 min', dueDate: '2026-03-15' },
+    { id: '4', title: 'Update documentation', description: 'Add API documentation for new endpoints', difficulty: 'medium' as const, completed: false, reward: 25, duration: '1 hour', dueDate: '2026-03-15' },
+    { id: '5', title: 'Client presentation', description: 'Present quarterly results to the client', difficulty: 'hard' as const, completed: false, reward: 60, duration: '3 hours', dueDate: '2026-03-15' },
+    { id: '6', title: 'Respond to emails', description: 'Clear inbox and respond to pending emails', difficulty: 'easy' as const, completed: false, reward: 15, duration: '30 min', dueDate: '2026-03-15' },
   ]);
 
   const [habits, setHabits] = useState([
@@ -134,8 +147,16 @@ export default function App() {
     setTasks(tasks.map(task => {
       if (task.id === id) {
         const newCompleted = !task.completed;
-        if (newCompleted) { setCoinBalance(prev => prev + task.reward); }
-        else { setCoinBalance(prev => prev - task.reward); }
+        if (newCompleted) {
+          // Mission accomplished
+          setCoinBalance(prev => prev + task.reward);
+          triggerConfetti();
+          showToast(`Mission Accomplished! You earned ${task.reward} coins 🌟`, 'success');
+        }
+        else {
+          // Cancel task
+          setCoinBalance(prev => prev - task.reward);
+        }
         return { ...task, completed: newCompleted };
       }
       return task;
@@ -152,7 +173,7 @@ export default function App() {
   const handleCreateNewTask = (taskData: any) => {
     const newTask = {
       id: Date.now().toString(), title: taskData.title, description: taskData.description || '',
-      difficulty: taskData.difficulty, completed: false, reward: taskData.reward, duration: taskData.duration,
+      difficulty: taskData.difficulty, completed: false, reward: taskData.reward, duration: taskData.duration, dueDate: taskData.dueDate,
     };
     setTasks([newTask, ...tasks]);
   };
@@ -160,8 +181,12 @@ export default function App() {
   const handleHabitCheck = (id: string) => {
     setHabits(habits.map(habit => {
       if (habit.id === id && !habit.completedToday) {
-        const totalReward = habit.baseReward + (habit.streak * 2);
+        const totalReward = habit.baseReward + (habit.streak * 2); // בונוס על רצף!
         setCoinBalance(prev => prev + totalReward);
+
+        triggerConfetti();
+        showToast(`Habit Logged! +${totalReward} coins added to your balance 💫`, 'success');
+
         return { ...habit, completedToday: true, streak: habit.streak + 1 };
       }
       return habit;
@@ -180,11 +205,11 @@ export default function App() {
   };
 
   const handleAddTask = (taskData: any) => {
-    const newTask = {
-      id: Date.now().toString(), title: taskData.title, description: 'Created via AI chat',
+    const newTask = { id: Date.now().toString(), title: taskData.title, description: 'Created via AI chat',
       difficulty: taskData.difficulty, completed: false, reward: taskData.reward, duration: '30 min',
+      dueDate: new Date().toISOString().split('T')[0],
     };
-    setTasks([...tasks, newTask]);
+    setTasks([newTask, ...tasks]);
     showToast('Task added successfully!', 'success');
   };
 
@@ -201,9 +226,8 @@ export default function App() {
       setCoinBalance(prev => prev - item.price);
       setShopItems(shopItems.map(i => i.id === itemId ? { ...i, unlocked: true } : i));
 
-      // שולפים את הנתונים הריאליסטיים. אם מדובר בערפילית, אשתמש במיקום אקראי.
       const pData = REAL_PLANET_DATA[item.type] || {
-        size: Math.floor(Math.random() * 60) + 70, // גודל אקראי לערפיליות
+        size: Math.floor(Math.random() * 60) + 70,
         position: { x: Math.floor(Math.random() * 70) + 15, y: Math.floor(Math.random() * 70) + 15 } // מיקום אקראי לערפיליות
       };
 
@@ -229,7 +253,6 @@ export default function App() {
   return (
       <div className="h-screen w-full flex flex-col bg-slate-900 overflow-hidden relative">
 
-        {/* קומפוננטת ההתראות המעוצבת (Toast) */}
         {toast && (
             <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] animate-in slide-in-from-top-4 fade-in duration-300">
               <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border ${

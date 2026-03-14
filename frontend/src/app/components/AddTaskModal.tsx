@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Star, Rocket } from "lucide-react";
+import { X, Star, Rocket, Calendar } from "lucide-react";
 import { Button } from "./ui/button";
 
 interface AddTaskModalProps {
@@ -13,6 +13,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
     const [description, setDescription] = useState("");
     const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
     const [duration, setDuration] = useState("30 min");
+    const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0]);
 
     if (!isOpen) return null;
 
@@ -20,7 +21,6 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
         e.preventDefault();
         if (!title.trim()) return;
 
-        // המרת רמת הקושי למטבעות בצורה אוטומטית
         const rewardMap = { easy: 10, medium: 30, hard: 50 };
         const reward = rewardMap[difficulty];
 
@@ -30,13 +30,14 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
             difficulty,
             reward,
             duration,
+            dueDate,
         });
 
-        // איפוס הטופס וסגירת החלון
         setTitle("");
         setDescription("");
         setDifficulty("medium");
         setDuration("30 min");
+        setDueDate(new Date().toISOString().split('T')[0]);
         onClose();
     };
 
@@ -44,7 +45,6 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
             <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
 
-                {/* כותרת החלון */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-800/50">
                     <h2 className="text-lg text-white font-medium flex items-center gap-2">
                         <Rocket className="w-5 h-5 text-blue-400" />
@@ -55,7 +55,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
                     </button>
                 </div>
 
-                {/* טופס הוספת המשימה */}
+                {/* Add task form */}
                 <form onSubmit={handleSubmit} className="p-5 space-y-4">
                     <div>
                         <label className="block text-sm text-slate-300 mb-1">Task Title</label>
@@ -106,6 +106,19 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
                                 <option value="2+ hours">2+ hours</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-slate-300 mb-1 flex items-center gap-1">
+                            <Calendar className="w-4 h-4" /> Due Date
+                        </label>
+                        <input
+                            type="date"
+                            value={dueDate}
+                            onChange={(e) => setDueDate(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                            required
+                        />
                     </div>
 
                     <div className="pt-4 flex gap-3">
