@@ -26,6 +26,7 @@ public class CoinTransactionService {
     public void record(UserEntity user, int amount, TransactionType type,
                        ReferenceType referenceType, Long referenceId, String description) {
         log.info("Recording coin transaction: {} coins for user {} ({})", amount, user.getId(), type);
+        log.debug("Transaction detail: ref={}:{}, description='{}'", referenceType, referenceId, description);
         coinTransactionRepository.save(
                 CoinTransactionEntity.builder()
                         .user(user)

@@ -27,6 +27,7 @@ public class HabitCompletionService {
     /** Persists a new {@link HabitCompletionEntity} for the given habit and user. */
     public void record(HabitEntity habit, UserEntity user, LocalDate date, int coinsEarned, int streak) {
         log.info("Recording completion for habit {} on {}", habit.getId(), date);
+        log.debug("Completion detail: habit={}, user={}, streak={}, coinsEarned={}", habit.getId(), user.getId(), streak, coinsEarned);
         habitCompletionRepository.save(
                 HabitCompletionEntity.builder()
                         .habit(habit)

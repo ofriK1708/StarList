@@ -53,6 +53,7 @@ public class HabitService {
         UserEntity userEntity = userService.findEntityById(userId);
 
         int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
+        log.debug("Computed coins for {}: reward={}, penalty={}", request.difficultyLevel(), coins[0], coins[1]);
 
         Habit habit = Habit.builder()
                 .userId(userId)
@@ -96,6 +97,9 @@ public class HabitService {
         HabitEntity entity = loadActiveHabit(habitId);
 
         boolean difficultyChanged = !entity.getDifficultyLevel().equals(request.getDifficultyLevel());
+        if (difficultyChanged) {
+            log.debug("Difficulty changed for habit {}: {} -> {}", habitId, entity.getDifficultyLevel(), request.getDifficultyLevel());
+        }
 
         entity.setTitle(request.getTitle());
         entity.setDescription(request.getDescription());
@@ -106,6 +110,7 @@ public class HabitService {
             int[] coins = coinCalculator.computeBaseCoins(request.getDifficultyLevel());
             entity.setCoinReward(coins[0]);
             entity.setCoinPenalty(coins[1]);
+            log.debug("Recalculated coins for habit {}: reward={}, penalty={}", habitId, coins[0], coins[1]);
         }
 
         return HabitResponse.from(
@@ -136,6 +141,8 @@ public class HabitService {
         habitRepository.save(entity);
 
         int coinsEarned = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
+        log.debug("Habit {} '{}' completed: streak {} -> {}, best={}, coins={}",
+                habitId, entity.getTitle(), entity.getCurrentStreak(), newStreak, newBestStreak, coinsEarned);
         UserEntity user = entity.getUser();
 
         habitCompletionService.record(entity, user, today, coinsEarned, newStreak);
@@ -157,6 +164,7 @@ public class HabitService {
         log.info("About to delete habit {}", habitId);
 
         HabitEntity entity = loadActiveHabit(habitId);
+        log.debug("Soft-deleting habit '{}' (id={})", entity.getTitle(), habitId);
         entity.setDeletedAt(Instant.now());
         habitRepository.save(entity);
     }

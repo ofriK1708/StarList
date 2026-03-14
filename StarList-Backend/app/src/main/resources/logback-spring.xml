@@ -75,6 +75,36 @@
         </rollingPolicy>
     </appender>
 
+    <!-- Habit file appender - for HabitService and HabitCompletionService -->
+    <appender name="HABIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/habits.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>utf8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/habits-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>3</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Coin transaction file appender - ONLY for CoinTransactionService -->
+    <appender name="COIN_TRANSACTION_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/coin-transactions.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>utf8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/coin-transactions-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>3</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
     <!-- Profiles -->
     <!-- Dev Profile -->
     <springProfile name="dev">
@@ -89,11 +119,20 @@
         </logger>
         <logger name="app" level="INFO"/>
         <logger name="controller" level="INFO"/>
-        <logger name="service.TaskService" level="INFO" additivity="true">
+        <logger name="service.TaskService" level="DEBUG" additivity="true">
             <appender-ref ref="TASK_FILE"/>
         </logger>
-        <logger name="service.UserService" level="INFO" additivity="true">
+        <logger name="service.UserService" level="DEBUG" additivity="true">
             <appender-ref ref="USER_FILE"/>
+        </logger>
+        <logger name="service.HabitService" level="DEBUG" additivity="true">
+            <appender-ref ref="HABIT_FILE"/>
+        </logger>
+        <logger name="service.HabitCompletionService" level="DEBUG" additivity="true">
+            <appender-ref ref="HABIT_FILE"/>
+        </logger>
+        <logger name="service.CoinTransactionService" level="DEBUG" additivity="true">
+            <appender-ref ref="COIN_TRANSACTION_FILE"/>
         </logger>
     </springProfile>
 
@@ -107,13 +146,22 @@
             <appender-ref ref="REQUEST_TRACE_FILE"/>
             <appender-ref ref="CONSOLE"/>
         </logger>
-        <logger name="app" level="TRACE"/>
-        <logger name="controller" level="TRACE"/>
-        <logger name="service.TaskService" level="INFO" additivity="true">
+        <logger name="app" level="DEBUG"/>
+        <logger name="controller" level="DEBUG"/>
+        <logger name="service.TaskService" level="DEBUG" additivity="true">
             <appender-ref ref="TASK_FILE"/>
         </logger>
-        <logger name="service.UserService" level="INFO" additivity="true">
+        <logger name="service.UserService" level="DEBUG" additivity="true">
             <appender-ref ref="USER_FILE"/>
+        </logger>
+        <logger name="service.HabitService" level="DEBUG" additivity="true">
+            <appender-ref ref="HABIT_FILE"/>
+        </logger>
+        <logger name="service.HabitCompletionService" level="DEBUG" additivity="true">
+            <appender-ref ref="HABIT_FILE"/>
+        </logger>
+        <logger name="service.CoinTransactionService" level="DEBUG" additivity="true">
+            <appender-ref ref="COIN_TRANSACTION_FILE"/>
         </logger>
     </springProfile>
 
@@ -135,6 +183,15 @@
         </logger>
         <logger name="service.UserService" level="WARN" additivity="true">
             <appender-ref ref="USER_FILE"/>
+        </logger>
+        <logger name="service.HabitService" level="WARN" additivity="true">
+            <appender-ref ref="HABIT_FILE"/>
+        </logger>
+        <logger name="service.HabitCompletionService" level="WARN" additivity="true">
+            <appender-ref ref="HABIT_FILE"/>
+        </logger>
+        <logger name="service.CoinTransactionService" level="WARN" additivity="true">
+            <appender-ref ref="COIN_TRANSACTION_FILE"/>
         </logger>
     </springProfile>
 </configuration>
