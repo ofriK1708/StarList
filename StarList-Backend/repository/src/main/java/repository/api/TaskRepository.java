@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import repository.entity.TaskEntity;
 
 public interface TaskRepository extends JpaRepository<TaskEntity, Long> {
@@ -15,5 +16,5 @@ public interface TaskRepository extends JpaRepository<TaskEntity, Long> {
     /** Acquires a pessimistic write lock on the task row, preventing concurrent status updates. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM TaskEntity t WHERE t.id = :id")
-    Optional<TaskEntity> concurrentSafeFindById(Long id);
+    Optional<TaskEntity> concurrentSafeFindById(@Param("id") Long id);
 }
