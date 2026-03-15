@@ -7,7 +7,6 @@ interface GalaxyViewProps {
 
 const getVisuals = (type: string) => {
   const visuals: Record<string, any> = {
-    // הנה השמש! הוספנו אותה למילון כדי שתהיה צהובה וזוהרת בוודאות
     sun: { gradient: 'from-yellow-300 via-orange-400 to-yellow-500', glow: 'rgba(251, 191, 36, 0.6)' },
     mercury: { gradient: 'from-gray-400 via-slate-300 to-gray-500', glow: 'rgba(148, 163, 184, 0.3)' },
     venus: { gradient: 'from-yellow-300 via-orange-300 to-amber-400', glow: 'rgba(251, 146, 60, 0.4)' },
@@ -38,7 +37,6 @@ export function GalaxyView({ coinBalance, planets }: GalaxyViewProps) {
         </div>
 
         <div className="flex-1 relative overflow-hidden">
-          {/* רקע חלל עם כוכבים */}
           <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-indigo-950 to-slate-950 z-0">
             {[...Array(150)].map((_, i) => (
                 <div
@@ -59,7 +57,7 @@ export function GalaxyView({ coinBalance, planets }: GalaxyViewProps) {
           <div className="absolute top-20 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
           <div className="absolute bottom-1/4 left-1/3 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '10s' }} />
 
-          {/* הודעה כשהגלקסיה ריקה */}
+          {/* Message when the galaxy is empty */}
           {planets.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
                 <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700 p-8 rounded-2xl text-center max-w-sm mt-32">
@@ -74,21 +72,20 @@ export function GalaxyView({ coinBalance, planets }: GalaxyViewProps) {
               </div>
           )}
 
-          {/* האזור שבו נמצאים כל הכוכבים */}
+          {/* The area where all the stars are */}
           <div className="absolute inset-0 z-10 overflow-x-auto overflow-y-hidden">
             <div className="relative min-w-[800px] h-full">
 
-              {/* קו המסלול האופקי (Orbital Plane) */}
+              {/* Orbital Plane */}
               {planets.some(p => p.type !== 'sun' && p.type !== 'nebula') && (
                   <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-slate-700/50 z-0" />
               )}
 
-              {/* כל הכוכבים (והשמש) ברוטינה אחת חכמה */}
+              {/* All the stars (and the sun) in one smart routine */}
               {planets.map((planet) => {
                 const visuals = getVisuals(planet.type);
                 const isSun = planet.type === 'sun';
 
-                // השמש מקבלת מיקום קבוע משמאל, השאר לפי הנתונים שלהם
                 const positionStyle = isSun
                     ? { left: '-100px', top: '50%' }
                     : { left: `${planet.position.x}%`, top: `${planet.position.y}%` };
@@ -149,12 +146,11 @@ export function GalaxyView({ coinBalance, planets }: GalaxyViewProps) {
                         />
                       </div>
 
-                      {/* תגית שם הכוכב - לשמש עשינו תנאי מיוחד כדי שזה יציץ החוצה מהשוליים! */}
                       <div
                           className="absolute text-center bg-slate-900/60 px-3 py-1 rounded-lg border border-slate-700/50 backdrop-blur-sm whitespace-nowrap z-50 pointer-events-none"
                           style={{
-                            top: isSun ? '70%' : 'calc(100% + 8px)',
-                            left: isSun ? '260px' : '50%',
+                            top: 'calc(100% + 8px)',
+                            left: '50%',
                             transform: isSun ? 'none' : 'translateX(-50%)'
                           }}
                       >

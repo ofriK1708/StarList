@@ -112,7 +112,6 @@ export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
                       {/* Planet/Celestial Object */}
                       <div className="relative z-10">
                         {item.type === 'nebula' ? (
-                            // ציור הערפילית בחנות - אפקט מטושטש וצבעוני
                             <div className="relative w-32 h-32">
                               <div className={`absolute inset-0 bg-gradient-to-br ${style.gradient} rounded-full blur-2xl opacity-80`} />
                               <div className={`absolute inset-4 bg-gradient-to-tr ${style.gradient} rounded-full blur-xl opacity-60`} />
@@ -179,7 +178,6 @@ export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
                         )}
                       </div>
 
-                      {/* התגית "NOT ENOUGH" המעוצבת שלנו */}
                       {!isUnlocked && !canAfford && (
                           <div className="absolute top-3 left-3 bg-red-500/20 border border-red-500/30 text-red-200 text-[10px] font-bold tracking-wider px-2 py-1 rounded-md flex items-center gap-1 backdrop-blur-md z-20">
                             <Lock className="w-3 h-3" />

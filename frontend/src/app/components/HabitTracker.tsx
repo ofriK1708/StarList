@@ -1,4 +1,5 @@
-import { Flame, CheckCircle2, Circle, Plus } from "lucide-react";
+import { Check, Flame, AlertTriangle, Plus } from "lucide-react";
+import { Button } from "./ui/button";
 
 interface Habit {
     id: string;
@@ -11,69 +12,132 @@ interface Habit {
 interface HabitTrackerProps {
     habits: Habit[];
     onHabitCheck: (id: string) => void;
-    onAddHabitClick: () => void; // הפונקציה החדשה שתפתח את החלון
+    onAddHabitClick: () => void;
 }
 
 export function HabitTracker({ habits, onHabitCheck, onAddHabitClick }: HabitTrackerProps) {
     return (
-        <div className="h-full flex flex-col w-full animate-in fade-in duration-300">
-
-            {/* אזור הכותרת והכפתור - עכשיו נמצאים כאן בצורה מסודרת */}
-            <div className="p-6 pb-2 flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold text-white mb-1">Daily Habits</h1>
-                    <p className="text-slate-400 text-sm">Build your streaks and earn bonus coins! 🔥</p>
-                </div>
-                <button
-                    onClick={onAddHabitClick}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors font-medium text-sm"
-                >
-                    <Plus className="w-4 h-4" />
-                    Add Habit
-                </button>
-            </div>
-
-            {/* רשימת ההרגלים */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {habits.map(habit => (
-                    <div key={habit.id} className="bg-slate-800/80 border border-slate-700 rounded-xl p-4 flex items-center justify-between hover:bg-slate-700/50 transition-colors">
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => onHabitCheck(habit.id)}
-                                disabled={habit.completedToday}
-                                className={`rounded-full transition-all duration-300 ${
-                                    habit.completedToday
-                                        ? 'text-green-500 scale-110'
-                                        : 'text-slate-500 hover:text-green-400 hover:scale-110'
-                                }`}
-                            >
-                                {habit.completedToday ? <CheckCircle2 className="w-7 h-7" /> : <Circle className="w-7 h-7" />}
-                            </button>
-                            <div>
-                                <h3 className={`font-medium transition-colors ${
-                                    habit.completedToday ? 'text-slate-400 line-through' : 'text-slate-100'
-                                }`}>
-                                    {habit.title}
-                                </h3>
-                                <div className={`flex items-center gap-1.5 text-sm mt-1 ${
-                                    habit.streak > 0 ? 'text-orange-400' : 'text-slate-500'
-                                }`}>
-                                    <Flame className={`w-4 h-4 ${habit.streak > 0 ? 'animate-pulse' : ''}`} />
-                                    <span>{habit.streak} Day Streak</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex flex-col items-end">
-              <span className="text-yellow-400 font-medium text-sm">
-                +{habit.baseReward + (habit.streak * 2)} coins
-              </span>
-                            {habit.streak > 0 && !habit.completedToday && (
-                                <span className="text-xs text-orange-400/80">Includes streak bonus!</span>
-                            )}
-                        </div>
+        <div className="w-full h-full bg-slate-900/50 overflow-y-auto p-6 animate-in fade-in duration-500">
+            <div className="max-w-5xl mx-auto">
+                <div className="flex justify-between items-center mb-10">
+                    <div>
+                        <h1 className="text-2xl font-bold text-white tracking-tight">Habits</h1>
+                        <p className="text-slate-400 text-sm">Maintain consistency to power the galaxy's core</p>
                     </div>
-                ))}
+                    <Button
+                        onClick={onAddHabitClick}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-lg shadow-indigo-900/20"
+                    >
+                        <Plus className="w-4 h-4" /> New Habit
+                    </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {habits.map((habit, index) => (
+                        <HabitRadialCard
+                            key={habit.id}
+                            habit={habit}
+                            onCheck={() => onHabitCheck(habit.id)}
+                            index={index}
+                        />
+                    ))}
+                </div>
             </div>
+        </div>
+    );
+}
+
+function HabitRadialCard({ habit, onCheck, index }: { habit: Habit; onCheck: () => void; index: number }) {
+    const daysInMonth = 30;
+    const radius = 90;
+    const center = 120;
+    const circumference = 2 * Math.PI * radius;
+    const segmentLength = circumference / daysInMonth;
+    const gap = 6;
+    const strokeWidth = 14;
+
+    const colors = [
+        { stroke: 'text-blue-400', glow: 'rgba(96, 165, 250, 0.5)', bg: 'bg-blue-400' },
+        { stroke: 'text-purple-400', glow: 'rgba(192, 132, 252, 0.5)', bg: 'bg-purple-400' },
+        { stroke: 'text-emerald-400', glow: 'rgba(52, 211, 153, 0.5)', bg: 'bg-emerald-400' },
+        { stroke: 'text-orange-400', glow: 'rgba(251, 146, 60, 0.5)', bg: 'bg-orange-400' },
+    ];
+    const color = colors[index % colors.length];
+
+    const filledSegments = Math.min(habit.streak, daysInMonth);
+    const dashArrayValue = `${segmentLength - gap} ${gap}`;
+
+    return (
+        <div className="bg-slate-800/40 border border-slate-700/50 rounded-[2.5rem] p-8 flex flex-col items-center group hover:bg-slate-800/60 transition-all duration-300 relative overflow-hidden">
+
+            <div className="text-center mb-6 z-10">
+                <h3 className="text-xl font-bold text-white group-hover:text-blue-200 transition-colors">{habit.title}</h3>
+                <div className="flex items-center justify-center gap-1.5 text-orange-400 text-sm mt-1 font-medium">
+                    <Flame className="w-4 h-4 fill-orange-400/20" />
+                    <span>{habit.streak} day streak</span>
+                </div>
+            </div>
+
+            <div className="relative w-64 h-64 flex items-center justify-center z-10 my-4">
+                <svg viewBox="0 0 240 240" className="w-full h-full transform -rotate-90 drop-shadow-2xl">
+                    <circle
+                        cx={center}
+                        cy={center}
+                        r={radius}
+                        fill="transparent"
+                        stroke="currentColor"
+                        strokeWidth={strokeWidth}
+                        strokeDasharray={dashArrayValue}
+                        className="text-slate-800"
+                    />
+
+                    {/* Progress Ring - Days Done */}
+                    <circle
+                        cx={center}
+                        cy={center}
+                        r={radius}
+                        fill="transparent"
+                        stroke="currentColor"
+                        strokeWidth={strokeWidth}
+                        strokeDasharray={`${Math.max(0, filledSegments * segmentLength - gap)} ${circumference}`}
+                        strokeDashoffset={0}
+                        className={`${color.stroke} transition-all duration-1000 ease-in-out`}
+                        style={{ filter: `drop-shadow(0 0 10px ${color.glow})` }}
+                    />
+                </svg>
+
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onCheck();
+                        }}
+                        disabled={habit.completedToday}
+                        className={`w-32 h-32 rounded-full flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${
+                            habit.completedToday
+                                ? 'bg-transparent text-green-400 cursor-default'
+                                : 'bg-slate-900 text-white hover:scale-105 border border-slate-700 hover:border-slate-500 shadow-2xl'
+                        }`}
+                    >
+                        {habit.completedToday ? (
+                            <>
+                                <Check className="w-12 h-12 animate-in zoom-in" />
+                                <span className="text-[11px] mt-2 uppercase font-black tracking-tighter">Day Logged</span>
+                            </>
+                        ) : (
+                            <>
+                                <Plus className="w-12 h-12 group-hover:rotate-90 transition-transform duration-300" />
+                                <span className="text-[11px] mt-2 uppercase font-black tracking-tighter">Complete</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
+            <div className="absolute top-6 right-8 flex items-center gap-1 opacity-40">
+                <span className="text-xs font-bold text-yellow-500">+{habit.baseReward}</span>
+            </div>
+
+            <div className={`absolute -bottom-10 -left-10 w-40 h-40 rounded-full blur-[80px] opacity-10 ${color.bg}`} />
         </div>
     );
 }
