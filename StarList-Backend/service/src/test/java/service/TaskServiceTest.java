@@ -60,7 +60,7 @@ class TaskServiceTest {
                 .user(user)
                 .build();
 
-        when(taskRepository.findById(testTaskID)).thenReturn(Optional.of(task));
+        when(taskRepository.concurrentSafeFindById(testTaskID)).thenReturn(Optional.of(task));
 
         MarkTaskDoneResponse response = taskService.completeTask(testTaskID);
 
@@ -90,7 +90,7 @@ class TaskServiceTest {
                 .status(TaskStatus.COMPLETED)
                 .build();
 
-        when(taskRepository.findById(testTaskID)).thenReturn(Optional.of(task));
+        when(taskRepository.concurrentSafeFindById(testTaskID)).thenReturn(Optional.of(task));
 
         assertThatThrownBy(() -> taskService.completeTask(testTaskID))
                 .isInstanceOf(TaskAlreadyCompletedException.class);
@@ -100,7 +100,7 @@ class TaskServiceTest {
 
     @Test
     void completeTask_taskNotFound_throwsTaskNotFoundException() {
-        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
+        when(taskRepository.concurrentSafeFindById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> taskService.completeTask(99L))
                 .isInstanceOf(TaskNotFoundException.class);
@@ -115,7 +115,7 @@ class TaskServiceTest {
                 .deletedAt(java.time.Instant.now())
                 .build();
 
-        when(taskRepository.findById(testTaskID)).thenReturn(Optional.of(deleted));
+        when(taskRepository.concurrentSafeFindById(testTaskID)).thenReturn(Optional.of(deleted));
 
         assertThatThrownBy(() -> taskService.completeTask(testTaskID))
                 .isInstanceOf(TaskNotFoundException.class);
