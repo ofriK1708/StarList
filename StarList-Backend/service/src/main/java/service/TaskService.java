@@ -169,7 +169,7 @@ public class TaskService {
      * Loads a task entity by ID with a pessimistic write lock, throwing {@link TaskNotFoundException}
      * if absent or soft-deleted. The lock prevents concurrent status mutations (e.g. double-complete).
      */
-    private TaskEntity concurrentSafeLoadActiveTask(Long taskId){
+    private TaskEntity concurrentSafeLoadActiveTask(Long taskId) {
         return taskRepository.concurrentSafeFindById(taskId)
                 .filter(e -> e.getDeletedAt() == null)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
