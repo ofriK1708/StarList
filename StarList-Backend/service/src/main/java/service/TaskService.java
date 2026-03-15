@@ -121,7 +121,7 @@ public class TaskService {
     public MarkTaskDoneResponse completeTask(Long taskId) {
         log.info("About to complete task {}", taskId);
 
-        TaskEntity entity = loadActiveTask(taskId);
+        TaskEntity entity = concurrentSafeLoadActiveTask(taskId);
 
         if (entity.getStatus() == TaskStatus.COMPLETED) {
             throw new TaskAlreadyCompletedException(taskId);
@@ -158,11 +158,19 @@ public class TaskService {
         taskRepository.save(entity);
     }
 
-    /**
-     * Loads a task entity by ID, throwing {@link TaskNotFoundException} if absent or soft-deleted.
-     */
+    /** Loads an active (non-deleted) task by ID, throwing {@link TaskNotFoundException} if absent or soft-deleted. */
     private TaskEntity loadActiveTask(Long taskId) {
         return taskRepository.findById(taskId)
+                .filter(e -> e.getDeletedAt() == null)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+    }
+
+    /**
+     * Loads a task entity by ID with a pessimistic write lock, throwing {@link TaskNotFoundException}
+     * if absent or soft-deleted. The lock prevents concurrent status mutations (e.g. double-complete).
+     */
+    private TaskEntity concurrentSafeLoadActiveTask(Long taskId){
+        return taskRepository.concurrentSafeFindById(taskId)
                 .filter(e -> e.getDeletedAt() == null)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
     }

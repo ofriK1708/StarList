@@ -10,6 +10,7 @@ import model.enums.DifficultyLevel;
 import model.enums.ReferenceType;
 import model.enums.TransactionType;
 import org.jspecify.annotations.NonNull;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import repository.api.HabitRepository;
@@ -118,6 +119,18 @@ public class HabitService {
                         habitRepository.save(entity)));
     }
 
+    /**
+     * Marks a habit as completed for today, updating streak and awarding coins.
+     *
+     * <p>The habit completion record is inserted first — before any habit field mutations —
+     * so that a concurrent duplicate request fails fast on the DB unique constraint
+     * ({@code habit_id + completed_date}) and the whole transaction rolls back cleanly.
+     * The {@code existsToday} pre-check handles the normal (non-racing) duplicate case with a clear error message;
+     * the catch on {@link org.springframework.dao.DataIntegrityViolationException} is the safety net for the race.
+     *
+     * @throws HabitAlreadyCompletedTodayException if the habit was already completed today
+     * @throws HabitNotFoundException if the habit does not exist or is deleted
+     */
     @Transactional
     public MarkHabitDoneResponse completeHabit(Long habitId) {
         log.info("About to complete habit {}", habitId);
@@ -134,18 +147,22 @@ public class HabitService {
                 entity.getCurrentStreak() + 1 : 1;
         int newBestStreak = Math.max(newStreak, entity.getBestStreak());
 
-        entity.setCurrentStreak(newStreak);
-        entity.setBestStreak(newBestStreak);
-        entity.setTotalCompletions(entity.getTotalCompletions() + 1);
-        entity.setLastCompletedDate(today);
-        habitRepository.save(entity);
-
         int coinsEarned = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
         log.debug("Habit {} '{}' completed: streak {} -> {}, best={}, coins={}",
                 habitId, entity.getTitle(), entity.getCurrentStreak(), newStreak, newBestStreak, coinsEarned);
         UserEntity user = entity.getUser();
 
-        habitCompletionService.record(entity, user, today, coinsEarned, newStreak);
+        try {
+            habitCompletionService.record(entity, user, today, coinsEarned, newStreak);
+        } catch (DataIntegrityViolationException e) {
+            throw new HabitAlreadyCompletedTodayException(habitId);
+        }
+
+        entity.setCurrentStreak(newStreak);
+        entity.setBestStreak(newBestStreak);
+        entity.setTotalCompletions(entity.getTotalCompletions() + 1);
+        entity.setLastCompletedDate(today);
+        habitRepository.save(entity);
         coinTransactionService.record(user, coinsEarned, TransactionType.HABIT_COMPLETION,
                 ReferenceType.HABIT, habitId, "Completed habit: " + entity.getTitle());
         userService.addCoins(user, coinsEarned);

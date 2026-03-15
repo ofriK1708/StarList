@@ -2,6 +2,7 @@ package service;
 
 import lombok.extern.slf4j.Slf4j;
 import model.domain.User;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import repository.api.UserRepository;
@@ -62,7 +63,7 @@ public class UserService {
      * @throws UserAlreadyExistsException if a user with the same email or cognitoUserId exists
      */
     public UserResponse createUser(CreateUserRequest request) {
-        log.info("Creating user with email {}", request.email());
+        log.info("Creating user \"{}\"", request.displayName());
         if (userRepository.existsByEmail(request.email())) {
             throw new UserAlreadyExistsException("email", request.email());
         }
@@ -74,7 +75,11 @@ public class UserService {
                 .cognitoUserId(request.cognitoUserId())
                 .displayName(request.displayName())
                 .build();
-        return UserResponse.from(save(user));
+        try {
+            return UserResponse.from(save(user));
+        } catch (DataIntegrityViolationException e) {
+            throw new UserAlreadyExistsException("email or cognitoUserId", "duplicate value");
+        }
     }
 
     /**
