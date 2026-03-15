@@ -7,7 +7,7 @@ import model.enums.DifficultyLevel;
 import model.enums.TaskStatus;
 
 @Builder
-public record AddTaskResponse(
+public record TaskResponse(
         Long taskId,
         String title,
         String description,
@@ -20,8 +20,8 @@ public record AddTaskResponse(
         Instant createdAt
 ) {
 
-    public static AddTaskResponse from(Task task) {
-        return AddTaskResponse.builder()
+    public static TaskResponse from(Task task) {
+        return TaskResponse.builder()
                 .taskId(task.getId())
                 .title(task.getTitle())
                 .description(task.getDescription())

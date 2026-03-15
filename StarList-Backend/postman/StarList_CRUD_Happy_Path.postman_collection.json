@@ -1,0 +1,379 @@
+{
+  "info": {
+    "name": "StarList – CRUD Happy Path",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "userId",  "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "1. Create task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('taskId', body.taskId);",
+                  "pm.test('taskId present', () => pm.expect(body.taskId).to.be.a('number'));",
+                  "pm.test('status is PENDING', () => pm.expect(body.status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/tasks",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Write unit tests\",\n  \"description\": \"Cover service layer with JUnit 5\",\n  \"difficultyLevel\": \"MEDIUM\",\n  \"durationMinutes\": 60,\n  \"dueDate\": \"2099-01-01T00:00:00Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "2. Get task by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('taskId matches', () => pm.expect(body.taskId).to.eql(+pm.collectionVariables.get('taskId')));",
+                  "pm.test('title correct', () => pm.expect(body.title).to.eql('Write unit tests'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tasks/{{taskId}}"
+          }
+        },
+        {
+          "name": "3. List user tasks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('At least 1 task', () => pm.expect(pm.response.json().length).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/tasks"
+          }
+        },
+        {
+          "name": "4. Update task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('title updated', () => pm.expect(body.title).to.eql('Write unit tests (updated)'));",
+                  "pm.test('difficulty updated', () => pm.expect(body.difficultyLevel).to.eql('HARD'));",
+                  "pm.test('coinReward updated', () => pm.expect(body.coinReward).to.eql(50));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/tasks/{{taskId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Write unit tests (updated)\",\n  \"description\": \"Cover service and controller layers\",\n  \"difficultyLevel\": \"HARD\",\n  \"durationMinutes\": 90,\n  \"dueDate\": \"2099-06-01T00:00:00Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "5. Complete task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('taskId matches', () => pm.expect(body.taskId).to.eql(+pm.collectionVariables.get('taskId')));",
+                  "pm.test('coinsEarned is 50 (HARD reward)', () => pm.expect(body.coinsEarned).to.eql(50));",
+                  "pm.test('newTotalCoins increased', () => pm.expect(body.newTotalCoins).to.be.a('number').and.at.least(50));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/tasks/{{taskId}}/complete"
+          }
+        },
+        {
+          "name": "6. Get completed task → status COMPLETED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('status is COMPLETED', () => pm.expect(body.status).to.eql('COMPLETED'));",
+                  "pm.test('completedAt is set', () => pm.expect(body.completedAt).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tasks/{{taskId}}"
+          }
+        },
+        {
+          "name": "7. Delete task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/tasks/{{taskId}}"
+          }
+        },
+        {
+          "name": "8. Get deleted task → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 after delete', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tasks/{{taskId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Habits",
+      "item": [
+        {
+          "name": "1. Create habit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('habitId', body.habitId);",
+                  "pm.test('habitId present', () => pm.expect(body.habitId).to.be.a('number'));",
+                  "pm.test('isActive is true', () => pm.expect(body.isActive).to.be.true);",
+                  "pm.test('streak starts at 0', () => pm.expect(body.currentStreak).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/habits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Morning run\",\n  \"description\": \"Run 5km before 8am\",\n  \"frequency\": \"DAILY\",\n  \"difficultyLevel\": \"EASY\"\n}"
+            }
+          }
+        },
+        {
+          "name": "2. Get habit by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('habitId matches', () => pm.expect(body.habitId).to.eql(+pm.collectionVariables.get('habitId')));",
+                  "pm.test('title correct', () => pm.expect(body.title).to.eql('Morning run'));",
+                  "pm.test('frequency correct', () => pm.expect(body.frequency).to.eql('DAILY'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/habits/{{habitId}}"
+          }
+        },
+        {
+          "name": "3. List user habits",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('At least 1 habit', () => pm.expect(pm.response.json().length).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/habits"
+          }
+        },
+        {
+          "name": "4. Update habit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('title updated', () => pm.expect(body.title).to.eql('Evening run'));",
+                  "pm.test('frequency updated', () => pm.expect(body.frequency).to.eql('WEEKLY'));",
+                  "pm.test('difficulty updated', () => pm.expect(body.difficultyLevel).to.eql('MEDIUM'));",
+                  "pm.test('coinReward updated', () => pm.expect(body.coinReward).to.eql(25));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/habits/{{habitId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Evening run\",\n  \"description\": \"Run 5km after dinner\",\n  \"frequency\": \"WEEKLY\",\n  \"difficultyLevel\": \"MEDIUM\"\n}"
+            }
+          }
+        },
+        {
+          "name": "5. Complete habit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('habitId matches', () => pm.expect(body.habitId).to.eql(+pm.collectionVariables.get('habitId')));",
+                  "pm.test('coinsEarned is 25 (MEDIUM, streak 1, no multiplier)', () => pm.expect(body.coinsEarned).to.eql(25));",
+                  "pm.test('currentStreak is 1', () => pm.expect(body.currentStreak).to.eql(1));",
+                  "pm.test('bestStreak is 1', () => pm.expect(body.bestStreak).to.eql(1));",
+                  "pm.test('newTotalCoins increased', () => pm.expect(body.newTotalCoins).to.be.a('number').and.at.least(25));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/habits/{{habitId}}/complete"
+          }
+        },
+        {
+          "name": "6. Get completed habit → streak and completions updated",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('currentStreak is 1', () => pm.expect(body.currentStreak).to.eql(1));",
+                  "pm.test('totalCompletions is 1', () => pm.expect(body.totalCompletions).to.eql(1));",
+                  "pm.test('lastCompletedDate is today', () => {",
+                  "  const today = new Date().toISOString().slice(0, 10);",
+                  "  pm.expect(body.lastCompletedDate).to.eql(today);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/habits/{{habitId}}"
+          }
+        },
+        {
+          "name": "7. Delete habit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/habits/{{habitId}}"
+          }
+        },
+        {
+          "name": "8. Get deleted habit → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 after delete', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/habits/{{habitId}}"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,311 @@
+{
+  "info": {
+    "name": "StarList – Habit Sad Path",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "userId",  "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Not Found",
+      "item": [
+        {
+          "name": "Get non-existent habit → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test('title is Habit not found', () => pm.expect(body.title).to.eql('Habit not found'));",
+                  "pm.test('detail present', () => pm.expect(body.detail).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/habits/999999"
+          }
+        },
+        {
+          "name": "Update non-existent habit → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test('title is Habit not found', () => pm.expect(body.title).to.eql('Habit not found'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/habits/999999",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Ghost habit\",\n  \"frequency\": \"DAILY\",\n  \"difficultyLevel\": \"EASY\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete non-existent habit → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test('title is Habit not found', () => pm.expect(body.title).to.eql('Habit not found'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/habits/999999"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validation Errors (400)",
+      "item": [
+        {
+          "name": "Missing title → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('title mentions validation', () => pm.expect(body.title).to.include('Invalid'));",
+                  "const failures = body.failures;",
+                  "pm.test('failures array present', () => pm.expect(failures).to.be.an('array'));",
+                  "pm.test('title field flagged', () => pm.expect(failures.some(f => f.field === 'title')).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/habits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"frequency\": \"DAILY\",\n  \"difficultyLevel\": \"EASY\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Blank title → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "const failures = body.failures;",
+                  "pm.test('title field flagged', () => pm.expect(failures.some(f => f.field === 'title')).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/habits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"   \",\n  \"frequency\": \"DAILY\",\n  \"difficultyLevel\": \"EASY\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Missing frequency → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "const failures = body.failures;",
+                  "pm.test('frequency field flagged', () => pm.expect(failures.some(f => f.field === 'frequency')).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/habits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Morning run\",\n  \"difficultyLevel\": \"EASY\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Missing difficultyLevel → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "const failures = body.failures;",
+                  "pm.test('difficultyLevel field flagged', () => pm.expect(failures.some(f => f.field === 'difficultyLevel')).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/habits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Morning run\",\n  \"frequency\": \"DAILY\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Multiple missing fields → 400 with multiple failures",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('multiple failures', () => pm.expect(body.failures.length).to.be.at.least(2));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/habits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"No title, no frequency, no difficulty\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Invalid enum value for frequency → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/habits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Morning run\",\n  \"frequency\": \"HOURLY\",\n  \"difficultyLevel\": \"EASY\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update with blank title → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('title field flagged', () => pm.expect(body.failures.some(f => f.field === 'title')).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/habits/1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"\",\n  \"frequency\": \"DAILY\",\n  \"difficultyLevel\": \"EASY\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Not Found",
+      "item": [
+        {
+          "name": "Create habit for non-existent user → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test('title is User not found', () => pm.expect(body.title).to.eql('User not found'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "999999" }
+            ],
+            "url": "{{baseUrl}}/habits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Morning run\",\n  \"frequency\": \"DAILY\",\n  \"difficultyLevel\": \"EASY\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

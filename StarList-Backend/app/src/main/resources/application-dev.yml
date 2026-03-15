@@ -12,13 +12,3 @@ spring:
         jdbc:
           time_zone: UTC
 
-logging:
-  level:
-    root: INFO
-    app: INFO
-    controller: INFO
-  file:
-    name: logs/request-trace.log
-  pattern:
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-    console: "%d{HH:mm:ss.SSS} [%-5level] %msg%n"
