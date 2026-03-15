@@ -19,6 +19,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -81,6 +83,20 @@ class UserServiceTest {
                 .hasMessageContaining("email");
 
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void createUser_concurrentDuplicate_dbConstraintViolationTranslatedToUserAlreadyExistsException() {
+        // Simulates the race: both pre-checks pass, but the DB rejects the INSERT due to a unique constraint violation
+        CreateUserRequest request = new CreateUserRequest("alice@example.com", "cognito-abc", "Alice");
+
+        when(userRepository.existsByEmail("alice@example.com")).thenReturn(false);
+        when(userRepository.existsByCognitoUserId("cognito-abc")).thenReturn(false);
+        when(userMapper.fromDomain(any(User.class))).thenReturn(UserEntity.builder().build());
+        when(userRepository.save(any(UserEntity.class))).thenThrow(new DataIntegrityViolationException("unique constraint"));
+
+        assertThatThrownBy(() -> userService.createUser(request))
+                .isInstanceOf(UserAlreadyExistsException.class);
     }
 
     @Test
