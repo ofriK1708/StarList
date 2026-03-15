@@ -94,19 +94,19 @@ public class TaskService {
         log.info("About to update task {}", taskId);
         TaskEntity entity = loadActiveTask(taskId);
 
-        boolean difficultyChanged = !entity.getDifficultyLevel().equals(request.getDifficultyLevel());
+        boolean difficultyChanged = !entity.getDifficultyLevel().equals(request.difficultyLevel());
         if (difficultyChanged) {
-            log.debug("Difficulty changed for task {}: {} -> {}", taskId, entity.getDifficultyLevel(), request.getDifficultyLevel());
+            log.debug("Difficulty changed for task {}: {} -> {}", taskId, entity.getDifficultyLevel(), request.difficultyLevel());
         }
 
-        entity.setTitle(request.getTitle());
-        entity.setDescription(request.getDescription());
-        entity.setDifficultyLevel(request.getDifficultyLevel());
-        entity.setDurationMinutes(request.getDurationMinutes());
-        entity.setDueDate(request.getDueDate());
+        entity.setTitle(request.title());
+        entity.setDescription(request.description());
+        entity.setDifficultyLevel(request.difficultyLevel());
+        entity.setDurationMinutes(request.durationMinutes());
+        entity.setDueDate(request.dueDate());
 
         if (difficultyChanged) {
-            int[] coins = coinCalculator.computeBaseCoins(request.getDifficultyLevel());
+            int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
             entity.setCoinReward(coins[0]);
             entity.setCoinPenalty(coins[1]);
             log.debug("Recalculated coins for task {}: reward={}, penalty={}", taskId, coins[0], coins[1]);
