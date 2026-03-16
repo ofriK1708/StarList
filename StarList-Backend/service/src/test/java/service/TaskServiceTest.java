@@ -4,6 +4,7 @@ import model.enums.DifficultyLevel;
 import model.enums.ReferenceType;
 import model.enums.TaskStatus;
 import model.enums.TransactionType;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -58,7 +59,7 @@ class TaskServiceTest {
                 .user(user)
                 .build();
 
-        when(taskRepository.concurrentSafeFindById(testTaskID)).thenReturn(Optional.of(task));
+        when(taskRepository.findById(testTaskID)).thenReturn(Optional.of(task));
 
         MarkTaskDoneResponse response = taskService.completeTask(testTaskID);
 
@@ -88,22 +89,41 @@ class TaskServiceTest {
                 .status(TaskStatus.COMPLETED)
                 .build();
 
-        when(taskRepository.concurrentSafeFindById(testTaskID)).thenReturn(Optional.of(task));
+        when(taskRepository.findById(testTaskID)).thenReturn(Optional.of(task));
 
         assertThatThrownBy(() -> taskService.completeTask(testTaskID))
                 .isInstanceOf(TaskAlreadyCompletedException.class);
 
-        verify(taskRepository).concurrentSafeFindById(testTaskID);
+        verify(taskRepository).findById(testTaskID);
         verifyNoMoreInteractions(taskRepository);
         verifyNoInteractions(coinTransactionService, userService);
     }
 
     @Test
     void completeTask_taskNotFound_throwsTaskNotFoundException() {
-        when(taskRepository.concurrentSafeFindById(99L)).thenReturn(Optional.empty());
+        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> taskService.completeTask(99L))
                 .isInstanceOf(TaskNotFoundException.class);
+    }
+
+    @Test
+    void completeTask_concurrentDuplicate_optimisticLockCollisionTranslatedToTaskAlreadyCompletedException() {
+        // Simulates the race: both requests read the same version, first commits, second hits optimistic lock failure
+        UserEntity user = UserEntity.builder().id(1L).totalCoins(100).lifetimeCoinsEarned(0).build();
+        TaskEntity task = TaskEntity.builder()
+                .id(testTaskID).title("Learn testing")
+                .status(TaskStatus.PENDING).difficultyLevel(DifficultyLevel.HARD)
+                .coinReward(50).user(user).build();
+
+        when(taskRepository.findById(testTaskID)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any())).thenThrow(new ObjectOptimisticLockingFailureException(TaskEntity.class,
+                testTaskID));
+
+        assertThatThrownBy(() -> taskService.completeTask(testTaskID))
+                .isInstanceOf(TaskAlreadyCompletedException.class);
+
+        verifyNoInteractions(coinTransactionService, userService);
     }
 
     @Test
@@ -115,7 +135,7 @@ class TaskServiceTest {
                 .deletedAt(java.time.Instant.now())
                 .build();
 
-        when(taskRepository.concurrentSafeFindById(testTaskID)).thenReturn(Optional.of(deleted));
+        when(taskRepository.findById(testTaskID)).thenReturn(Optional.of(deleted));
 
         assertThatThrownBy(() -> taskService.completeTask(testTaskID))
                 .isInstanceOf(TaskNotFoundException.class);

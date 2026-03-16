@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import model.domain.Task;
 import model.enums.TaskStatus;
 import org.jspecify.annotations.NonNull;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import repository.api.TaskRepository;
@@ -121,7 +122,7 @@ public class TaskService {
     public MarkTaskDoneResponse completeTask(Long taskId) {
         log.info("About to complete task {}", taskId);
 
-        TaskEntity entity = concurrentSafeLoadActiveTask(taskId);
+        TaskEntity entity = loadActiveTask(taskId);
 
         if (entity.getStatus() == TaskStatus.COMPLETED) {
             throw new TaskAlreadyCompletedException(taskId);
@@ -129,7 +130,12 @@ public class TaskService {
 
         entity.setStatus(TaskStatus.COMPLETED);
         entity.setCompletedAt(Instant.now());
-        taskRepository.save(entity);
+        try {
+            taskRepository.save(entity);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            // A concurrent request completed this task between our read and save
+            throw new TaskAlreadyCompletedException(taskId);
+        }
 
         UserEntity user = entity.getUser();
         int coinsEarned = entity.getCoinReward();
@@ -161,16 +167,6 @@ public class TaskService {
     /** Loads an active (non-deleted) task by ID, throwing {@link TaskNotFoundException} if absent or soft-deleted. */
     private TaskEntity loadActiveTask(Long taskId) {
         return taskRepository.findById(taskId)
-                .filter(e -> e.getDeletedAt() == null)
-                .orElseThrow(() -> new TaskNotFoundException(taskId));
-    }
-
-    /**
-     * Loads a task entity by ID with a pessimistic write lock, throwing {@link TaskNotFoundException}
-     * if absent or soft-deleted. The lock prevents concurrent status mutations (e.g. double-complete).
-     */
-    private TaskEntity concurrentSafeLoadActiveTask(Long taskId) {
-        return taskRepository.concurrentSafeFindById(taskId)
                 .filter(e -> e.getDeletedAt() == null)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
     }

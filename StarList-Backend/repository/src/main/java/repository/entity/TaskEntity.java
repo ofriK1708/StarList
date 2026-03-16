@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -40,6 +41,17 @@ public class TaskEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /**
+     * Optimistic lock version — JPA increments this on every UPDATE and adds
+     * {@code AND version = ?} to the WHERE clause. If two transactions read the
+     * same version and both try to save, the second one finds the version already
+     * bumped and throws {@link org.springframework.orm.ObjectOptimisticLockingFailureException},
+     * preventing double-completion and double coin awards.
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
