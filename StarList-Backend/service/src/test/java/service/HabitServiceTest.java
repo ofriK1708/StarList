@@ -20,10 +20,14 @@ import service.exceptions.HabitNotFoundException;
 import java.time.LocalDate;
 import java.util.Optional;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -152,6 +156,49 @@ class HabitServiceTest {
     }
 
     // ── completeHabit sad paths ───────────────────────────────────────────────
+
+    @Test
+    void completeHabit_concurrentDuplicate_dbConstraintViolationTranslatedToHabitAlreadyCompletedTodayException() {
+        // Simulates the race: existsToday passes (false), but the DB rejects the INSERT due to a unique constraint violation
+        UserEntity user = UserEntity.builder().id(1L).totalCoins(0).lifetimeCoinsEarned(0).build();
+        HabitEntity habit = HabitEntity.builder()
+                .id(7L).title("Read daily").difficultyLevel(DifficultyLevel.EASY)
+                .frequency(HabitFrequency.DAILY).currentStreak(0).bestStreak(0)
+                .totalCompletions(0).lastCompletedDate(null).user(user).build();
+
+        when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
+        when(habitCompletionService.existsToday(7L)).thenReturn(false);
+        when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
+        doThrow(new DataIntegrityViolationException("unique constraint"))
+                .when(habitCompletionService).record(any(), any(), any(), any(int.class), any(int.class));
+
+        assertThatThrownBy(() -> habitService.completeHabit(7L))
+                .isInstanceOf(HabitAlreadyCompletedTodayException.class);
+    }
+
+    @Test
+    void completeHabit_concurrentDuplicate_habitEntityNotMutatedOnFailure() {
+        // Verifies fail-fast ordering: habit entity must not be saved if the completion record INSERT fails
+        UserEntity user = UserEntity.builder().id(1L).totalCoins(0).lifetimeCoinsEarned(0).build();
+        HabitEntity habit = HabitEntity.builder()
+                .id(7L).title("Read daily").difficultyLevel(DifficultyLevel.EASY)
+                .frequency(HabitFrequency.DAILY).currentStreak(3).bestStreak(5)
+                .totalCompletions(3).lastCompletedDate(LocalDate.now().minusDays(1)).user(user).build();
+
+        when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
+        when(habitCompletionService.existsToday(7L)).thenReturn(false);
+        when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 4)).thenReturn(15);
+        doThrow(new DataIntegrityViolationException("unique constraint"))
+                .when(habitCompletionService).record(any(), any(), any(), any(int.class), any(int.class));
+
+        assertThatThrownBy(() -> habitService.completeHabit(7L))
+                .isInstanceOf(HabitAlreadyCompletedTodayException.class);
+
+        verify(habitRepository, never()).save(any());
+        verifyNoInteractions(coinTransactionService, userService);
+        assertThat(habit.getCurrentStreak()).isEqualTo(3); // streak unchanged
+        assertThat(habit.getTotalCompletions()).isEqualTo(3); // completions unchanged
+    }
 
     @Test
     void completeHabit_alreadyCompletedToday_throwsHabitAlreadyCompletedTodayException() {

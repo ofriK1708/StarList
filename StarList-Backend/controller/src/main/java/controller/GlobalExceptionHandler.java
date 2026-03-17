@@ -50,6 +50,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
     }
 
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ProblemDetail> handleUserAlreadyExists(UserAlreadyExistsException e,
+                                                                 HttpServletRequest request) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        problemDetail.setTitle("User already exists");
+        problemDetail.setDetail(e.getMessage());
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
+    }
+
     @ExceptionHandler(TaskAlreadyCompletedException.class)
     public ResponseEntity<ProblemDetail> handleTaskAlreadyCompleted(TaskAlreadyCompletedException e,
                                                                     HttpServletRequest request) {

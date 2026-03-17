@@ -4,6 +4,7 @@ import model.enums.DifficultyLevel;
 import model.enums.ReferenceType;
 import model.enums.TaskStatus;
 import model.enums.TransactionType;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -23,9 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class TaskServiceTest {
@@ -95,6 +94,8 @@ class TaskServiceTest {
         assertThatThrownBy(() -> taskService.completeTask(testTaskID))
                 .isInstanceOf(TaskAlreadyCompletedException.class);
 
+        verify(taskRepository).findById(testTaskID);
+        verifyNoMoreInteractions(taskRepository);
         verifyNoInteractions(coinTransactionService, userService);
     }
 
@@ -104,6 +105,25 @@ class TaskServiceTest {
 
         assertThatThrownBy(() -> taskService.completeTask(99L))
                 .isInstanceOf(TaskNotFoundException.class);
+    }
+
+    @Test
+    void completeTask_concurrentDuplicate_optimisticLockCollisionTranslatedToTaskAlreadyCompletedException() {
+        // Simulates the race: both requests read the same version, first commits, second hits optimistic lock failure
+        UserEntity user = UserEntity.builder().id(1L).totalCoins(100).lifetimeCoinsEarned(0).build();
+        TaskEntity task = TaskEntity.builder()
+                .id(testTaskID).title("Learn testing")
+                .status(TaskStatus.PENDING).difficultyLevel(DifficultyLevel.HARD)
+                .coinReward(50).user(user).build();
+
+        when(taskRepository.findById(testTaskID)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any())).thenThrow(new ObjectOptimisticLockingFailureException(TaskEntity.class,
+                testTaskID));
+
+        assertThatThrownBy(() -> taskService.completeTask(testTaskID))
+                .isInstanceOf(TaskAlreadyCompletedException.class);
+
+        verifyNoInteractions(coinTransactionService, userService);
     }
 
     @Test

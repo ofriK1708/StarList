@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import model.domain.Task;
 import model.enums.TaskStatus;
 import org.jspecify.annotations.NonNull;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import repository.api.TaskRepository;
@@ -94,19 +95,19 @@ public class TaskService {
         log.info("About to update task {}", taskId);
         TaskEntity entity = loadActiveTask(taskId);
 
-        boolean difficultyChanged = !entity.getDifficultyLevel().equals(request.getDifficultyLevel());
+        boolean difficultyChanged = !entity.getDifficultyLevel().equals(request.difficultyLevel());
         if (difficultyChanged) {
-            log.debug("Difficulty changed for task {}: {} -> {}", taskId, entity.getDifficultyLevel(), request.getDifficultyLevel());
+            log.debug("Difficulty changed for task {}: {} -> {}", taskId, entity.getDifficultyLevel(), request.difficultyLevel());
         }
 
-        entity.setTitle(request.getTitle());
-        entity.setDescription(request.getDescription());
-        entity.setDifficultyLevel(request.getDifficultyLevel());
-        entity.setDurationMinutes(request.getDurationMinutes());
-        entity.setDueDate(request.getDueDate());
+        entity.setTitle(request.title());
+        entity.setDescription(request.description());
+        entity.setDifficultyLevel(request.difficultyLevel());
+        entity.setDurationMinutes(request.durationMinutes());
+        entity.setDueDate(request.dueDate());
 
         if (difficultyChanged) {
-            int[] coins = coinCalculator.computeBaseCoins(request.getDifficultyLevel());
+            int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
             entity.setCoinReward(coins[0]);
             entity.setCoinPenalty(coins[1]);
             log.debug("Recalculated coins for task {}: reward={}, penalty={}", taskId, coins[0], coins[1]);
@@ -129,7 +130,12 @@ public class TaskService {
 
         entity.setStatus(TaskStatus.COMPLETED);
         entity.setCompletedAt(Instant.now());
-        taskRepository.save(entity);
+        try {
+            taskRepository.save(entity);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            // A concurrent request completed this task between our read and save
+            throw new TaskAlreadyCompletedException(taskId);
+        }
 
         UserEntity user = entity.getUser();
         int coinsEarned = entity.getCoinReward();
@@ -158,9 +164,7 @@ public class TaskService {
         taskRepository.save(entity);
     }
 
-    /**
-     * Loads a task entity by ID, throwing {@link TaskNotFoundException} if absent or soft-deleted.
-     */
+    /** Loads an active (non-deleted) task by ID, throwing {@link TaskNotFoundException} if absent or soft-deleted. */
     private TaskEntity loadActiveTask(Long taskId) {
         return taskRepository.findById(taskId)
                 .filter(e -> e.getDeletedAt() == null)

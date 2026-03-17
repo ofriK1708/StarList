@@ -134,6 +134,8 @@
         <logger name="service.CoinTransactionService" level="DEBUG" additivity="true">
             <appender-ref ref="COIN_TRANSACTION_FILE"/>
         </logger>
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
     </springProfile>
 
     <!-- Test Profile -->

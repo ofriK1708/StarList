@@ -1,0 +1,144 @@
+{
+  "info": {
+    "name": "StarList – User CRUD Happy Path",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "userId",  "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Create user",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('userId', body.id);",
+              "pm.test('id present', () => pm.expect(body.id).to.be.a('number'));",
+              "pm.test('email correct', () => pm.expect(body.email).to.eql('testuser@example.com'));",
+              "pm.test('displayName correct', () => pm.expect(body.displayName).to.eql('Test User'));",
+              "pm.test('totalCoins starts at 0', () => pm.expect(body.totalCoins).to.eql(0));",
+              "pm.test('createdAt present', () => pm.expect(body.createdAt).to.be.a('string'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/users",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"cognitoUserId\": \"cognito-test-user-001\",\n  \"displayName\": \"Test User\"\n}"
+        }
+      }
+    },
+    {
+      "name": "2. Get user by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('id matches', () => pm.expect(body.id).to.eql(+pm.collectionVariables.get('userId')));",
+              "pm.test('email correct', () => pm.expect(body.email).to.eql('testuser@example.com'));",
+              "pm.test('displayName correct', () => pm.expect(body.displayName).to.eql('Test User'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/users/{{userId}}"
+      }
+    },
+    {
+      "name": "3. Update displayName",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('displayName updated', () => pm.expect(body.displayName).to.eql('Updated User'));",
+              "pm.test('email unchanged', () => pm.expect(body.email).to.eql('testuser@example.com'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"displayName\": \"Updated User\"\n}"
+        }
+      }
+    },
+    {
+      "name": "4. Get user (verify update)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('displayName is updated', () => pm.expect(body.displayName).to.eql('Updated User'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/users/{{userId}}"
+      }
+    },
+    {
+      "name": "5. Delete user",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 204', () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/users/{{userId}}"
+      }
+    },
+    {
+      "name": "6. Get user after delete → 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 404 after delete', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/users/{{userId}}"
+      }
+    }
+  ]
+}
