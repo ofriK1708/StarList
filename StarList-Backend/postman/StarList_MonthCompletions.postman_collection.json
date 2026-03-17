@@ -48,8 +48,8 @@
                   "const body = pm.response.json();",
                   "pm.collectionVariables.set('habitId', body.habitId);",
                   "pm.test('habitId present', () => pm.expect(body.habitId).to.be.a('number'));",
-                  "pm.test('monthCompletions is null on create', () => {",
-                  "    pm.expect(body.monthCompletions).to.be.null;",
+                  "pm.test('monthCompletions is not returned on create', () => {",
+                  "    pm.expect(body).to.not.have.property('monthCompletions');",
                   "});"
                 ]
               }
