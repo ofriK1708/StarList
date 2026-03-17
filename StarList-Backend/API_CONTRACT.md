@@ -398,13 +398,13 @@ All fields are **optional** — only the fields you include (non-null) are appli
 > To clear `dueDate` or `durationMinutes`, use the dedicated DELETE endpoints below.
 > To clear `description`, send `""`.
 
-| Field             | Type              | Required | Constraints              | Description                                                                   |
-|-------------------|-------------------|----------|--------------------------|-------------------------------------------------------------------------------|
-| `title`           | `String`          | No       | —                        | New title; omit to keep current                                               |
-| `description`     | `String`          | No       | max 2000 chars           | New description; omit to keep current; send `""` to clear                    |
-| `difficultyLevel` | `DifficultyLevel` | No       | —                        | New difficulty; recalculates `coinReward`/`coinPenalty`; omit to keep current |
-| `durationMinutes` | `Integer`         | No       | must be positive         | New estimated duration; omit to keep current                                  |
-| `dueDate`         | `Instant`         | No       | must be in the future    | New due date; omit to keep current                                            |
+| Field             | Type              | Required | Constraints           | Description                                                                   |
+|-------------------|-------------------|----------|-----------------------|-------------------------------------------------------------------------------|
+| `title`           | `String`          | No       | —                     | New title; omit to keep current                                               |
+| `description`     | `String`          | No       | max 2000 chars        | New description; omit to keep current; send `""` to clear                     |
+| `difficultyLevel` | `DifficultyLevel` | No       | —                     | New difficulty; recalculates `coinReward`/`coinPenalty`; omit to keep current |
+| `durationMinutes` | `Integer`         | No       | must be positive      | New estimated duration; omit to keep current                                  |
+| `dueDate`         | `Instant`         | No       | must be in the future | New due date; omit to keep current                                            |
 
 | Scenario                                             | Example                                 |
 |------------------------------------------------------|-----------------------------------------|
@@ -562,8 +562,6 @@ X-User-Id: <userId>
 | `lastCompletedDate` | `LocalDate`       | Date of last completion (nullable)        |
 | `createdAt`         | `Instant`         | Creation timestamp                        |
 | `isActive`          | `Boolean`         | Whether the habit is active (not deleted) |
-| `monthCompletions`  | `null`            | Always `null` on create responses         |
-
 ```json
 {
   "habitId": 55,
@@ -578,8 +576,7 @@ X-User-Id: <userId>
   "totalCompletions": 0,
   "lastCompletedDate": null,
   "createdAt": "2026-03-17T10:00:00Z",
-  "isActive": true,
-  "monthCompletions": null
+  "isActive": true
 }
 ```
 
@@ -612,8 +609,8 @@ If only one of `year`/`month` is provided, both are ignored and the current mont
 
 Same shape as `AddHabitResponse` above, plus:
 
-| Field              | Type                    | Description                                                                  |
-|--------------------|-------------------------|------------------------------------------------------------------------------|
+| Field              | Type                     | Description                                                                  |
+|--------------------|--------------------------|------------------------------------------------------------------------------|
 | `monthCompletions` | `List<CompletionStatus>` | One entry per day of the requested month (index 0 = day 1). See enum values. |
 
 **Errors:** `400` (invalid `year`/`month`), `404` (habit not found)
@@ -669,13 +666,13 @@ All fields are **optional** — only the fields you include (non-null) are appli
 | Field             | Type              | Required | Constraints    | Description                                                                   |
 |-------------------|-------------------|----------|----------------|-------------------------------------------------------------------------------|
 | `title`           | `String`          | No       | —              | New title; omit to keep current                                               |
-| `description`     | `String`          | No       | max 2000 chars | New description; omit to keep current; send `""` to clear                    |
+| `description`     | `String`          | No       | max 2000 chars | New description; omit to keep current; send `""` to clear                     |
 | `frequency`       | `HabitFrequency`  | No       | —              | New frequency; omit to keep current                                           |
 | `difficultyLevel` | `DifficultyLevel` | No       | —              | New difficulty; recalculates `coinReward`/`coinPenalty`; omit to keep current |
 
 **Response — `200 OK` — `HabitResponse`**
 
-Same shape as `AddHabitResponse` (`monthCompletions` is `null`).
+Same shape as `HabitResponse` (`monthCompletions` is `null`).
 
 **Errors:** `400` (validation), `404` (habit not found)
 
