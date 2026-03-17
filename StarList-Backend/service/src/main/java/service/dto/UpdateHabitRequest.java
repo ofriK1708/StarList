@@ -1,15 +1,17 @@
 package service.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import model.enums.DifficultyLevel;
 import model.enums.HabitFrequency;
 
+/**
+ * Partial-update request for a habit. All fields are optional — only non-null fields are applied.
+ * At least one field should be provided; an all-null body is a no-op.
+ */
 @Builder
 public record UpdateHabitRequest(
-        @NotBlank String title,
+        String title,
         String description,
-        @NotNull HabitFrequency frequency,
-        @NotNull DifficultyLevel difficultyLevel
+        HabitFrequency frequency,
+        DifficultyLevel difficultyLevel
 ) {}
