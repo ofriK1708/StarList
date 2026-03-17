@@ -129,9 +129,9 @@ public class HabitService {
                     request.difficultyLevel());
         }
 
-        if (request.title() != null)       entity.setTitle(request.title());
+        if (request.title() != null) entity.setTitle(request.title());
         if (request.description() != null) entity.setDescription(request.description());
-        if (request.frequency() != null)   entity.setFrequency(request.frequency());
+        if (request.frequency() != null) entity.setFrequency(request.frequency());
         if (request.difficultyLevel() != null) entity.setDifficultyLevel(request.difficultyLevel());
 
         if (difficultyChanged) {
@@ -227,18 +227,25 @@ public class HabitService {
     private List<CompletionStatus> buildMonthCompletions(
             Set<LocalDate> completedDates, YearMonth yearMonth, LocalDate habitCreatedDate) {
         LocalDate today = LocalDate.now();
+        log.debug("Building month completions for {}: habitCreatedDate={}, today={}, completedDates={}",
+                yearMonth, habitCreatedDate, today, completedDates);
         List<CompletionStatus> result = new ArrayList<>(yearMonth.lengthOfMonth());
         for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
             LocalDate date = yearMonth.atDay(day);
             if (date.isAfter(today) || date.isBefore(habitCreatedDate)) {
                 result.add(CompletionStatus.NA);
+                log.debug("Date {} is {}, marking as NA", date,
+                        date.isAfter(today) ? "in the future" : "before habit creation");
             } else if (completedDates.contains(date)) {
                 result.add(CompletionStatus.DONE);
+                log.debug("Date {} is in completedDates, marking as DONE", date);
             } else {
                 if (date.isEqual(today)) {
                     result.add(CompletionStatus.NA);
+                    log.debug("Date {} is today, not in completedDates yet, marking as NA", date);
                 } else {
                     result.add(CompletionStatus.MISSED);
+                    log.debug("Date {} is not in completedDates, marking as MISSED", date);
                 }
             }
         }

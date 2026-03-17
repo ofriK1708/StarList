@@ -156,6 +156,7 @@ public class TaskService {
     /** Clears the {@code dueDate} of an active task, returning the updated task. */
     @Transactional
     public TaskResponse clearDueDate(Long taskId) {
+        log.info("About to clear due date for task {}", taskId);
         TaskEntity entity = loadActiveTask(taskId);
         entity.setDueDate(null);
         return TaskResponse.from(taskMapper.toDomain(taskRepository.save(entity)));
@@ -164,6 +165,7 @@ public class TaskService {
     /** Clears the {@code durationMinutes} of an active task, returning the updated task. */
     @Transactional
     public TaskResponse clearDurationMinutes(Long taskId) {
+        log.info("About to clear duration for task {}", taskId);
         TaskEntity entity = loadActiveTask(taskId);
         entity.setDurationMinutes(null);
         return TaskResponse.from(taskMapper.toDomain(taskRepository.save(entity)));
