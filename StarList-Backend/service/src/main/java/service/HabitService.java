@@ -97,15 +97,16 @@ public class HabitService {
 
         HabitEntity entity = loadActiveHabit(habitId);
 
-        boolean difficultyChanged = !entity.getDifficultyLevel().equals(request.difficultyLevel());
+        boolean difficultyChanged = request.difficultyLevel() != null
+                && !entity.getDifficultyLevel().equals(request.difficultyLevel());
         if (difficultyChanged) {
             log.debug("Difficulty changed for habit {}: {} -> {}", habitId, entity.getDifficultyLevel(), request.difficultyLevel());
         }
 
-        entity.setTitle(request.title());
-        entity.setDescription(request.description());
-        entity.setFrequency(request.frequency());
-        entity.setDifficultyLevel(request.difficultyLevel());
+        if (request.title() != null)           entity.setTitle(request.title());
+        entity.setDescription(request.description());                          // null clears the field
+        if (request.frequency() != null)       entity.setFrequency(request.frequency());
+        if (request.difficultyLevel() != null) entity.setDifficultyLevel(request.difficultyLevel());
 
         if (difficultyChanged) {
             int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());

@@ -63,7 +63,6 @@ public class TaskService {
                 .coinPenalty(coins[1])
                 .createdByAi(false)
                 .build();
-
         return AddTaskResponse.from(
                 taskMapper.toDomain(
                         taskRepository.save(
@@ -95,16 +94,17 @@ public class TaskService {
         log.info("About to update task {}", taskId);
         TaskEntity entity = loadActiveTask(taskId);
 
-        boolean difficultyChanged = !entity.getDifficultyLevel().equals(request.difficultyLevel());
+        boolean difficultyChanged = request.difficultyLevel() != null
+                && !entity.getDifficultyLevel().equals(request.difficultyLevel());
         if (difficultyChanged) {
             log.debug("Difficulty changed for task {}: {} -> {}", taskId, entity.getDifficultyLevel(), request.difficultyLevel());
         }
 
-        entity.setTitle(request.title());
-        entity.setDescription(request.description());
-        entity.setDifficultyLevel(request.difficultyLevel());
-        entity.setDurationMinutes(request.durationMinutes());
-        entity.setDueDate(request.dueDate());
+        if (request.title() != null)           entity.setTitle(request.title());
+        entity.setDescription(request.description());                          // null clears the field
+        if (request.difficultyLevel() != null) entity.setDifficultyLevel(request.difficultyLevel());
+        entity.setDurationMinutes(request.durationMinutes());                  // null clears the field
+        entity.setDueDate(request.dueDate());                                  // null clears the field
 
         if (difficultyChanged) {
             int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
