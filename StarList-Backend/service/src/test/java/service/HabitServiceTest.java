@@ -17,8 +17,17 @@ import service.dto.MarkHabitDoneResponse;
 import service.exceptions.HabitAlreadyCompletedTodayException;
 import service.exceptions.HabitNotFoundException;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import model.domain.Habit;
+import model.enums.CompletionStatus;
+import service.dto.HabitResponse;
 
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -221,6 +230,198 @@ class HabitServiceTest {
 
         assertThatThrownBy(() -> habitService.completeHabit(99L))
                 .isInstanceOf(HabitNotFoundException.class);
+    }
+
+    // ── getHabit / monthCompletions ──
+
+    @Test
+    void getHabit_daysBeforeCreation_markedNA() {
+        YearMonth march2026 = YearMonth.of(2026, 3);
+        Instant createdAtDay10 = LocalDate.of(2026, 3, 10).atStartOfDay().toInstant(ZoneOffset.UTC);
+        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        Habit habit = Habit.builder().id(1L).createdAt(createdAtDay10).build();
+
+        when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), march2026))
+                .thenReturn(Map.of());
+
+        HabitResponse response = habitService.getHabit(1L, march2026);
+
+        List<CompletionStatus> mc = response.monthCompletions();
+        for (int i = 0; i < 9; i++) {
+            assertThat(mc.get(i)).as("day %d should be NA (before creation)", i + 1)
+                    .isEqualTo(CompletionStatus.NA);
+        }
+    }
+
+    @Test
+    void getHabit_pastDayWithCompletion_markedDone() {
+        YearMonth march2026 = YearMonth.of(2026, 3);
+        Instant createdAtDay1 = LocalDate.of(2026, 3, 1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        LocalDate day5 = LocalDate.of(2026, 3, 5);
+        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
+
+        when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), march2026))
+                .thenReturn(Map.of(1L, Set.of(day5)));
+
+        HabitResponse response = habitService.getHabit(1L, march2026);
+
+        assertThat(response.monthCompletions().get(4)).isEqualTo(CompletionStatus.DONE);
+    }
+
+    @Test
+    void getHabit_todayWithoutCompletion_markedNA() {
+        YearMonth currentMonth = YearMonth.now();
+        Instant createdAtDay1 = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
+
+        when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), currentMonth))
+                .thenReturn(Map.of());
+
+        HabitResponse response = habitService.getHabit(1L, currentMonth);
+
+        LocalDate today = LocalDate.now();
+        int todayIndex = today.getDayOfMonth() - 1;
+        assertThat(response.monthCompletions().get(todayIndex)).isEqualTo(CompletionStatus.NA);
+    }
+
+    @Test
+    void getHabit_todayWithCompletion_markedDone(){
+        YearMonth currentMonth = YearMonth.now();
+        Instant createdAtDay1 = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        LocalDate today = LocalDate.now();
+        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
+
+        when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), currentMonth))
+                .thenReturn(Map.of(1L, Set.of(today)));
+
+        HabitResponse response = habitService.getHabit(1L, currentMonth);
+
+        int todayIndex = today.getDayOfMonth() - 1;
+        assertThat(response.monthCompletions().get(todayIndex)).isEqualTo(CompletionStatus.DONE);
+    }
+
+    @Test
+    void getHabit_pastDayWithoutCompletion_markedMissed() {
+        YearMonth currentMonth = YearMonth.now();
+        Instant createdAtDay1 = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
+
+        when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), currentMonth))
+                .thenReturn(Map.of());
+
+        HabitResponse response = habitService.getHabit(1L, currentMonth);
+
+        List<CompletionStatus> mc = response.monthCompletions();
+        LocalDate today = LocalDate.now();
+        for (int day = 1; day <= currentMonth.lengthOfMonth(); day++) {
+            if (currentMonth.atDay(day).isBefore(today)) {
+                assertThat(mc.get(day - 1)).as("day %d should be MISSED", day)
+                        .isEqualTo(CompletionStatus.MISSED);
+            }
+        }
+    }
+
+    @Test
+    void getHabit_todayAndFutureDays_markedNA() {
+        YearMonth currentMonth = YearMonth.now();
+        Instant createdAtDay1 = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
+
+        when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), currentMonth))
+                .thenReturn(Map.of());
+
+        HabitResponse response = habitService.getHabit(1L, currentMonth);
+
+        List<CompletionStatus> mc = response.monthCompletions();
+        int todayIndex = LocalDate.now().getDayOfMonth() - 1;
+        for (int i = todayIndex; i < mc.size(); i++) {
+            assertThat(mc.get(i)).as("day %d should be NA (today/future)", i + 1)
+                    .isEqualTo(CompletionStatus.NA);
+        }
+    }
+
+    @Test
+    void getHabit_habitCreatedToday_allDaysNA() {
+        YearMonth currentMonth = YearMonth.now();
+        LocalDate today = LocalDate.now();
+        Instant createdAtToday = today.atStartOfDay().toInstant(ZoneOffset.UTC);
+        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        Habit habit = Habit.builder().id(1L).createdAt(createdAtToday).build();
+
+        when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), currentMonth))
+                .thenReturn(Map.of());
+
+        HabitResponse response = habitService.getHabit(1L, currentMonth);
+
+        assertThat(response.monthCompletions())
+                .hasSize(currentMonth.lengthOfMonth())
+                .allMatch(s -> s == CompletionStatus.NA);
+    }
+
+    @Test
+    void getHabit_arrayLength_matchesMonthDays() {
+        YearMonth feb2026 = YearMonth.of(2026, 2);
+        Instant createdAtDay1 = LocalDate.of(2026, 2, 1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
+
+        when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), feb2026))
+                .thenReturn(Map.of());
+
+        HabitResponse response = habitService.getHabit(1L, feb2026);
+
+        assertThat(response.monthCompletions()).hasSize(28);
+    }
+
+    @Test
+    void getUserHabits_multipleHabits_eachGetsIndependentCompletions() {
+        YearMonth march2026 = YearMonth.of(2026, 3);
+        Instant createdAtDay1 = LocalDate.of(2026, 3, 1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        LocalDate day3 = LocalDate.of(2026, 3, 3);
+        LocalDate day7 = LocalDate.of(2026, 3, 7);
+        UserEntity user = UserEntity.builder().id(1L).build();
+        HabitEntity entity1 = HabitEntity.builder().id(10L).user(user).build();
+        HabitEntity entity2 = HabitEntity.builder().id(20L).user(user).build();
+        Habit habit1 = Habit.builder().id(10L).createdAt(createdAtDay1).build();
+        Habit habit2 = Habit.builder().id(20L).createdAt(createdAtDay1).build();
+
+        when(habitRepository.findAllByUser_IdAndDeletedAtIsNull(1L))
+                .thenReturn(List.of(entity1, entity2));
+        when(habitMapper.toDomain(entity1)).thenReturn(habit1);
+        when(habitMapper.toDomain(entity2)).thenReturn(habit2);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(10L, 20L), march2026))
+                .thenReturn(Map.of(10L, Set.of(day3), 20L, Set.of(day7)));
+
+        List<HabitResponse> responses = habitService.getUserHabits(1L, march2026);
+
+        HabitResponse r1 = responses.stream().filter(r -> r.habitId().equals(10L)).findFirst().orElseThrow();
+        HabitResponse r2 = responses.stream().filter(r -> r.habitId().equals(20L)).findFirst().orElseThrow();
+
+        assertThat(r1.monthCompletions().get(2)).isEqualTo(CompletionStatus.DONE);   // day 3 completed for habit1
+        assertThat(r1.monthCompletions().get(6)).isEqualTo(CompletionStatus.MISSED); // day 7 not completed for habit1
+        assertThat(r2.monthCompletions().get(6)).isEqualTo(CompletionStatus.DONE);   // day 7 completed for habit2
+        assertThat(r2.monthCompletions().get(2)).isEqualTo(CompletionStatus.MISSED); // day 3 not completed for habit2
     }
 
     @Test

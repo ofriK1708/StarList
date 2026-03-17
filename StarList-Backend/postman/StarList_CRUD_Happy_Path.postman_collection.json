@@ -111,6 +111,75 @@
           }
         },
         {
+          "name": "4a. Partial update (title only) → dueDate and duration unchanged",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('title updated', () => pm.expect(body.title).to.eql('Write unit tests (partial)'));",
+                  "pm.test('dueDate still set', () => pm.expect(body.dueDate).to.be.a('string'));",
+                  "pm.test('durationMinutes still set', () => pm.expect(body.durationMinutes).to.eql(90));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/tasks/{{taskId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Write unit tests (partial)\"\n}"
+            }
+          }
+        },
+        {
+          "name": "4b. Clear task due date",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('dueDate is null', () => pm.expect(body.dueDate).to.be.null);",
+                  "pm.test('title unchanged', () => pm.expect(body.title).to.eql('Write unit tests (partial)'));",
+                  "pm.test('durationMinutes unchanged', () => pm.expect(body.durationMinutes).to.eql(90));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/tasks/{{taskId}}/due-date"
+          }
+        },
+        {
+          "name": "4c. Clear task duration",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('durationMinutes is null', () => pm.expect(body.durationMinutes).to.be.null);",
+                  "pm.test('dueDate still null', () => pm.expect(body.dueDate).to.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/tasks/{{taskId}}/duration"
+          }
+        },
+        {
           "name": "5. Complete task",
           "event": [
             {

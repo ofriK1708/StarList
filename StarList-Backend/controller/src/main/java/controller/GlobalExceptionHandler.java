@@ -2,6 +2,7 @@ package controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -97,14 +98,7 @@ public class GlobalExceptionHandler {
                 ))
                 .toList();
 
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
-        problem.setTitle("Invalid request, you doofus!");
-        problem.setDetail("Validation failed with " + fieldErrors.size() + " failures. Check the 'failures' field for" +
-                " more information");
-        problem.setInstance(URI.create(request.getRequestURI()));
-        problem.setProperty("failures", fieldErrors);
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+        return getValidationProblemDetailResponseEntity(request, fieldErrors);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -127,9 +121,16 @@ public class GlobalExceptionHandler {
                 })
                 .toList();
 
+        return getValidationProblemDetailResponseEntity(request, fieldErrors);
+    }
+
+    @NonNull
+    private ResponseEntity<ProblemDetail> getValidationProblemDetailResponseEntity(HttpServletRequest request,
+                                                                                   List<Map<String, String>> fieldErrors) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
-        problem.setTitle("You are not worthy of my attention... $@%$%$%");
-        problem.setDetail("Validation failed with " + fieldErrors.size() + " failures.");
+        problem.setTitle("Invalid request, you doofus!");
+        problem.setDetail("Validation failed with " + fieldErrors.size() + " failures. Check the 'failures' field for" +
+                " more information");
         problem.setInstance(URI.create(request.getRequestURI()));
         problem.setProperty("failures", fieldErrors);
 

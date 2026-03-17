@@ -81,6 +81,15 @@ COMMON | RARE | EPIC | LEGENDARY
 TASK_CREATION | STUDY_PLAN | HABIT_SUGGESTION | GENERAL_CHAT
 ```
 
+### `CompletionStatus`
+```
+DONE | MISSED | NA
+```
+Per-day habit completion state embedded in `GET /habits` and `GET /habits/{habitId}` responses.
+- `DONE` — the day has passed, the habit existed, and a completion record exists
+- `MISSED` — the day has passed, the habit existed, and no completion record exists
+- `NA` — the day is today or in the future, OR before the habit was created
+
 ---
 
 ## Error Responses
@@ -385,19 +394,17 @@ Content-Type: application/json
 
 All fields are **optional** — only the fields you include (non-null) are applied. Omitted fields keep their current values.
 
-| Field             | Type              | Required | Constraints    | Description                                                                   |
-|-------------------|-------------------|----------|----------------|-------------------------------------------------------------------------------|
-| `title`           | `String`          | No       | —              | New title; omit to keep current                                               |
-| `description`     | `String`          | No       | max 2000 chars | New description; omit **or send `null`** to clear                             |
-| `difficultyLevel` | `DifficultyLevel` | No       | —              | New difficulty; recalculates `coinReward`/`coinPenalty`; omit to keep current |
-| `durationMinutes` | `Integer`         | No       | `@Positive`    | New estimated duration; omit **or send `null`** to clear                      |
-| `dueDate`         | `Instant`         | No       | `@Future`      | New due date; omit **or send `null`** to clear                                |
+> **Partial-update semantics:** `null` (or omitted) → keep current value.
+> To clear `dueDate` or `durationMinutes`, use the dedicated DELETE endpoints below.
+> To clear `description`, send `""`.
 
-> **Partial-update rules:**
-> - Fields **not clearable** (`title`, `difficultyLevel`): omitting them (or sending `null`) preserves the existing value.
-> - Fields marked **clearable** (`description`, `durationMinutes`, `dueDate`): always applied — send `null` explicitly to remove the value.
-
-- Only extend the due date — everything else unchanged
+| Field             | Type              | Required | Constraints           | Description                                                                   |
+|-------------------|-------------------|----------|-----------------------|-------------------------------------------------------------------------------|
+| `title`           | `String`          | No       | —                     | New title; omit to keep current                                               |
+| `description`     | `String`          | No       | max 2000 chars        | New description; omit to keep current; send `""` to clear                     |
+| `difficultyLevel` | `DifficultyLevel` | No       | —                     | New difficulty; recalculates `coinReward`/`coinPenalty`; omit to keep current |
+| `durationMinutes` | `Integer`         | No       | must be positive      | New estimated duration; omit to keep current                                  |
+| `dueDate`         | `Instant`         | No       | must be in the future | New due date; omit to keep current                                            |
 
 | Scenario                                             | Example                                 |
 |------------------------------------------------------|-----------------------------------------|
@@ -410,6 +417,46 @@ All fields are **optional** — only the fields you include (non-null) are appli
 Same shape as `AddTaskResponse`.
 
 **Errors:** `400` (validation), `404` (task not found)
+
+---
+
+### Clear Task Due Date
+
+```
+DELETE /tasks/{taskId}/due-date
+```
+
+**Path Parameters**
+
+| Param    | Type   | Description        |
+|----------|--------|--------------------|
+| `taskId` | `Long` | Task's database ID |
+
+Sets `dueDate` to `null` on the task.
+
+**Response — `200 OK` — `TaskResponse`** *(same shape as `AddTaskResponse`; `dueDate` will be `null`)*
+
+**Errors:** `404` (task not found)
+
+---
+
+### Clear Task Duration
+
+```
+DELETE /tasks/{taskId}/duration
+```
+
+**Path Parameters**
+
+| Param    | Type   | Description        |
+|----------|--------|--------------------|
+| `taskId` | `Long` | Task's database ID |
+
+Sets `durationMinutes` to `null` on the task.
+
+**Response — `200 OK` — `TaskResponse`** *(same shape as `AddTaskResponse`; `durationMinutes` will be `null`)*
+
+**Errors:** `404` (task not found)
 
 ---
 
@@ -515,7 +562,6 @@ X-User-Id: <userId>
 | `lastCompletedDate` | `LocalDate`       | Date of last completion (nullable)        |
 | `createdAt`         | `Instant`         | Creation timestamp                        |
 | `isActive`          | `Boolean`         | Whether the habit is active (not deleted) |
-
 ```json
 {
   "habitId": 55,
@@ -541,7 +587,7 @@ X-User-Id: <userId>
 ### Get Habit
 
 ```
-GET /habits/{habitId}
+GET /habits/{habitId}?year=&month=
 ```
 
 **Path Parameters**
@@ -550,28 +596,50 @@ GET /habits/{habitId}
 |-----------|--------|---------------------|
 | `habitId` | `Long` | Habit's database ID |
 
+**Query Parameters**
+
+| Param   | Type      | Required | Constraints | Description                                   |
+|---------|-----------|----------|-------------|-----------------------------------------------|
+| `year`  | `Integer` | No       | `>= 2000`   | Year of the month to display; defaults to now |
+| `month` | `Integer` | No       | `1–12`      | Month number to display; defaults to now      |
+
+If only one of `year`/`month` is provided, both are ignored and the current month is used.
+
 **Response — `200 OK` — `HabitResponse`**
 
-Same shape as `AddHabitResponse` above.
+Same shape as `AddHabitResponse` above, plus:
 
-**Errors:** `404` (habit not found)
+| Field              | Type                     | Description                                                                  |
+|--------------------|--------------------------|------------------------------------------------------------------------------|
+| `monthCompletions` | `List<CompletionStatus>` | One entry per day of the requested month (index 0 = day 1). See enum values. |
+
+**Errors:** `400` (invalid `year`/`month`), `404` (habit not found)
 
 ---
 
 ### List Habits for User
 
 ```
-GET /habits
+GET /habits?year=&month=
 X-User-Id: <userId>
 ```
 
 Returns all active (non-deleted) habits belonging to the user.
 
+**Query Parameters**
+
+| Param   | Type      | Required | Constraints | Description                                   |
+|---------|-----------|----------|-------------|-----------------------------------------------|
+| `year`  | `Integer` | No       | `>= 2000`   | Year of the month to display; defaults to now |
+| `month` | `Integer` | No       | `1–12`      | Month number to display; defaults to now      |
+
+If only one of `year`/`month` is provided, both are ignored and the current month is used.
+
 **Response — `200 OK` — `List<HabitResponse>`**
 
-Array of `HabitResponse` objects (same shape as `AddHabitResponse`).
+Array of `HabitResponse` objects (same shape as `AddHabitResponse`), each including `monthCompletions`. Completions for all habits are fetched in a single DB query.
 
-**Errors:** `404` (user not found from header)
+**Errors:** `400` (invalid `year`/`month`), `404` (user not found from header)
 
 ---
 
@@ -592,20 +660,19 @@ Content-Type: application/json
 
 All fields are **optional** — only the fields you include (non-null) are applied. Omitted fields keep their current values.
 
+> **Partial-update semantics:** `null` (or omitted) → keep current value.
+> To clear `description`, send `""`.
+
 | Field             | Type              | Required | Constraints    | Description                                                                   |
 |-------------------|-------------------|----------|----------------|-------------------------------------------------------------------------------|
 | `title`           | `String`          | No       | —              | New title; omit to keep current                                               |
-| `description`     | `String`          | No       | max 2000 chars | New description; omit **or send `null`** to clear                             |
+| `description`     | `String`          | No       | max 2000 chars | New description; omit to keep current; send `""` to clear                     |
 | `frequency`       | `HabitFrequency`  | No       | —              | New frequency; omit to keep current                                           |
 | `difficultyLevel` | `DifficultyLevel` | No       | —              | New difficulty; recalculates `coinReward`/`coinPenalty`; omit to keep current |
 
-> **Partial-update rules:**
-> - Fields **not clearable** (`title`, `frequency`, `difficultyLevel`): omitting them (or sending `null`) preserves the existing value.
-> - Fields marked **clearable** (`description`): always applied — send `null` explicitly to remove the value.
-
 **Response — `200 OK` — `HabitResponse`**
 
-Same shape as `AddHabitResponse`.
+Same shape as `HabitResponse` (`monthCompletions` is `null`).
 
 **Errors:** `400` (validation), `404` (habit not found)
 

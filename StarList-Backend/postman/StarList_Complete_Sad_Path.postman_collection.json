@@ -116,6 +116,113 @@
       ]
     },
     {
+      "name": "Task Clear",
+      "item": [
+        {
+          "name": "Clear due-date on non-existent task → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test('title is Task not found', () => pm.expect(body.title).to.eql('Task not found'));",
+                  "pm.test('detail present', () => pm.expect(body.detail).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/tasks/999999/due-date"
+          }
+        },
+        {
+          "name": "Clear duration on non-existent task → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test('title is Task not found', () => pm.expect(body.title).to.eql('Task not found'));",
+                  "pm.test('detail present', () => pm.expect(body.detail).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/tasks/999999/duration"
+          }
+        },
+        {
+          "name": "Setup: create task for deleted-task clear test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('clearTaskId', pm.response.json().taskId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/tasks",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Clear test task\",\n  \"difficultyLevel\": \"EASY\",\n  \"dueDate\": \"2099-01-01T00:00:00Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete that task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/tasks/{{clearTaskId}}"
+          }
+        },
+        {
+          "name": "Clear due-date on deleted task → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test('title is Task not found', () => pm.expect(body.title).to.eql('Task not found'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/tasks/{{clearTaskId}}/due-date"
+          }
+        }
+      ]
+    },
+    {
       "name": "Habit Complete",
       "item": [
         {

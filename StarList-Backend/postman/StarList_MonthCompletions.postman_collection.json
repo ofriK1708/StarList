@@ -1,0 +1,424 @@
+{
+  "info": {
+    "name": "StarList – Month Completions",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "userId",  "value": "" },
+    { "key": "habitId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Setup",
+      "item": [
+        {
+          "name": "1. Create user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('userId', body.userId);",
+                  "pm.test('userId present', () => pm.expect(body.userId).to.be.a('number'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"cognitoUserId\": \"cognito-test-001\",\n  \"displayName\": \"Test User\"\n}"
+            }
+          }
+        },
+        {
+          "name": "2. Create habit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('habitId', body.habitId);",
+                  "pm.test('habitId present', () => pm.expect(body.habitId).to.be.a('number'));",
+                  "pm.test('monthCompletions is not returned on create', () => {",
+                  "    pm.expect(body).to.not.have.property('monthCompletions');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/habits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Read daily\",\n  \"description\": \"Read for at least 20 minutes\",\n  \"frequency\": \"DAILY\",\n  \"difficultyLevel\": \"EASY\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /habits (list)",
+      "item": [
+        {
+          "name": "3. No params → current month",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const habits = pm.response.json();",
+                  "pm.test('returns array', () => pm.expect(habits).to.be.an('array'));",
+                  "const now = new Date();",
+                  "const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();",
+                  "habits.forEach(h => {",
+                  "    pm.test(`habit ${h.habitId} monthCompletions length = ${daysInCurrentMonth}`, () => {",
+                  "        pm.expect(h.monthCompletions).to.be.an('array').with.lengthOf(daysInCurrentMonth);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-User-Id", "value": "{{userId}}" }],
+            "url": "{{baseUrl}}/habits"
+          }
+        },
+        {
+          "name": "4. ?year=2026&month=3 → 31 entries",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const habits = pm.response.json();",
+                  "habits.forEach(h => {",
+                  "    pm.test(`habit ${h.habitId} monthCompletions length = 31`, () => {",
+                  "        pm.expect(h.monthCompletions).to.have.lengthOf(31);",
+                  "    });",
+                  "    pm.test(`habit ${h.habitId} statuses are valid`, () => {",
+                  "        h.monthCompletions.forEach(s => pm.expect(['DONE','MISSED','NA']).to.include(s));",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-User-Id", "value": "{{userId}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/habits?year=2026&month=3",
+              "query": [
+                { "key": "year",  "value": "2026" },
+                { "key": "month", "value": "3" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. ?year=2026&month=2 → 28 entries",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const habits = pm.response.json();",
+                  "habits.forEach(h => {",
+                  "    pm.test(`habit ${h.habitId} monthCompletions length = 28`, () => {",
+                  "        pm.expect(h.monthCompletions).to.have.lengthOf(28);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-User-Id", "value": "{{userId}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/habits?year=2026&month=2",
+              "query": [
+                { "key": "year",  "value": "2026" },
+                { "key": "month", "value": "2" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Only ?month=3 → ignored, current month returned",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const habits = pm.response.json();",
+                  "const now = new Date();",
+                  "const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();",
+                  "// No year → resolveYearMonth falls back to current month regardless of month param",
+                  "habits.forEach(h => {",
+                  "    pm.test(`habit ${h.habitId} falls back to current month (${daysInCurrentMonth} days)`, () => {",
+                  "        pm.expect(h.monthCompletions).to.have.lengthOf(daysInCurrentMonth);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-User-Id", "value": "{{userId}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/habits?month=3",
+              "query": [{ "key": "month", "value": "3" }]
+            }
+          }
+        },
+        {
+          "name": "7. ?month=13 → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 for invalid month', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-User-Id", "value": "{{userId}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/habits?year=2026&month=13",
+              "query": [
+                { "key": "year",  "value": "2026" },
+                { "key": "month", "value": "13" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /habits/{id}",
+      "item": [
+        {
+          "name": "8. No params → current month",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const now = new Date();",
+                  "const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();",
+                  "pm.test('monthCompletions length = current month days', () => {",
+                  "    pm.expect(body.monthCompletions).to.have.lengthOf(daysInCurrentMonth);",
+                  "});",
+                  "// Today and future slots must be NA",
+                  "const today = now.getDate(); // 1-based",
+                  "const mc = body.monthCompletions;",
+                  "mc.slice(today - 1).forEach((s, i) => {",
+                  "    pm.test(`day ${today + i} is NA (today/future)`, () => pm.expect(s).to.eql('NA'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/habits/{{habitId}}"
+          }
+        },
+        {
+          "name": "9. ?year=2026&month=3 → 31 entries",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('monthCompletions length = 31', () => {",
+                  "    pm.expect(body.monthCompletions).to.have.lengthOf(31);",
+                  "});",
+                  "pm.test('all statuses are valid', () => {",
+                  "    body.monthCompletions.forEach(s => pm.expect(['DONE','MISSED','NA']).to.include(s));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/habits/{{habitId}}?year=2026&month=3",
+              "query": [
+                { "key": "year",  "value": "2026" },
+                { "key": "month", "value": "3" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "10. Month before habit created → all NA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('monthCompletions length = 31', () => {",
+                  "    pm.expect(body.monthCompletions).to.have.lengthOf(31);",
+                  "});",
+                  "pm.test('all days are NA (habit did not exist in Jan 2025)', () => {",
+                  "    body.monthCompletions.forEach((s, i) => {",
+                  "        pm.expect(s).to.eql('NA', `day ${i + 1} should be NA`);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/habits/{{habitId}}?year=2025&month=1",
+              "query": [
+                { "key": "year",  "value": "2025" },
+                { "key": "month", "value": "1" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mutations — monthCompletions is null",
+      "item": [
+        {
+          "name": "11. POST /habits → monthCompletions null",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('monthCompletions is null on create', () => {",
+                  "    pm.expect(pm.response.json().monthCompletions).to.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id",    "value": "{{userId}}" }
+            ],
+            "url": "{{baseUrl}}/habits",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Meditate\",\n  \"frequency\": \"DAILY\",\n  \"difficultyLevel\": \"EASY\"\n}"
+            }
+          }
+        },
+        {
+          "name": "12. PUT /habits/{id} → monthCompletions null",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('monthCompletions is null on update', () => {",
+                  "    pm.expect(pm.response.json().monthCompletions).to.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/habits/{{habitId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Read daily (updated)\",\n  \"frequency\": \"DAILY\",\n  \"difficultyLevel\": \"MEDIUM\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "After completing → DONE appears",
+      "item": [
+        {
+          "name": "13. POST /habits/{id}/complete",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('coinsEarned > 0', () => pm.expect(body.coinsEarned).to.be.above(0));",
+                  "pm.test('currentStreak = 1', () => pm.expect(body.currentStreak).to.eql(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/habits/{{habitId}}/complete"
+          }
+        },
+        {
+          "name": "14. GET /habits/{id} → today's slot is DONE",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const todayIndex = new Date().getDate() - 1; // 0-based",
+                  "pm.test('today is DONE after completing', () => {",
+                  "    pm.expect(body.monthCompletions[todayIndex]).to.eql('DONE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/habits/{{habitId}}"
+          }
+        }
+      ]
+    }
+  ]
+}
