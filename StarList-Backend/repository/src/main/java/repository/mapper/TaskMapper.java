@@ -16,6 +16,7 @@ public interface TaskMapper {
 
     @Mapping(target = "user", source = "user")
     @Mapping(target = "aiConversation", ignore = true)
+    @Mapping(target = "version", ignore = true) // version is only relevant to db and should not be touched by service
     @Mapping(target = "id", source = "task.id")
     @Mapping(target = "createdAt", source = "task.createdAt")
     TaskEntity fromDomain(Task task, UserEntity user);

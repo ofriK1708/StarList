@@ -2,10 +2,17 @@ package service;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 import model.domain.Habit;
+import model.enums.CompletionStatus;
 import model.enums.DifficultyLevel;
 import model.enums.ReferenceType;
 import model.enums.TransactionType;
@@ -74,20 +81,38 @@ public class HabitService {
     }
 
     @Transactional(readOnly = true)
-    public HabitResponse getHabit(Long habitId) {
-        log.info("About to get habit {}", habitId);
+    public HabitResponse getHabit(Long habitId, YearMonth yearMonth) {
+        log.info("About to get habit {} for {}", habitId, yearMonth);
 
-        return HabitResponse.from(habitMapper.toDomain(loadActiveHabit(habitId)));
+        Habit habit = habitMapper.toDomain(loadActiveHabit(habitId));
+        Map<Long, Set<LocalDate>> completionsMap =
+                habitCompletionService.getCompletedDatesForHabits(List.of(habitId), yearMonth);
+        LocalDate habitCreatedDate = habit.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate();
+
+        return HabitResponse.from(habit,
+                buildMonthCompletions(
+                        completionsMap.getOrDefault(habitId, Collections.emptySet()),
+                        yearMonth,
+                        habitCreatedDate));
     }
 
     @Transactional(readOnly = true)
-    public List<HabitResponse> getUserHabits(Long userId) {
-        log.info("About to list habits for user {}", userId);
+    public List<HabitResponse> getUserHabits(Long userId, YearMonth yearMonth) {
+        log.info("About to list habits for user {} for {}", userId, yearMonth);
 
-        return habitRepository.findAllByUser_IdAndDeletedAtIsNull(userId)
-                .stream()
+        List<HabitEntity> entities = habitRepository.findAllByUser_IdAndDeletedAtIsNull(userId);
+        List<Long> habitIds = entities.stream().map(HabitEntity::getId).toList();
+        Map<Long, Set<LocalDate>> completionsMap =
+                habitCompletionService.getCompletedDatesForHabits(habitIds, yearMonth);
+
+        return entities.stream()
                 .map(habitMapper::toDomain)
-                .map(HabitResponse::from)
+                .map(habit -> HabitResponse
+                        .from(habit,
+                                buildMonthCompletions(
+                                        completionsMap.getOrDefault(habit.getId(), Collections.emptySet()),
+                                        yearMonth,
+                                        habit.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate())))
                 .toList();
     }
 
@@ -100,12 +125,13 @@ public class HabitService {
         boolean difficultyChanged = request.difficultyLevel() != null
                 && !entity.getDifficultyLevel().equals(request.difficultyLevel());
         if (difficultyChanged) {
-            log.debug("Difficulty changed for habit {}: {} -> {}", habitId, entity.getDifficultyLevel(), request.difficultyLevel());
+            log.debug("Difficulty changed for habit {}: {} -> {}", habitId, entity.getDifficultyLevel(),
+                    request.difficultyLevel());
         }
 
-        if (request.title() != null)           entity.setTitle(request.title());
+        if (request.title() != null) entity.setTitle(request.title());
         entity.setDescription(request.description());                          // null clears the field
-        if (request.frequency() != null)       entity.setFrequency(request.frequency());
+        if (request.frequency() != null) entity.setFrequency(request.frequency());
         if (request.difficultyLevel() != null) entity.setDifficultyLevel(request.difficultyLevel());
 
         if (difficultyChanged) {
@@ -130,7 +156,7 @@ public class HabitService {
      * the catch on {@link org.springframework.dao.DataIntegrityViolationException} is the safety net for the race.
      *
      * @throws HabitAlreadyCompletedTodayException if the habit was already completed today
-     * @throws HabitNotFoundException if the habit does not exist or is deleted
+     * @throws HabitNotFoundException              if the habit does not exist or is deleted
      */
     @Transactional
     public MarkHabitDoneResponse completeHabit(Long habitId) {
@@ -185,6 +211,38 @@ public class HabitService {
         log.debug("Soft-deleting habit '{}' (id={})", entity.getTitle(), habitId);
         entity.setDeletedAt(Instant.now());
         habitRepository.save(entity);
+    }
+
+    /**
+     * Builds a per-day {@link CompletionStatus} array for the given month.
+     *
+     * <ul>
+     *   <li>{@code DONE} — day is in the past, on/after {@code habitCreatedDate}, and appears in {@code
+     *   completedDates}</li>
+     *   <li>{@code MISSED} — day is in the past, on/after {@code habitCreatedDate}, and not in {@code completedDates
+     *   }</li>
+     *   <li>{@code NA} — day is today and not marked yet, OR in the future, OR before the habit was created</li>
+     * </ul>
+     */
+    private List<CompletionStatus> buildMonthCompletions(
+            Set<LocalDate> completedDates, YearMonth yearMonth, LocalDate habitCreatedDate) {
+        LocalDate today = LocalDate.now();
+        List<CompletionStatus> result = new ArrayList<>(yearMonth.lengthOfMonth());
+        for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
+            LocalDate date = yearMonth.atDay(day);
+            if (date.isAfter(today) || date.isBefore(habitCreatedDate)) {
+                result.add(CompletionStatus.NA);
+            } else if (completedDates.contains(date)) {
+                result.add(CompletionStatus.DONE);
+            } else {
+                if (date.isEqual(today)) {
+                    result.add(CompletionStatus.NA);
+                } else {
+                    result.add(CompletionStatus.MISSED);
+                }
+            }
+        }
+        return result;
     }
 
     /**

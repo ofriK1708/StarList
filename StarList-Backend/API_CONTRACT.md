@@ -81,6 +81,15 @@ COMMON | RARE | EPIC | LEGENDARY
 TASK_CREATION | STUDY_PLAN | HABIT_SUGGESTION | GENERAL_CHAT
 ```
 
+### `CompletionStatus`
+```
+DONE | MISSED | NA
+```
+Per-day habit completion state embedded in `GET /habits` and `GET /habits/{habitId}` responses.
+- `DONE` — the day has passed, the habit existed, and a completion record exists
+- `MISSED` — the day has passed, the habit existed, and no completion record exists
+- `NA` — the day is today or in the future, OR before the habit was created
+
 ---
 
 ## Error Responses
@@ -515,6 +524,7 @@ X-User-Id: <userId>
 | `lastCompletedDate` | `LocalDate`       | Date of last completion (nullable)        |
 | `createdAt`         | `Instant`         | Creation timestamp                        |
 | `isActive`          | `Boolean`         | Whether the habit is active (not deleted) |
+| `monthCompletions`  | `null`            | Always `null` on create responses         |
 
 ```json
 {
@@ -530,7 +540,8 @@ X-User-Id: <userId>
   "totalCompletions": 0,
   "lastCompletedDate": null,
   "createdAt": "2026-03-17T10:00:00Z",
-  "isActive": true
+  "isActive": true,
+  "monthCompletions": null
 }
 ```
 
@@ -541,7 +552,7 @@ X-User-Id: <userId>
 ### Get Habit
 
 ```
-GET /habits/{habitId}
+GET /habits/{habitId}?year=&month=
 ```
 
 **Path Parameters**
@@ -550,28 +561,50 @@ GET /habits/{habitId}
 |-----------|--------|---------------------|
 | `habitId` | `Long` | Habit's database ID |
 
+**Query Parameters**
+
+| Param   | Type      | Required | Constraints | Description                                   |
+|---------|-----------|----------|-------------|-----------------------------------------------|
+| `year`  | `Integer` | No       | `>= 2000`   | Year of the month to display; defaults to now |
+| `month` | `Integer` | No       | `1–12`      | Month number to display; defaults to now      |
+
+If only one of `year`/`month` is provided, both are ignored and the current month is used.
+
 **Response — `200 OK` — `HabitResponse`**
 
-Same shape as `AddHabitResponse` above.
+Same shape as `AddHabitResponse` above, plus:
 
-**Errors:** `404` (habit not found)
+| Field              | Type                    | Description                                                                  |
+|--------------------|-------------------------|------------------------------------------------------------------------------|
+| `monthCompletions` | `List<CompletionStatus>` | One entry per day of the requested month (index 0 = day 1). See enum values. |
+
+**Errors:** `400` (invalid `year`/`month`), `404` (habit not found)
 
 ---
 
 ### List Habits for User
 
 ```
-GET /habits
+GET /habits?year=&month=
 X-User-Id: <userId>
 ```
 
 Returns all active (non-deleted) habits belonging to the user.
 
+**Query Parameters**
+
+| Param   | Type      | Required | Constraints | Description                                   |
+|---------|-----------|----------|-------------|-----------------------------------------------|
+| `year`  | `Integer` | No       | `>= 2000`   | Year of the month to display; defaults to now |
+| `month` | `Integer` | No       | `1–12`      | Month number to display; defaults to now      |
+
+If only one of `year`/`month` is provided, both are ignored and the current month is used.
+
 **Response — `200 OK` — `List<HabitResponse>`**
 
-Array of `HabitResponse` objects (same shape as `AddHabitResponse`).
+Array of `HabitResponse` objects (same shape as `AddHabitResponse`), each including `monthCompletions`. Completions for all habits are fetched in a single DB query.
 
-**Errors:** `404` (user not found from header)
+**Errors:** `400` (invalid `year`/`month`), `404` (user not found from header)
 
 ---
 
@@ -605,7 +638,7 @@ All fields are **optional** — only the fields you include (non-null) are appli
 
 **Response — `200 OK` — `HabitResponse`**
 
-Same shape as `AddHabitResponse`.
+Same shape as `AddHabitResponse` (`monthCompletions` is `null`).
 
 **Errors:** `400` (validation), `404` (habit not found)
 
