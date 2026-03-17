@@ -226,7 +226,7 @@ public class HabitService {
      */
     private List<CompletionStatus> buildMonthCompletions(
             Set<LocalDate> completedDates, YearMonth yearMonth, LocalDate habitCreatedDate) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         log.debug("Building month completions for {}: habitCreatedDate={}, today={}, completedDates={}",
                 yearMonth, habitCreatedDate, today, completedDates);
         List<CompletionStatus> result = new ArrayList<>(yearMonth.lengthOfMonth());
