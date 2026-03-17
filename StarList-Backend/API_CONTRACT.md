@@ -394,19 +394,17 @@ Content-Type: application/json
 
 All fields are **optional** — only the fields you include (non-null) are applied. Omitted fields keep their current values.
 
-| Field             | Type              | Required | Constraints    | Description                                                                   |
-|-------------------|-------------------|----------|----------------|-------------------------------------------------------------------------------|
-| `title`           | `String`          | No       | —              | New title; omit to keep current                                               |
-| `description`     | `String`          | No       | max 2000 chars | New description; omit **or send `null`** to clear                             |
-| `difficultyLevel` | `DifficultyLevel` | No       | —              | New difficulty; recalculates `coinReward`/`coinPenalty`; omit to keep current |
-| `durationMinutes` | `Integer`         | No       | `@Positive`    | New estimated duration; omit **or send `null`** to clear                      |
-| `dueDate`         | `Instant`         | No       | `@Future`      | New due date; omit **or send `null`** to clear                                |
+> **Partial-update semantics:** `null` (or omitted) → keep current value.
+> To clear `dueDate` or `durationMinutes`, use the dedicated DELETE endpoints below.
+> To clear `description`, send `""`.
 
-> **Partial-update rules:**
-> - Fields **not clearable** (`title`, `difficultyLevel`): omitting them (or sending `null`) preserves the existing value.
-> - Fields marked **clearable** (`description`, `durationMinutes`, `dueDate`): always applied — send `null` explicitly to remove the value.
-
-- Only extend the due date — everything else unchanged
+| Field             | Type              | Required | Constraints              | Description                                                                   |
+|-------------------|-------------------|----------|--------------------------|-------------------------------------------------------------------------------|
+| `title`           | `String`          | No       | —                        | New title; omit to keep current                                               |
+| `description`     | `String`          | No       | max 2000 chars           | New description; omit to keep current; send `""` to clear                    |
+| `difficultyLevel` | `DifficultyLevel` | No       | —                        | New difficulty; recalculates `coinReward`/`coinPenalty`; omit to keep current |
+| `durationMinutes` | `Integer`         | No       | must be positive         | New estimated duration; omit to keep current                                  |
+| `dueDate`         | `Instant`         | No       | must be in the future    | New due date; omit to keep current                                            |
 
 | Scenario                                             | Example                                 |
 |------------------------------------------------------|-----------------------------------------|
@@ -419,6 +417,46 @@ All fields are **optional** — only the fields you include (non-null) are appli
 Same shape as `AddTaskResponse`.
 
 **Errors:** `400` (validation), `404` (task not found)
+
+---
+
+### Clear Task Due Date
+
+```
+DELETE /tasks/{taskId}/due-date
+```
+
+**Path Parameters**
+
+| Param    | Type   | Description        |
+|----------|--------|--------------------|
+| `taskId` | `Long` | Task's database ID |
+
+Sets `dueDate` to `null` on the task.
+
+**Response — `200 OK` — `TaskResponse`** *(same shape as `AddTaskResponse`; `dueDate` will be `null`)*
+
+**Errors:** `404` (task not found)
+
+---
+
+### Clear Task Duration
+
+```
+DELETE /tasks/{taskId}/duration
+```
+
+**Path Parameters**
+
+| Param    | Type   | Description        |
+|----------|--------|--------------------|
+| `taskId` | `Long` | Task's database ID |
+
+Sets `durationMinutes` to `null` on the task.
+
+**Response — `200 OK` — `TaskResponse`** *(same shape as `AddTaskResponse`; `durationMinutes` will be `null`)*
+
+**Errors:** `404` (task not found)
 
 ---
 
@@ -625,16 +663,15 @@ Content-Type: application/json
 
 All fields are **optional** — only the fields you include (non-null) are applied. Omitted fields keep their current values.
 
+> **Partial-update semantics:** `null` (or omitted) → keep current value.
+> To clear `description`, send `""`.
+
 | Field             | Type              | Required | Constraints    | Description                                                                   |
 |-------------------|-------------------|----------|----------------|-------------------------------------------------------------------------------|
 | `title`           | `String`          | No       | —              | New title; omit to keep current                                               |
-| `description`     | `String`          | No       | max 2000 chars | New description; omit **or send `null`** to clear                             |
+| `description`     | `String`          | No       | max 2000 chars | New description; omit to keep current; send `""` to clear                    |
 | `frequency`       | `HabitFrequency`  | No       | —              | New frequency; omit to keep current                                           |
 | `difficultyLevel` | `DifficultyLevel` | No       | —              | New difficulty; recalculates `coinReward`/`coinPenalty`; omit to keep current |
-
-> **Partial-update rules:**
-> - Fields **not clearable** (`title`, `frequency`, `difficultyLevel`): omitting them (or sending `null`) preserves the existing value.
-> - Fields marked **clearable** (`description`): always applied — send `null` explicitly to remove the value.
 
 **Response — `200 OK` — `HabitResponse`**
 

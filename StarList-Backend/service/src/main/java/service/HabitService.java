@@ -129,9 +129,9 @@ public class HabitService {
                     request.difficultyLevel());
         }
 
-        if (request.title() != null) entity.setTitle(request.title());
-        entity.setDescription(request.description());                          // null clears the field
-        if (request.frequency() != null) entity.setFrequency(request.frequency());
+        if (request.title() != null)       entity.setTitle(request.title());
+        if (request.description() != null) entity.setDescription(request.description());
+        if (request.frequency() != null)   entity.setFrequency(request.frequency());
         if (request.difficultyLevel() != null) entity.setDifficultyLevel(request.difficultyLevel());
 
         if (difficultyChanged) {
@@ -217,7 +217,7 @@ public class HabitService {
      * Builds a per-day {@link CompletionStatus} array for the given month.
      *
      * <ul>
-     *   <li>{@code DONE} — day is in the past, on/after {@code habitCreatedDate}, and appears in {@code
+     *   <li>{@code DONE} — day is in the past or today, on/after {@code habitCreatedDate}, and appears in {@code
      *   completedDates}</li>
      *   <li>{@code MISSED} — day is in the past, on/after {@code habitCreatedDate}, and not in {@code completedDates
      *   }</li>

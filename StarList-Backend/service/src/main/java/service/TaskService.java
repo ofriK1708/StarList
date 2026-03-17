@@ -101,10 +101,10 @@ public class TaskService {
         }
 
         if (request.title() != null)           entity.setTitle(request.title());
-        entity.setDescription(request.description());                          // null clears the field
+        if (request.description() != null)     entity.setDescription(request.description());
         if (request.difficultyLevel() != null) entity.setDifficultyLevel(request.difficultyLevel());
-        entity.setDurationMinutes(request.durationMinutes());                  // null clears the field
-        entity.setDueDate(request.dueDate());                                  // null clears the field
+        if (request.durationMinutes() != null) entity.setDurationMinutes(request.durationMinutes());
+        if (request.dueDate() != null)         entity.setDueDate(request.dueDate());
 
         if (difficultyChanged) {
             int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
@@ -151,6 +151,22 @@ public class TaskService {
                 .coinsEarned(coinsEarned)
                 .newTotalCoins(user.getTotalCoins())
                 .build();
+    }
+
+    /** Clears the {@code dueDate} of an active task, returning the updated task. */
+    @Transactional
+    public TaskResponse clearDueDate(Long taskId) {
+        TaskEntity entity = loadActiveTask(taskId);
+        entity.setDueDate(null);
+        return TaskResponse.from(taskMapper.toDomain(taskRepository.save(entity)));
+    }
+
+    /** Clears the {@code durationMinutes} of an active task, returning the updated task. */
+    @Transactional
+    public TaskResponse clearDurationMinutes(Long taskId) {
+        TaskEntity entity = loadActiveTask(taskId);
+        entity.setDurationMinutes(null);
+        return TaskResponse.from(taskMapper.toDomain(taskRepository.save(entity)));
     }
 
     @Transactional

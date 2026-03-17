@@ -61,6 +61,16 @@ public class TaskController {
         return ResponseEntity.ok(taskService.completeTask(taskId));
     }
 
+    @DeleteMapping("/{taskId}/due-date")
+    public ResponseEntity<TaskResponse> clearDueDate(@PathVariable Long taskId) {
+        return ResponseEntity.ok(taskService.clearDueDate(taskId));
+    }
+
+    @DeleteMapping("/{taskId}/duration")
+    public ResponseEntity<TaskResponse> clearDurationMinutes(@PathVariable Long taskId) {
+        return ResponseEntity.ok(taskService.clearDurationMinutes(taskId));
+    }
+
     @DeleteMapping("/{taskId}")
     public ResponseEntity<Void> deleteTask(@PathVariable Long taskId) {
         taskService.deleteTask(taskId);
