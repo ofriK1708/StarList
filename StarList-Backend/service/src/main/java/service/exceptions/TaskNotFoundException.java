@@ -1,8 +1,8 @@
 package service.exceptions;
 
-public class TaskNotFoundException extends RuntimeException {
+public class TaskNotFoundException extends NotFoundException {
 
     public TaskNotFoundException(Long taskId) {
-        super("Task with the ID: " + taskId + " not found");
+        super("Task not found", "Task with the ID: " + taskId + " not found");
     }
 }

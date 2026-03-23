@@ -9,7 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import service.exceptions.*;
+import service.exceptions.ConflictException;
+import service.exceptions.NotFoundException;
 
 import java.net.URI;
 import java.util.List;
@@ -18,66 +19,20 @@ import java.util.Map;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handelUserNotFound(UserNotFoundException e,
-                                                            HttpServletRequest request) {
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleNotFound(NotFoundException e, HttpServletRequest request) {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        problemDetail.setTitle("User not found");
+        problemDetail.setTitle(e.getTitle());
         problemDetail.setDetail(e.getMessage());
         problemDetail.setInstance(URI.create(request.getRequestURI()));
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
     }
 
-    @ExceptionHandler(TaskNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleTaskNotFound(TaskNotFoundException e,
-                                                            HttpServletRequest request) {
-        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        problemDetail.setTitle("Task not found");
-        problemDetail.setDetail(e.getMessage());
-        problemDetail.setInstance(URI.create(request.getRequestURI()));
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
-    }
-
-    @ExceptionHandler(HabitNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleHabitNotFound(HabitNotFoundException e,
-                                                             HttpServletRequest request) {
-        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        problemDetail.setTitle("Habit not found");
-        problemDetail.setDetail(e.getMessage());
-        problemDetail.setInstance(URI.create(request.getRequestURI()));
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
-    }
-
-    @ExceptionHandler(UserAlreadyExistsException.class)
-    public ResponseEntity<ProblemDetail> handleUserAlreadyExists(UserAlreadyExistsException e,
-                                                                 HttpServletRequest request) {
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ProblemDetail> handleConflict(ConflictException e, HttpServletRequest request) {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.CONFLICT);
-        problemDetail.setTitle("User already exists");
-        problemDetail.setDetail(e.getMessage());
-        problemDetail.setInstance(URI.create(request.getRequestURI()));
-
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
-    }
-
-    @ExceptionHandler(TaskAlreadyCompletedException.class)
-    public ResponseEntity<ProblemDetail> handleTaskAlreadyCompleted(TaskAlreadyCompletedException e,
-                                                                    HttpServletRequest request) {
-        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.CONFLICT);
-        problemDetail.setTitle("Task already completed");
-        problemDetail.setDetail(e.getMessage());
-        problemDetail.setInstance(URI.create(request.getRequestURI()));
-
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
-    }
-
-    @ExceptionHandler(HabitAlreadyCompletedTodayException.class)
-    public ResponseEntity<ProblemDetail> handleHabitAlreadyCompletedToday(HabitAlreadyCompletedTodayException e,
-                                                                          HttpServletRequest request) {
-        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.CONFLICT);
-        problemDetail.setTitle("Habit already completed today");
+        problemDetail.setTitle(e.getTitle());
         problemDetail.setDetail(e.getMessage());
         problemDetail.setInstance(URI.create(request.getRequestURI()));
 

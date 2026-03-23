@@ -1,8 +1,8 @@
 package service.exceptions;
 
-public class HabitAlreadyCompletedTodayException extends RuntimeException {
+public class HabitAlreadyCompletedTodayException extends ConflictException {
 
     public HabitAlreadyCompletedTodayException(Long habitId) {
-        super("Habit with the ID: " + habitId + " has already been completed today");
+        super("Habit already completed today", "Habit with the ID: " + habitId + " has already been completed today");
     }
 }
