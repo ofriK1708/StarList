@@ -1,6 +1,6 @@
 package app.config;
 
-import app.interceptor.RequestLoggingInterceptor;
+import controller.logging.RequestLoggingInterceptor;
 import org.h2.server.web.JakartaWebServlet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
