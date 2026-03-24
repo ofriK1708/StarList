@@ -2,10 +2,12 @@ package controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -16,6 +18,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -40,10 +43,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ProblemDetail> handleValidationErrors(
-            MethodArgumentNotValidException ex,
-            HttpServletRequest request) {
-
+    public ResponseEntity<ProblemDetail> handleValidationErrors(MethodArgumentNotValidException ex,
+                                                                HttpServletRequest request) {
         List<Map<String, String>> fieldErrors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -53,22 +54,19 @@ public class GlobalExceptionHandler {
                 ))
                 .toList();
 
-        return getValidationProblemDetailResponseEntity(request, fieldErrors);
+        log.warn("Validation failed [uri={}, errors={}]", request.getRequestURI(), fieldErrors.size());
+        return buildValidationResponse(request, fieldErrors);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ProblemDetail> handleConstraintViolation(
-            ConstraintViolationException ex,
-            HttpServletRequest request) {
-
+    public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex,
+                                                                   HttpServletRequest request) {
         List<Map<String, String>> fieldErrors = ex.getConstraintViolations().stream()
                 .map(violation -> {
-                    // Extract the last node in the property path
                     String field = violation.getPropertyPath().toString();
                     if (field.contains(".")) {
                         field = field.substring(field.lastIndexOf('.') + 1);
                     }
-
                     return Map.of(
                             "field", field,
                             "message", violation.getMessage()
@@ -76,12 +74,33 @@ public class GlobalExceptionHandler {
                 })
                 .toList();
 
-        return getValidationProblemDetailResponseEntity(request, fieldErrors);
+        log.warn("Constraint violation [uri={}, errors={}]", request.getRequestURI(), fieldErrors.size());
+        return buildValidationResponse(request, fieldErrors);
     }
 
-    @NonNull
-    private ResponseEntity<ProblemDetail> getValidationProblemDetailResponseEntity(HttpServletRequest request,
-                                                                                   List<Map<String, String>> fieldErrors) {
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ProblemDetail> handleUnreadableMessage(HttpMessageNotReadableException ex,
+                                                                 HttpServletRequest request) {
+        log.warn("Malformed request body [uri={}]: {}", request.getRequestURI(), ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setTitle("Malformed request body");
+        problem.setDetail("The request body could not be parsed. Check that the JSON is valid and all required fields are present.");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ProblemDetail> handleUnexpected(Exception e, HttpServletRequest request) {
+        log.error("Unhandled exception [uri={}]", request.getRequestURI(), e);
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+        problem.setTitle("Internal server error");
+        problem.setDetail("An unexpected error occurred");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
+    }
+
+    private ResponseEntity<ProblemDetail> buildValidationResponse(HttpServletRequest request,
+                                                                  List<Map<String, String>> fieldErrors) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         problem.setTitle("Invalid request, you doofus!");
         problem.setDetail("Validation failed with " + fieldErrors.size() + " failures. Check the 'failures' field for" +
