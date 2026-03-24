@@ -1,20 +1,45 @@
 import { useState } from "react";
-import { Rocket, Sparkles } from "lucide-react";
+import { Rocket, Sparkles, AlertCircle } from "lucide-react";
+import { useUser } from "../../context/UserContext";
 
-interface LoginProps {
-  onLogin: (username: string) => void;
-}
+export function Login() {
+  const { register, loginByDevId } = useUser();
 
-export function Login({ onLogin }: LoginProps) {
-  const [username, setUsername] = useState("");
+  // States
+  const [emailOrId, setEmailOrId] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim()) {
-      onLogin(username);
+    setError("");
+
+    try {
+      if (isSignup) {
+        await register({
+          email: emailOrId,
+          displayName: displayName || emailOrId.split('@')[0], // ברירת מחדל אם ריק
+          cognitoUserId: `dev-cognito-${Date.now()}` // מזהה זמני עד שנחבר את AWS
+        });
+      } else {
+        // התחברות (Dev Mode): השרת מצפה ל-ID מספרי
+        const userId = parseInt(emailOrId);
+        if (isNaN(userId)) {
+          setError("Dev Mode: Please enter your numeric User ID to login.");
+          return;
+        }
+        await loginByDevId(userId);
+      }
+    } catch (err) {
+      setError("Failed to connect to the Galaxy. Check your ID/Email.");
     }
+  };
+
+  const toggleMode = () => {
+    setIsSignup(!isSignup);
+    setError("");
   };
 
   return (
@@ -59,19 +84,46 @@ export function Login({ onLogin }: LoginProps) {
               </p>
             </div>
 
+            {/* Error Message */}
+            {error && (
+                <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2 text-red-400 text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <p>{error}</p>
+                </div>
+            )}
+
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
+
+              {/* Conditional Display Name Field for Signup */}
+              {isSignup && (
+                  <div>
+                    <label htmlFor="displayName" className="block text-sm text-slate-300 mb-2">
+                      Explorer Name (Display Name)
+                    </label>
+                    <input
+                        type="text"
+                        id="displayName"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
+                        placeholder="e.g. Commander Shepard"
+                        required={isSignup}
+                    />
+                  </div>
+              )}
+
               <div>
-                <label htmlFor="username" className="block text-sm text-slate-300 mb-2">
-                  Username
+                <label htmlFor="emailOrId" className="block text-sm text-slate-300 mb-2">
+                  {isSignup ? "Email Address" : "User ID"}
                 </label>
                 <input
-                    type="text"
-                    id="username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    type={isSignup ? "email" : "text"}
+                    id="emailOrId"
+                    value={emailOrId}
+                    onChange={(e) => setEmailOrId(e.target.value)}
                     className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
-                    placeholder="Enter your username"
+                    placeholder={isSignup ? "Enter your email" : "Enter your numeric ID"}
                     required
                 />
               </div>
@@ -103,7 +155,8 @@ export function Login({ onLogin }: LoginProps) {
             {/* Toggle buttons */}
             <div className="mt-6 text-center">
               <button
-                  onClick={() => setIsSignup(!isSignup)}
+                  type="button"
+                  onClick={toggleMode}
                   className="text-sm text-slate-400 hover:text-blue-400 transition-colors"
               >
                 {isSignup ? "Already have an account? Sign in" : "New explorer? Create account"}

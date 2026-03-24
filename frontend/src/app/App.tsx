@@ -4,6 +4,7 @@ import { GalaxyView } from "./components/GalaxyView";
 import { TaskDashboard } from "./components/TaskDashboard";
 import { AIChat } from "./components/AIChat";
 import { Shop } from "./components/Shop";
+import { CheckCircle, AlertCircle, LogOut } from "lucide-react";
 import { Statistics } from "./components/Statistics";
 import { Profile } from "./components/Profile";
 import { NavigationBar } from "./components/NavigationBar";
@@ -11,7 +12,7 @@ import { AddTaskModal } from "./components/AddTaskModal";
 import { AddHabitModal } from "./components/AddHabitModal";
 import { HabitTracker } from "./components/HabitTracker";
 import confetti from 'canvas-confetti';
-import { CheckCircle, AlertCircle } from "lucide-react";
+import { UserProvider, useUser } from "../context/UserContext.tsx";
 
 type Screen = 'tasks' | 'habits' | 'galaxy' | 'chat' | 'profile' | 'shop' | 'statistics';
 
@@ -34,17 +35,18 @@ const REAL_PLANET_DATA: Record<string, { size: number, position: { x: number, y:
   neptune: { size: 50, position: { x: 95, y: 50 } },
 };
 
-export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [username, setUsername] = useState("");
-  const [currentScreen, setCurrentScreen] = useState<Screen>('galaxy');
-  const [coinBalance, setCoinBalance] = useState(1250000);
+function MainApp() {
+  const { user, spendCoins } = useUser();
 
+  const [localCoins, setLocalCoins] = useState(user?.totalCoins || 1250000);
+  const coinBalance = localCoins;
+
+  const [currentScreen, setCurrentScreen] = useState<Screen>('galaxy');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3000); // נעלם אחרי 3 שניות
+    setTimeout(() => setToast(null), 3000);
   };
 
   const triggerConfetti = () => {
@@ -54,7 +56,7 @@ export default function App() {
       origin: { y: 0.6 },
       scalar: 2,
       gravity: 1.2,
-      ticks: 150, // The amount of time the particles live
+      ticks: 150,
       colors: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'],
     });
   };
@@ -91,50 +93,12 @@ export default function App() {
     { id: '8', name: 'Mercury', type: 'mercury' as const, price: 400, description: 'The swift messenger planet', unlocked: false },
   ]);
 
-  const handleLogin = (user: string) => {
-    setUsername(user);
-    setIsLoggedIn(true);
-  };
-
   const [planets, setPlanets] = useState<PlanetData[]>([]);
 
-  const totalTasksCompleted = tasks.filter(task => task.completed).length;
-
-  const currentStreak =
-      habits.length > 0 ? Math.max(...habits.map(habit => habit.streak)) : 0;
-
-  const totalCoinsEarned =
-      tasks
-          .filter(task => task.completed)
-          .reduce((sum, task) => sum + task.reward, 0) +
-      habits
-          .filter(habit => habit.completedToday)
-          .reduce((sum, habit) => sum + habit.baseReward + habit.streak * 2, 0);
-
-  const difficultyDistribution = [
-    {
-      name: 'Easy Tasks',
-      value: tasks.filter(task => task.difficulty === 'easy').length,
-      color: '#22c55e',
-    },
-    {
-      name: 'Medium Tasks',
-      value: tasks.filter(task => task.difficulty === 'medium').length,
-      color: '#eab308',
-    },
-    {
-      name: 'Hard Tasks',
-      value: tasks.filter(task => task.difficulty === 'hard').length,
-      color: '#ef4444',
-    },
-  ];
-
-  const tasksOverTime = [
-    { date: 'Completed', completed: totalTasksCompleted },
-    { date: 'Remaining', completed: tasks.length - totalTasksCompleted },
-  ];
   const userProfile = {
-    name: 'Alex Johnson', email: 'alex.johnson@example.com', level: 12, xp: 2450, xpToNextLevel: 3000, tasksCompleted: 156,
+    name: user?.displayName || 'Explorer',
+    email: user?.email || '',
+    level: 12, xp: 2450, xpToNextLevel: 3000, tasksCompleted: 156,
     achievements: [
       { id: '1', name: 'First Task', icon: '🎯', unlocked: true }, { id: '2', name: 'Week Streak', icon: '🔥', unlocked: true },
       { id: '3', name: 'Deep Work', icon: '🧠', unlocked: true }, { id: '4', name: 'Speed Demon', icon: '⚡', unlocked: false },
@@ -148,14 +112,12 @@ export default function App() {
       if (task.id === id) {
         const newCompleted = !task.completed;
         if (newCompleted) {
-          // Mission accomplished
-          setCoinBalance(prev => prev + task.reward);
+          setLocalCoins(prev => prev + task.reward);
           triggerConfetti();
           showToast(`Mission Accomplished! You earned ${task.reward} coins 🌟`, 'success');
         }
         else {
-          // Cancel task
-          setCoinBalance(prev => prev - task.reward);
+          setLocalCoins(prev => prev - task.reward);
         }
         return { ...task, completed: newCompleted };
       }
@@ -181,8 +143,8 @@ export default function App() {
   const handleHabitCheck = (id: string) => {
     setHabits(habits.map(habit => {
       if (habit.id === id && !habit.completedToday) {
-        const totalReward = habit.baseReward + (habit.streak * 2); // בונוס על רצף!
-        setCoinBalance(prev => prev + totalReward);
+        const totalReward = habit.baseReward + (habit.streak * 2);
+        setLocalCoins(prev => prev + totalReward);
 
         triggerConfetti();
         showToast(`Habit Logged! +${totalReward} coins added to your balance 💫`, 'success');
@@ -223,12 +185,14 @@ export default function App() {
   const handlePurchase = (itemId: string) => {
     const item = shopItems.filter(i => i.id === itemId)[0];
     if (item && coinBalance >= item.price && !item.unlocked) {
-      setCoinBalance(prev => prev - item.price);
+      setLocalCoins(prev => prev - item.price);
+      spendCoins(item.price);
+
       setShopItems(shopItems.map(i => i.id === itemId ? { ...i, unlocked: true } : i));
 
       const pData = REAL_PLANET_DATA[item.type] || {
         size: Math.floor(Math.random() * 60) + 70,
-        position: { x: Math.floor(Math.random() * 70) + 15, y: Math.floor(Math.random() * 70) + 15 } // מיקום אקראי לערפיליות
+        position: { x: Math.floor(Math.random() * 70) + 15, y: Math.floor(Math.random() * 70) + 15 }
       };
 
       const newPlanet = {
@@ -247,8 +211,6 @@ export default function App() {
       showToast("Not enough coins.", 'error');
     }
   };
-
-  if (!isLoggedIn) { return <Login onLogin={handleLogin} />; }
 
   return (
       <div className="h-screen w-full flex flex-col bg-slate-900 overflow-hidden relative">
@@ -289,5 +251,31 @@ export default function App() {
 
         <NavigationBar currentScreen={currentScreen} onNavigate={setCurrentScreen} />
       </div>
+  );
+}
+
+function AppWrapper() {
+  const { user, isLoading } = useUser();
+
+  if (isLoading) {
+    return (
+        <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-950 text-white">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+          <h2 className="text-xl font-bold animate-pulse">Loading Galaxy...</h2>
+        </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+  return <MainApp />;
+}
+
+export default function App() {
+  return (
+      <UserProvider>
+        <AppWrapper />
+      </UserProvider>
   );
 }
