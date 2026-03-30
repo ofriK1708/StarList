@@ -1,18 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Login } from "./components/Login";
 import { GalaxyView } from "./components/GalaxyView";
 import { TaskDashboard } from "./components/TaskDashboard";
 import { AIChat } from "./components/AIChat";
 import { Shop } from "./components/Shop";
-import { CheckCircle, AlertCircle, LogOut } from "lucide-react";
+import { CheckCircle, AlertCircle } from "lucide-react";
 import { Statistics } from "./components/Statistics";
 import { Profile } from "./components/Profile";
 import { NavigationBar } from "./components/NavigationBar";
 import { AddTaskModal } from "./components/AddTaskModal";
 import { AddHabitModal } from "./components/AddHabitModal";
+import { EditHabitModal } from "./components/EditHabitModal";
 import { HabitTracker } from "./components/HabitTracker";
 import confetti from 'canvas-confetti';
-import { UserProvider, useUser } from "../context/UserContext.tsx";
+import { UserProvider, useUser } from "../context/UserContext";
+import { tasksApi, TaskResponse, AddTaskRequest } from "../services/taskApi";
+import { habitsApi, HabitResponse, AddHabitRequest, UpdateHabitRequest } from "../services/habitsApi";
 
 type Screen = 'tasks' | 'habits' | 'galaxy' | 'chat' | 'profile' | 'shop' | 'statistics';
 
@@ -22,6 +25,14 @@ interface PlanetData {
   type: string;
   size: number;
   position: { x: number; y: number };
+}
+
+interface ChatMessage {
+  id: string;
+  type: 'ai' | 'user' | 'task-suggestion';
+  content: string;
+  timestamp: Date;
+  taskData?: any;
 }
 
 const REAL_PLANET_DATA: Record<string, { size: number, position: { x: number, y: number } }> = {
@@ -38,7 +49,7 @@ const REAL_PLANET_DATA: Record<string, { size: number, position: { x: number, y:
 function MainApp() {
   const { user, spendCoins } = useUser();
 
-  const [localCoins, setLocalCoins] = useState(user?.totalCoins || 1250000);
+  const [localCoins, setLocalCoins] = useState(user?.totalCoins || 0);
   const coinBalance = localCoins;
 
   const [currentScreen, setCurrentScreen] = useState<Screen>('galaxy');
@@ -61,36 +72,146 @@ function MainApp() {
     });
   };
 
-  const [tasks, setTasks] = useState([
-    { id: '1', title: 'Complete project proposal', description: 'Write and submit the Q1 project proposal for the new initiative', difficulty: 'hard' as const, completed: false, reward: 50, duration: '2 hours', dueDate: '2026-03-15' },
-    { id: '2', title: 'Review pull requests', description: 'Check and approve pending code reviews', difficulty: 'medium' as const, completed: true, reward: 30, duration: '45 min', dueDate: '2026-03-15' },
-    { id: '3', title: 'Daily standup meeting', description: 'Attend the team sync meeting at 10 AM', difficulty: 'easy' as const, completed: true, reward: 10, duration: '15 min', dueDate: '2026-03-15' },
-    { id: '4', title: 'Update documentation', description: 'Add API documentation for new endpoints', difficulty: 'medium' as const, completed: false, reward: 25, duration: '1 hour', dueDate: '2026-03-15' },
-    { id: '5', title: 'Client presentation', description: 'Present quarterly results to the client', difficulty: 'hard' as const, completed: false, reward: 60, duration: '3 hours', dueDate: '2026-03-15' },
-    { id: '6', title: 'Respond to emails', description: 'Clear inbox and respond to pending emails', difficulty: 'easy' as const, completed: false, reward: 15, duration: '30 min', dueDate: '2026-03-15' },
-  ]);
+  const [tasks, setTasks] = useState<TaskResponse[]>([]);
+  const [habits, setHabits] = useState<HabitResponse[]>([]);
 
-  const [habits, setHabits] = useState([
-    { id: 'h1', title: 'Drink 2L of Water', streak: 3, completedToday: false, baseReward: 10 },
-    { id: 'h2', title: 'Read 10 Pages', streak: 5, completedToday: true, baseReward: 15 },
-    { id: 'h3', title: 'Daily Code Practice', streak: 0, completedToday: false, baseReward: 20 },
-  ]);
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [fetchedTasks, fetchedHabits] = await Promise.all([
+          tasksApi.getTasks(),
+          habitsApi.getHabits()
+        ]);
+        setTasks(fetchedTasks);
+        setHabits(fetchedHabits);
+      } catch (error) {
+        console.error("Failed to load data:", error);
+        showToast("Failed to load data from the server", "error");
+      }
+    };
+    loadData();
+  }, []);
 
-  const [chatMessages, setChatMessages] = useState([
-    { id: '1', type: 'ai' as const, content: 'Hello! I can help you manage your tasks. What would you like to work on today?', timestamp: new Date(Date.now() - 3600000) },
-    { id: '2', type: 'user' as const, content: 'I need to focus on deep work today', timestamp: new Date(Date.now() - 3000000) },
-    { id: '3', type: 'task-suggestion' as const, content: 'Great! Here\'s a challenging task that requires deep focus:', timestamp: new Date(Date.now() - 2900000), taskData: { title: 'Research and analysis for new feature', difficulty: 'hard' as const, reward: 75 } },
+  const handleTaskToggle = async (taskId: number) => {
+    const task = tasks.find(t => t.taskId === taskId);
+    if (!task) return;
+
+    if (task.status === 'COMPLETED') {
+      showToast("Mission is already completed!", "success");
+      return;
+    }
+
+    try {
+      const response = await tasksApi.completeTask(taskId);
+      setTasks(tasks.map(t => t.taskId === taskId ? { ...t, status: 'COMPLETED' } : t));
+      setLocalCoins(response.newTotalCoins);
+      triggerConfetti();
+      showToast(`Mission Accomplished! You earned ${response.coinsEarned} coins 🌟`, 'success');
+    } catch (error) {
+      showToast("Failed to complete mission. Try again.", "error");
+    }
+  };
+
+  const handleTaskDelete = async (taskId: number) => {
+    try {
+      await tasksApi.deleteTask(taskId);
+      setTasks(tasks.filter(task => task.taskId !== taskId));
+      showToast("Mission deleted.", "success");
+    } catch (error) {
+      showToast("Failed to delete mission.", "error");
+    }
+  };
+
+  const handleCreateNewTask = async (taskData: AddTaskRequest) => {
+    try {
+      const newTask = await tasksApi.createTask(taskData);
+      setTasks([newTask, ...tasks]);
+      showToast('Mission Added successfully!', 'success');
+      setIsAddTaskModalOpen(false);
+    } catch (error) {
+      showToast("Failed to add mission.", "error");
+    }
+  };
+
+  const [isEditHabitModalOpen, setIsEditHabitModalOpen] = useState(false);
+  const [habitToEdit, setHabitToEdit] = useState<HabitResponse | null>(null);
+
+  const handleHabitCheck = async (habitId: number) => {
+    try {
+      const response = await habitsApi.completeHabit(habitId);
+      setLocalCoins(response.newTotalCoins);
+      setHabits(habits.map(habit => {
+        if (habit.habitId === habitId) {
+          const today = new Date().toISOString().split('T')[0];
+          return {
+            ...habit,
+            currentStreak: response.currentStreak,
+            bestStreak: response.bestStreak,
+            lastCompletedDate: today,
+            totalCompletions: habit.totalCompletions + 1
+          };
+        }
+        return habit;
+      }));
+      triggerConfetti();
+      showToast(`Habit Logged! +${response.coinsEarned} coins 💫`, 'success');
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        showToast("You already completed this habit today!", "error");
+      } else {
+        showToast("Failed to log habit. Try again.", "error");
+      }
+    }
+  };
+
+  const handleAddHabit = async (habitData: AddHabitRequest) => {
+    try {
+      const newHabit = await habitsApi.createHabit(habitData);
+      setHabits([newHabit, ...habits]);
+      showToast('Habit added successfully!', 'success');
+      setIsAddHabitModalOpen(false);
+    } catch (error) {
+      showToast("Failed to add habit.", "error");
+    }
+  };
+
+  const handleUpdateHabit = async (habitId: number, data: UpdateHabitRequest) => {
+    try {
+      const updatedHabit = await habitsApi.updateHabit(habitId, data);
+      setHabits(habits.map(habit =>
+          habit.habitId === habitId ? { ...habit, ...updatedHabit } : habit
+      ));
+      showToast('Habit updated successfully!', 'success');
+      setIsEditHabitModalOpen(false);
+      setHabitToEdit(null);
+    } catch (error) {
+      showToast("Failed to update habit.", "error");
+    }
+  };
+
+  const handleDeleteHabit = async (habitId: number) => {
+    try {
+      await habitsApi.deleteHabit(habitId);
+      setHabits(habits.filter(habit => habit.habitId !== habitId));
+      showToast("Habit deleted.", "success");
+    } catch (error) {
+      showToast("Failed to delete habit.", "error");
+    }
+  };
+
+  const openEditHabitModal = (habit: HabitResponse) => {
+    setHabitToEdit(habit);
+    setIsEditHabitModalOpen(true);
+  };
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { id: '1', type: 'ai', content: 'Hello! I can help you manage your tasks. What would you like to work on today?', timestamp: new Date(Date.now() - 3600000) },
   ]);
 
   const [shopItems, setShopItems] = useState([
-    { id: '1', name: 'The Sun', type: 'sun' as const, price: 2000, description: 'The blazing star at the center of our solar system. The ultimate achievement!', unlocked: false },
+    { id: '1', name: 'The Sun', type: 'sun' as const, price: 2000, description: 'The blazing star at the center of our solar system.', unlocked: false },
     { id: '2', name: 'Earth', type: 'earth' as const, price: 600, description: 'The blue planet with oceans and continents', unlocked: false },
     { id: '3', name: 'Jupiter', type: 'jupiter' as const, price: 800, description: 'The gas giant with iconic stripes', unlocked: false },
-    { id: '4', name: 'Mars', type: 'mars' as const, price: 450, description: 'The red planet of mysteries', unlocked: false },
-    { id: '5', name: 'Saturn', type: 'saturn' as const, price: 1000, description: 'The ringed beauty of the solar system', unlocked: false },
-    { id: '6', name: 'Neptune', type: 'neptune' as const, price: 700, description: 'The deep blue ice giant', unlocked: false },
-    { id: '7', name: 'Venus', type: 'venus' as const, price: 550, description: 'The bright morning star', unlocked: false },
-    { id: '8', name: 'Mercury', type: 'mercury' as const, price: 400, description: 'The swift messenger planet', unlocked: false },
   ]);
 
   const [planets, setPlanets] = useState<PlanetData[]>([]);
@@ -98,113 +219,56 @@ function MainApp() {
   const userProfile = {
     name: user?.displayName || 'Explorer',
     email: user?.email || '',
-    level: 12, xp: 2450, xpToNextLevel: 3000, tasksCompleted: 156,
+    level: 1, xp: 0, xpToNextLevel: 1000, tasksCompleted: tasks.filter(t => t.status === 'COMPLETED').length,
     achievements: [
-      { id: '1', name: 'First Task', icon: '🎯', unlocked: true }, { id: '2', name: 'Week Streak', icon: '🔥', unlocked: true },
-      { id: '3', name: 'Deep Work', icon: '🧠', unlocked: true }, { id: '4', name: 'Speed Demon', icon: '⚡', unlocked: false },
-      { id: '5', name: 'Consistent', icon: '📊', unlocked: true }, { id: '6', name: 'Early Bird', icon: '🌅', unlocked: false },
-      { id: '7', name: 'Night Owl', icon: '🦉', unlocked: true }, { id: '8', name: 'Task Master', icon: '👑', unlocked: false },
+      { id: '1', name: 'First Task', icon: '🎯', unlocked: tasks.some(t => t.status === 'COMPLETED') },
+      { id: '2', name: 'Space Explorer', icon: '🚀', unlocked: true },
     ],
   };
-
-  const handleTaskToggle = (id: string) => {
-    setTasks(tasks.map(task => {
-      if (task.id === id) {
-        const newCompleted = !task.completed;
-        if (newCompleted) {
-          setLocalCoins(prev => prev + task.reward);
-          triggerConfetti();
-          showToast(`Mission Accomplished! You earned ${task.reward} coins 🌟`, 'success');
-        }
-        else {
-          setLocalCoins(prev => prev - task.reward);
-        }
-        return { ...task, completed: newCompleted };
-      }
-      return task;
-    }));
-  };
-
-  const handleTaskDelete = (id: string) => { setTasks(tasks.filter(task => task.id !== id)); };
 
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isAddHabitModalOpen, setIsAddHabitModalOpen] = useState(false);
 
   const handleQuickAdd = () => { setIsAddTaskModalOpen(true); };
-
-  const handleCreateNewTask = (taskData: any) => {
-    const newTask = {
-      id: Date.now().toString(), title: taskData.title, description: taskData.description || '',
-      difficulty: taskData.difficulty, completed: false, reward: taskData.reward, duration: taskData.duration, dueDate: taskData.dueDate,
-    };
-    setTasks([newTask, ...tasks]);
-  };
-
-  const handleHabitCheck = (id: string) => {
-    setHabits(habits.map(habit => {
-      if (habit.id === id && !habit.completedToday) {
-        const totalReward = habit.baseReward + (habit.streak * 2);
-        setLocalCoins(prev => prev + totalReward);
-
-        triggerConfetti();
-        showToast(`Habit Logged! +${totalReward} coins added to your balance 💫`, 'success');
-
-        return { ...habit, completedToday: true, streak: habit.streak + 1 };
-      }
-      return habit;
-    }));
-  };
-
   const handleOpenChat = () => { setCurrentScreen('chat'); };
 
   const handleSendMessage = (message: string) => {
-    const newMessage = { id: Date.now().toString(), type: 'user' as const, content: message, timestamp: new Date() };
+    const newMessage: ChatMessage = { id: Date.now().toString(), type: 'user', content: message, timestamp: new Date() };
     setChatMessages([...chatMessages, newMessage]);
     setTimeout(() => {
-      const aiResponse = { id: (Date.now() + 1).toString(), type: 'ai' as const, content: 'I understand! Let me help you with that. Would you like me to create a task for it?', timestamp: new Date() };
+      const aiResponse: ChatMessage = { id: (Date.now() + 1).toString(), type: 'ai', content: 'I understand! Let me help you with that.', timestamp: new Date() };
       setChatMessages(prev => [...prev, aiResponse]);
     }, 1000);
   };
 
-  const handleAddTask = (taskData: any) => {
-    const newTask = { id: Date.now().toString(), title: taskData.title, description: 'Created via AI chat',
-      difficulty: taskData.difficulty, completed: false, reward: taskData.reward, duration: '30 min',
-      dueDate: new Date().toISOString().split('T')[0],
-    };
-    setTasks([newTask, ...tasks]);
-    showToast('Task added successfully!', 'success');
-  };
-
-  const handleAddHabit = (habitData: { title: string; baseReward: number }) => {
-    const newHabit = {
-      id: Date.now().toString(), title: habitData.title, streak: 0, completedToday: false, baseReward: habitData.baseReward,
-    };
-    setHabits([newHabit, ...habits]);
+  const handleAddTaskFromChat = async (taskData: any) => {
+    try {
+      const newTask = await tasksApi.createTask({
+        title: taskData.title,
+        description: 'Created via AI chat',
+        difficultyLevel: taskData.difficulty.toUpperCase() || 'MEDIUM',
+        durationMinutes: 30
+      });
+      setTasks([newTask, ...tasks]);
+      showToast('Task added successfully via AI!', 'success');
+    } catch (error) {
+      showToast('Failed to add AI task.', 'error');
+    }
   };
 
   const handlePurchase = (itemId: string) => {
-    const item = shopItems.filter(i => i.id === itemId)[0];
+    const item = shopItems.find(i => i.id === itemId);
     if (item && coinBalance >= item.price && !item.unlocked) {
       setLocalCoins(prev => prev - item.price);
       spendCoins(item.price);
-
       setShopItems(shopItems.map(i => i.id === itemId ? { ...i, unlocked: true } : i));
-
       const pData = REAL_PLANET_DATA[item.type] || {
         size: Math.floor(Math.random() * 60) + 70,
         position: { x: Math.floor(Math.random() * 70) + 15, y: Math.floor(Math.random() * 70) + 15 }
       };
-
-      const newPlanet = {
-        id: Date.now().toString(),
-        name: item.name,
-        type: item.type,
-        size: pData.size,
-        position: pData.position
-      };
+      const newPlanet = { id: Date.now().toString(), name: item.name, type: item.type, size: pData.size, position: pData.position };
       setPlanets([...planets, newPlanet]);
-
-      showToast(`Successfully unlocked ${item.name}! It has been added to your Galaxy 🚀`, 'success');
+      showToast(`Successfully unlocked ${item.name}! 🚀`, 'success');
     } else if (item && item.unlocked) {
       showToast("You already own this object!", 'error');
     } else {
@@ -228,19 +292,26 @@ function MainApp() {
             </div>
         )}
 
-        {/* Main content area */}
         <div className="flex-1 overflow-hidden">
           {currentScreen === 'galaxy' && <GalaxyView coinBalance={coinBalance} planets={planets} />}
           {currentScreen === 'tasks' && <TaskDashboard tasks={tasks} onTaskToggle={handleTaskToggle} onQuickAdd={handleQuickAdd} onOpenChat={handleOpenChat} onTaskDelete={handleTaskDelete} />}
-          {currentScreen === 'habits' && <HabitTracker habits={habits} onHabitCheck={handleHabitCheck} onAddHabitClick={() => setIsAddHabitModalOpen(true)} />}
-          {currentScreen === 'chat' && <AIChat messages={chatMessages} onSendMessage={handleSendMessage} onAddTask={handleAddTask} />}
+          {currentScreen === 'habits' && (
+              <HabitTracker
+                  habits={habits}
+                  onHabitCheck={handleHabitCheck}
+                  onAddHabitClick={() => setIsAddHabitModalOpen(true)}
+                  onEditHabitClick={openEditHabitModal}
+                  onDeleteHabit={handleDeleteHabit}
+              />
+          )}
+          {currentScreen === 'chat' && <AIChat messages={chatMessages} onSendMessage={handleSendMessage} onAddTask={handleAddTaskFromChat} />}
           {currentScreen === 'shop' && <Shop items={shopItems} coinBalance={coinBalance} onPurchase={handlePurchase} />}
           {currentScreen === 'statistics' && (
               <Statistics
-                  tasks={tasks}
+                  tasks={tasks as any}
                   habits={habits}
                   totalCoinsEarned={coinBalance}
-                  currentStreak={habits.reduce((max, h) => Math.max(max, h.streak), 0)}
+                  currentStreak={habits.reduce((max, h) => Math.max(max, h.currentStreak), 0)}
               />
           )}
           {currentScreen === 'profile' && <Profile user={userProfile} coinBalance={coinBalance} />}
@@ -248,6 +319,12 @@ function MainApp() {
 
         <AddTaskModal isOpen={isAddTaskModalOpen} onClose={() => setIsAddTaskModalOpen(false)} onAdd={handleCreateNewTask} />
         <AddHabitModal isOpen={isAddHabitModalOpen} onClose={() => setIsAddHabitModalOpen(false)} onAdd={handleAddHabit} />
+        <EditHabitModal
+            isOpen={isEditHabitModalOpen}
+            onClose={() => { setIsEditHabitModalOpen(false); setHabitToEdit(null); }}
+            habitToEdit={habitToEdit}
+            onUpdate={handleUpdateHabit}
+        />
 
         <NavigationBar currentScreen={currentScreen} onNavigate={setCurrentScreen} />
       </div>
@@ -256,7 +333,6 @@ function MainApp() {
 
 function AppWrapper() {
   const { user, isLoading } = useUser();
-
   if (isLoading) {
     return (
         <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-950 text-white">
@@ -265,10 +341,7 @@ function AppWrapper() {
         </div>
     );
   }
-
-  if (!user) {
-    return <Login />;
-  }
+  if (!user) return <Login />;
   return <MainApp />;
 }
 

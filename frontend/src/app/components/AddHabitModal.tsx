@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { X, Flame, Plus } from "lucide-react";
+import { AddHabitRequest, DifficultyLevel, HabitFrequency } from "@/services/habitsApi.ts";
 
 interface AddHabitModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAdd: (habitData: { title: string; baseReward: number }) => void;
+    onAdd: (habitData: AddHabitRequest) => void;
 }
 
 export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
     const [title, setTitle] = useState("");
-    const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+    const [difficulty, setDifficulty] = useState<DifficultyLevel>('MEDIUM');
+    const [frequency, setFrequency] = useState<HabitFrequency>('DAILY');
 
     if (!isOpen) return null;
 
@@ -17,20 +19,20 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
         e.preventDefault();
         if (!title.trim()) return;
 
-        const rewardMap = { easy: 10, medium: 20, hard: 30 };
-        const baseReward = rewardMap[difficulty];
-
-        onAdd({ title, baseReward });
+        onAdd({
+            title,
+            difficultyLevel: difficulty,
+            frequency: frequency
+        });
 
         setTitle("");
-        setDifficulty("medium");
-        onClose();
+        setDifficulty("MEDIUM");
+        setFrequency("DAILY");
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
             <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-
                 <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-800/50">
                     <h2 className="text-lg text-white font-medium flex items-center gap-2">
                         <Flame className="w-5 h-5 text-orange-400" />
@@ -48,23 +50,37 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder="e.g., Drink 2L of water"
+                            placeholder="e.g., Morning run"
                             className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
                             required
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm text-slate-300 mb-1">Difficulty (Base Reward)</label>
-                        <select
-                            value={difficulty}
-                            onChange={(e) => setDifficulty(e.target.value as any)}
-                            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
-                        >
-                            <option value="easy">Easy (+10 coins/day)</option>
-                            <option value="medium">Medium (+20 coins/day)</option>
-                            <option value="hard">Hard (+30 coins/day)</option>
-                        </select>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm text-slate-300 mb-1">Difficulty</label>
+                            <select
+                                value={difficulty}
+                                onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
+                                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
+                            >
+                                <option value="EASY">Easy</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="HARD">Hard</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm text-slate-300 mb-1">Frequency</label>
+                            <select
+                                value={frequency}
+                                onChange={(e) => setFrequency(e.target.value as HabitFrequency)}
+                                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
+                            >
+                                <option value="DAILY">Daily</option>
+                                <option value="WEEKLY">Weekly</option>
+                                <option value="CUSTOM">Custom</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div className="pt-4 flex gap-3">
