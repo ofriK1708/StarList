@@ -50,7 +50,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
 
                 <form onSubmit={handleSubmit} className="p-5 space-y-4">
                     <div>
-                        <label className="block text-sm text-slate-300 mb-1">Mission Title</label>
+                        <label className="block text-sm text-slate-300 mb-1">Task Title</label>
                         <input
                             type="text"
                             value={title}
