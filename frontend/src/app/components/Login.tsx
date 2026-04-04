@@ -11,27 +11,39 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
+    console.log("Form submitted successfully!");
+    console.log("Mode:", isSignup ? "Signup" : "Login");
+    console.log("Data:", { emailOrId, displayName });
+
     try {
       if (isSignup) {
-        await register({
+        const newUser = await register({
           email: emailOrId,
           displayName: displayName || emailOrId.split('@')[0],
           cognitoUserId: `dev-cognito-${Date.now()}`
         });
+
+        setIsSignup(false);
+        setSuccess(`Account created successfully! Your User ID is: ${newUser.id}. Please use this number to log in.`);
+        setDisplayName("");
+        setEmailOrId("");
       } else {
         const userId = parseInt(emailOrId);
         if (isNaN(userId)) {
           setError("Please enter your User ID to login.");
           return;
         }
+        console.log("Sending login to backend with ID:", userId);
         await loginByDevId(userId);
       }
     } catch (err) {
+      console.error("Error connecting to backend:", err);
       setError("Failed to connect to the Galaxy. Check your ID/Email.");
     }
   };
@@ -91,6 +103,14 @@ export function Login() {
                 </div>
             )}
 
+            {/* Success Message */}
+            {success && (
+                <div className="mb-6 p-3 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center gap-2 text-green-400 text-sm">
+                  <Sparkles className="w-4 h-4 shrink-0" />
+                  <p>{success}</p>
+                </div>
+            )}
+
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
 
@@ -98,7 +118,7 @@ export function Login() {
               {isSignup && (
                   <div>
                     <label htmlFor="displayName" className="block text-sm text-slate-300 mb-2">
-                      Explorer Name (Display Name)
+                      User Name
                     </label>
                     <input
                         type="text"
