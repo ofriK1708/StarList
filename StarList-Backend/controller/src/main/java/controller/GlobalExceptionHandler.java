@@ -2,82 +2,40 @@ package controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import service.exceptions.*;
+import service.exceptions.ConflictException;
+import service.exceptions.NotFoundException;
 
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handelUserNotFound(UserNotFoundException e,
-                                                            HttpServletRequest request) {
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleNotFound(NotFoundException e, HttpServletRequest request) {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        problemDetail.setTitle("User not found");
+        problemDetail.setTitle(e.getTitle());
         problemDetail.setDetail(e.getMessage());
         problemDetail.setInstance(URI.create(request.getRequestURI()));
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
     }
 
-    @ExceptionHandler(TaskNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleTaskNotFound(TaskNotFoundException e,
-                                                            HttpServletRequest request) {
-        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        problemDetail.setTitle("Task not found");
-        problemDetail.setDetail(e.getMessage());
-        problemDetail.setInstance(URI.create(request.getRequestURI()));
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
-    }
-
-    @ExceptionHandler(HabitNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleHabitNotFound(HabitNotFoundException e,
-                                                             HttpServletRequest request) {
-        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        problemDetail.setTitle("Habit not found");
-        problemDetail.setDetail(e.getMessage());
-        problemDetail.setInstance(URI.create(request.getRequestURI()));
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
-    }
-
-    @ExceptionHandler(UserAlreadyExistsException.class)
-    public ResponseEntity<ProblemDetail> handleUserAlreadyExists(UserAlreadyExistsException e,
-                                                                 HttpServletRequest request) {
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ProblemDetail> handleConflict(ConflictException e, HttpServletRequest request) {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.CONFLICT);
-        problemDetail.setTitle("User already exists");
-        problemDetail.setDetail(e.getMessage());
-        problemDetail.setInstance(URI.create(request.getRequestURI()));
-
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
-    }
-
-    @ExceptionHandler(TaskAlreadyCompletedException.class)
-    public ResponseEntity<ProblemDetail> handleTaskAlreadyCompleted(TaskAlreadyCompletedException e,
-                                                                    HttpServletRequest request) {
-        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.CONFLICT);
-        problemDetail.setTitle("Task already completed");
-        problemDetail.setDetail(e.getMessage());
-        problemDetail.setInstance(URI.create(request.getRequestURI()));
-
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
-    }
-
-    @ExceptionHandler(HabitAlreadyCompletedTodayException.class)
-    public ResponseEntity<ProblemDetail> handleHabitAlreadyCompletedToday(HabitAlreadyCompletedTodayException e,
-                                                                          HttpServletRequest request) {
-        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.CONFLICT);
-        problemDetail.setTitle("Habit already completed today");
+        problemDetail.setTitle(e.getTitle());
         problemDetail.setDetail(e.getMessage());
         problemDetail.setInstance(URI.create(request.getRequestURI()));
 
@@ -85,10 +43,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ProblemDetail> handleValidationErrors(
-            MethodArgumentNotValidException ex,
-            HttpServletRequest request) {
-
+    public ResponseEntity<ProblemDetail> handleValidationErrors(MethodArgumentNotValidException ex,
+                                                                HttpServletRequest request) {
         List<Map<String, String>> fieldErrors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -98,22 +54,19 @@ public class GlobalExceptionHandler {
                 ))
                 .toList();
 
-        return getValidationProblemDetailResponseEntity(request, fieldErrors);
+        log.warn("Validation failed [uri={}, errors={}]", request.getRequestURI(), fieldErrors.size());
+        return buildValidationResponse(request, fieldErrors);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ProblemDetail> handleConstraintViolation(
-            ConstraintViolationException ex,
-            HttpServletRequest request) {
-
+    public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex,
+                                                                   HttpServletRequest request) {
         List<Map<String, String>> fieldErrors = ex.getConstraintViolations().stream()
                 .map(violation -> {
-                    // Extract the last node in the property path
                     String field = violation.getPropertyPath().toString();
                     if (field.contains(".")) {
                         field = field.substring(field.lastIndexOf('.') + 1);
                     }
-
                     return Map.of(
                             "field", field,
                             "message", violation.getMessage()
@@ -121,12 +74,33 @@ public class GlobalExceptionHandler {
                 })
                 .toList();
 
-        return getValidationProblemDetailResponseEntity(request, fieldErrors);
+        log.warn("Constraint violation [uri={}, errors={}]", request.getRequestURI(), fieldErrors.size());
+        return buildValidationResponse(request, fieldErrors);
     }
 
-    @NonNull
-    private ResponseEntity<ProblemDetail> getValidationProblemDetailResponseEntity(HttpServletRequest request,
-                                                                                   List<Map<String, String>> fieldErrors) {
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ProblemDetail> handleUnreadableMessage(HttpMessageNotReadableException ex,
+                                                                 HttpServletRequest request) {
+        log.warn("Malformed request body [uri={}]: {}", request.getRequestURI(), ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setTitle("Malformed request body");
+        problem.setDetail("The request body could not be parsed. Check that the JSON is valid and all required fields are present.");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ProblemDetail> handleUnexpected(Exception e, HttpServletRequest request) {
+        log.error("Unhandled exception [uri={}]", request.getRequestURI(), e);
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+        problem.setTitle("Internal server error");
+        problem.setDetail("An unexpected error occurred");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
+    }
+
+    private ResponseEntity<ProblemDetail> buildValidationResponse(HttpServletRequest request,
+                                                                  List<Map<String, String>> fieldErrors) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         problem.setTitle("Invalid request, you doofus!");
         problem.setDetail("Validation failed with " + fieldErrors.size() + " failures. Check the 'failures' field for" +

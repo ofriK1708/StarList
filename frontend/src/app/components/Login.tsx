@@ -36,15 +36,32 @@ export function Login() {
       } else {
         const userId = parseInt(emailOrId);
         if (isNaN(userId)) {
-          setError("Please enter your User ID to login.");
+          setError("Please enter your numeric User ID to login.");
           return;
         }
         console.log("Sending login to backend with ID:", userId);
         await loginByDevId(userId);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error connecting to backend:", err);
-      setError("Failed to connect to the Galaxy. Check your ID/Email.");
+      const status = err?.response?.status;
+      if (isSignup) {
+        if (status === 409) {
+          setError("An account with this email already exists.");
+        } else if (status >= 400 && status < 500) {
+          setError("Invalid signup data. Please check your details.");
+        } else {
+          setError("Failed to create account. Is the server running?");
+        }
+      } else {
+        if (status === 404) {
+          setError("No user found with that ID. Check your ID or sign up.");
+        } else if (!status) {
+          setError("Cannot reach the server. Is the backend running?");
+        } else {
+          setError(`Login failed (error ${status}). Please try again.`);
+        }
+      }
     }
   };
 

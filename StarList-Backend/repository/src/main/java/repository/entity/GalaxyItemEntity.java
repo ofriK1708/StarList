@@ -9,7 +9,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -36,32 +37,24 @@ public class GalaxyItemEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "catalog_item_id", nullable = false)
     private ItemCatalogEntity catalogItem;
 
+    @Builder.Default
     @Column(name = "purchase_date", nullable = false, updatable = false)
-    private Instant purchaseDate;
+    private Instant purchaseDate = Instant.now();
 
+    @Builder.Default
     @Column(name = "times_selected", nullable = false)
-    private Integer timesSelected;
+    private Integer timesSelected = 1;
 
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive;
-
-    @PrePersist
-    void onCreate() {
-        if (purchaseDate == null) {
-            purchaseDate = Instant.now();
-        }
-        if (timesSelected == null) {
-            timesSelected = 1;
-        }
-        if (isActive == null) {
-            isActive = Boolean.TRUE;
-        }
-    }
+    private Boolean isActive = Boolean.TRUE;
 }

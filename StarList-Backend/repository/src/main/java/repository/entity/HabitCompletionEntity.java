@@ -9,7 +9,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
@@ -42,38 +43,28 @@ public class HabitCompletionEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "habit_id", nullable = false)
     private HabitEntity habit;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
+    @Builder.Default
     @Column(name = "completed_date", nullable = false)
-    private LocalDate completedDate;
+    private LocalDate completedDate = LocalDate.now();
 
+    @Builder.Default
     @Column(name = "coins_earned", nullable = false)
-    private Integer coinsEarned;
+    private Integer coinsEarned = 0;
 
+    @Builder.Default
     @Column(name = "streak_at_completion", nullable = false)
-    private Integer streakAtCompletion;
+    private Integer streakAtCompletion = 0;
 
+    @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @PrePersist
-    void onCreate() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
-        }
-        if (coinsEarned == null) {
-            coinsEarned = 0;
-        }
-        if (streakAtCompletion == null) {
-            streakAtCompletion = 0;
-        }
-        if (completedDate == null) {
-            completedDate = LocalDate.now();
-        }
-    }
+    private Instant createdAt = Instant.now();
 }

@@ -20,13 +20,25 @@ public class Task {
     private String description;
     private DifficultyLevel difficultyLevel;
     private Integer durationMinutes;
-    private Integer coinReward;
+
+    @Builder.Default
+    private Integer coinReward = 0;
+
     private Integer coinPenalty;
-    private TaskStatus status;
+
+    @Builder.Default
+    private TaskStatus status = TaskStatus.PENDING;
+
     private Instant dueDate;
     private Instant completedAt;
-    private Instant createdAt;
+
+    @Builder.Default
+    private Instant createdAt = Instant.now();
+
     private Instant deletedAt;
-    private Boolean createdByAi;
+
+    @Builder.Default
+    private Boolean createdByAi = Boolean.FALSE;
+
     private Long aiConversationId;
 }

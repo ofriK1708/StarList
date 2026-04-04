@@ -12,7 +12,8 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -42,6 +43,7 @@ public class AiConversationEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
@@ -55,23 +57,15 @@ public class AiConversationEntity {
     @Column(name = "ai_response", nullable = false, columnDefinition = "TEXT")
     private String aiResponse;
 
+    @Builder.Default
     @Column(name = "tasks_created", nullable = false)
-    private Integer tasksCreated;
+    private Integer tasksCreated = 0;
 
+    @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    private Instant createdAt = Instant.now();
 
     @Builder.Default
     @OneToMany(mappedBy = "aiConversation")
     private List<TaskEntity> tasks = new ArrayList<>();
-
-    @PrePersist
-    void onCreate() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
-        }
-        if (tasksCreated == null) {
-            tasksCreated = 0;
-        }
-    }
 }

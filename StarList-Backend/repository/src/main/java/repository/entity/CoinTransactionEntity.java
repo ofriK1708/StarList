@@ -11,7 +11,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -40,11 +41,13 @@ public class CoinTransactionEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
+    @Builder.Default
     @Column(name = "amount", nullable = false)
-    private Integer amount;
+    private Integer amount = 0;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", nullable = false, length = 32)
@@ -60,16 +63,7 @@ public class CoinTransactionEntity {
     @Column(name = "description", length = 500)
     private String description;
 
+    @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @PrePersist
-    void onCreate() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
-        }
-        if (amount == null) {
-            amount = 0;
-        }
-    }
+    private Instant createdAt = Instant.now();
 }

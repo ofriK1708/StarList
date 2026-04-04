@@ -18,6 +18,10 @@ public class AiConversation {
     private ConversationType conversationType;
     private String userMessage;
     private String aiResponse;
-    private Integer tasksCreated;
-    private Instant createdAt;
+
+    @Builder.Default
+    private Integer tasksCreated = 0;
+
+    @Builder.Default
+    private Instant createdAt = Instant.now();
 }

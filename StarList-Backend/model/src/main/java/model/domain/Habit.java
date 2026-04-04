@@ -21,13 +21,28 @@ public class Habit {
     private String description;
     private HabitFrequency frequency;
     private DifficultyLevel difficultyLevel;
-    private Integer coinReward;
+
+    @Builder.Default
+    private Integer coinReward = 0;
+
     private Integer coinPenalty;
-    private Integer currentStreak;
-    private Integer bestStreak;
-    private Integer totalCompletions;
+
+    @Builder.Default
+    private Integer currentStreak = 0;
+
+    @Builder.Default
+    private Integer bestStreak = 0;
+
+    @Builder.Default
+    private Integer totalCompletions = 0;
+
     private LocalDate lastCompletedDate;
-    private Instant createdAt;
-    private Boolean isActive;
+
+    @Builder.Default
+    private Instant createdAt = Instant.now();
+
+    @Builder.Default
+    private Boolean isActive = Boolean.TRUE;
+
     private Instant deletedAt;
 }

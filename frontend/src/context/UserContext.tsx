@@ -26,7 +26,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         // you will check for a valid JWT Token from AWS Cognito here.
         const savedUserId = localStorage.getItem('starlist_user_id');
         if (savedUserId) {
-            loginByDevId(Number(savedUserId));
+            loginByDevId(Number(savedUserId)).catch(() => {
+                // Session is stale (e.g. DB was reset); logout() already called inside loginByDevId
+            });
         } else {
             setIsLoading(false);
         }
@@ -64,6 +66,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error("Login failed:", error);
             logout();
+            throw error;
         } finally {
             setIsLoading(false);
         }

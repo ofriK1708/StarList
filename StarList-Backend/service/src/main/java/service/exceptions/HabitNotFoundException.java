@@ -1,8 +1,8 @@
 package service.exceptions;
 
-public class HabitNotFoundException extends RuntimeException {
+public class HabitNotFoundException extends NotFoundException {
 
     public HabitNotFoundException(Long habitId) {
-        super("Habit with the ID: " + habitId + " not found");
+        super("Habit not found", "Habit with the ID: " + habitId + " not found");
     }
 }

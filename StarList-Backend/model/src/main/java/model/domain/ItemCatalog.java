@@ -19,14 +19,23 @@ public class ItemCatalog {
     private String itemName;
     private ItemType itemType;
     private String description;
-    private Integer costCoins;
+
+    @Builder.Default
+    private Integer costCoins = 0;
+
     private RarityLevel rarity;
     private String imageUrl;
     private BigDecimal positionX;
     private BigDecimal positionY;
     private BigDecimal scale;
     private BigDecimal rotation;
-    private Integer unlockRequirement;
-    private Boolean isAvailable;
-    private Instant createdAt;
+
+    @Builder.Default
+    private Integer unlockRequirement = 0;
+
+    @Builder.Default
+    private Boolean isAvailable = Boolean.TRUE;
+
+    @Builder.Default
+    private Instant createdAt = Instant.now();
 }
