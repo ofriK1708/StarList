@@ -11,7 +11,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
@@ -22,6 +21,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import model.enums.DifficultyLevel;
 import model.enums.TaskStatus;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Getter
 @Setter
@@ -54,6 +55,7 @@ public class TaskEntity {
     private Long version;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
@@ -70,15 +72,18 @@ public class TaskEntity {
     @Column(name = "duration_minutes")
     private Integer durationMinutes;
 
+    // TODO - consider default rewards based on difficulty level
+    @Builder.Default
     @Column(name = "coin_reward", nullable = false)
-    private Integer coinReward;
+    private Integer coinReward = 0;
 
     @Column(name = "coin_penalty")
     private Integer coinPenalty;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 24)
-    private TaskStatus status;
+    private TaskStatus status = TaskStatus.PENDING;
 
     @Column(name = "due_date")
     private Instant dueDate;
@@ -86,32 +91,18 @@ public class TaskEntity {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    private Instant createdAt = Instant.now();
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    @Builder.Default
     @Column(name = "created_by_ai", nullable = false)
-    private Boolean createdByAi;
+    private Boolean createdByAi = Boolean.FALSE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ai_conversation_id")
     private AiConversationEntity aiConversation;
-
-    @PrePersist
-    void onCreate() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
-        }
-        if (status == null) {
-            status = TaskStatus.PENDING;
-        }
-        if (createdByAi == null) {
-            createdByAi = Boolean.FALSE;
-        }
-        if (coinReward == null) {
-            coinReward = 0; // TODO - consider default rewards based on difficulty level
-        }
-    }
 }

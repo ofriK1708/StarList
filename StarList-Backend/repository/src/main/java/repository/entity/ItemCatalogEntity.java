@@ -8,7 +8,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -47,8 +46,9 @@ public class ItemCatalogEntity {
     @Column(name = "description", length = 2000)
     private String description;
 
+    @Builder.Default
     @Column(name = "cost_coins", nullable = false)
-    private Integer costCoins;
+    private Integer costCoins = 0;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "rarity", length = 16)
@@ -69,28 +69,15 @@ public class ItemCatalogEntity {
     @Column(name = "rotation", precision = 6, scale = 2)
     private BigDecimal rotation;
 
+    @Builder.Default
     @Column(name = "unlock_requirement")
-    private Integer unlockRequirement;
+    private Integer unlockRequirement = 0;
 
+    @Builder.Default
     @Column(name = "is_available", nullable = false)
-    private Boolean isAvailable;
+    private Boolean isAvailable = Boolean.TRUE;
 
+    @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @PrePersist
-    void onCreate() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
-        }
-        if (costCoins == null) {
-            costCoins = 0;
-        }
-        if (unlockRequirement == null) {
-            unlockRequirement = 0;
-        }
-        if (isAvailable == null) {
-            isAvailable = Boolean.TRUE;
-        }
-    }
+    private Instant createdAt = Instant.now();
 }

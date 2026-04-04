@@ -1,199 +1,178 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- Spring Boot default logback configuration -->
-    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
-    <!-- Define properties -->
-    <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}/}spring.log}"/>
-    <property name="REQUEST_TRACE_FILE" value="logs/request-trace.log"/>
+    <!-- Shared pattern: timestamp, thread, level, MDC correlation ID, logger, message -->
+    <property name="LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [req=%X{reqId:-none}] %logger{36} - %msg%n"/>
 
-    <!-- Console appender - for all logs -->
+    <!-- ===== Appenders ===== -->
+
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <pattern>${LOG_PATTERN}</pattern>
             <charset>utf8</charset>
         </encoder>
     </appender>
 
-    <!-- Request trace file appender - ONLY for REQUEST_TRACE logger -->
-    <appender name="REQUEST_TRACE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${REQUEST_TRACE_FILE}</file>
+    <!-- Incoming HTTP requests + timing (written by RequestLoggingInterceptor) -->
+    <appender name="REQUESTS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/requests/requests.log</file>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>${LOG_PATTERN}</pattern>
             <charset>utf8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/request-trace-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>logs/requests/requests-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
-            <maxHistory>3</maxHistory>
+            <maxHistory>7</maxHistory>
             <totalSizeCap>200MB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <!-- Dump file appender - attached to root; receives all logs -->
-    <appender name="DUMP_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/app-dump.log</file>
+    <!-- Controller layer events -->
+    <appender name="CONTROLLERS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/controllers/controllers.log</file>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>${LOG_PATTERN}</pattern>
             <charset>utf8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/app-dump-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>logs/controllers/controllers-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
-            <maxHistory>3</maxHistory>
+            <maxHistory>7</maxHistory>
             <totalSizeCap>200MB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <!-- Task entity file appender - ONLY for TaskService -->
-    <appender name="TASK_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/tasks.log</file>
+    <!-- Service layer events -->
+    <appender name="SERVICES_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/services/services.log</file>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>${LOG_PATTERN}</pattern>
             <charset>utf8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/tasks-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>logs/services/services-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
-            <maxHistory>3</maxHistory>
+            <maxHistory>7</maxHistory>
             <totalSizeCap>200MB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <!-- User entity file appender - ONLY for UserService -->
-    <appender name="USER_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/users.log</file>
+    <!-- SQL queries — dev only, attached per-profile -->
+    <appender name="HIBERNATE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/hibernate/hibernate.log</file>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>${LOG_PATTERN}</pattern>
             <charset>utf8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/users-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>logs/hibernate/hibernate-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
-            <maxHistory>3</maxHistory>
+            <maxHistory>7</maxHistory>
             <totalSizeCap>200MB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <!-- Habit file appender - for HabitService and HabitCompletionService -->
-    <appender name="HABIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/habits.log</file>
+    <!-- All ERROR-level events from any layer, kept longer for post-incident review -->
+    <appender name="ERRORS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/errors/errors.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>${LOG_PATTERN}</pattern>
             <charset>utf8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/habits-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>logs/errors/errors-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
-            <maxHistory>3</maxHistory>
-            <totalSizeCap>200MB</totalSizeCap>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <!-- Coin transaction file appender - ONLY for CoinTransactionService -->
-    <appender name="COIN_TRANSACTION_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/coin-transactions.log</file>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-            <charset>utf8</charset>
-        </encoder>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/coin-transactions-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <maxFileSize>10MB</maxFileSize>
-            <maxHistory>3</maxHistory>
-            <totalSizeCap>200MB</totalSizeCap>
-        </rollingPolicy>
-    </appender>
-
-    <!-- Profiles -->
-    <!-- Dev Profile -->
+    <!-- ===== Dev profile ===== -->
     <springProfile name="dev">
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="DUMP_FILE"/>
         </root>
-        <!-- Only REQUEST_TRACE logger writes to the file -->
-        <logger name="REQUEST_TRACE" level="INFO" additivity="false">
-            <appender-ref ref="REQUEST_TRACE_FILE"/>
+
+        <!-- Request interceptor sub-package → requests file only, not controllers file -->
+        <logger name="controller.logging" level="INFO" additivity="false">
+            <appender-ref ref="REQUESTS_FILE"/>
             <appender-ref ref="CONSOLE"/>
         </logger>
-        <logger name="app" level="INFO"/>
-        <logger name="controller" level="INFO"/>
-        <logger name="service.TaskService" level="DEBUG" additivity="true">
-            <appender-ref ref="TASK_FILE"/>
+
+        <logger name="controller" level="DEBUG" additivity="false">
+            <appender-ref ref="CONTROLLERS_FILE"/>
+            <appender-ref ref="ERRORS_FILE"/>
+            <appender-ref ref="CONSOLE"/>
         </logger>
-        <logger name="service.UserService" level="DEBUG" additivity="true">
-            <appender-ref ref="USER_FILE"/>
+
+        <logger name="service" level="DEBUG" additivity="false">
+            <appender-ref ref="SERVICES_FILE"/>
+            <appender-ref ref="ERRORS_FILE"/>
+            <appender-ref ref="CONSOLE"/>
         </logger>
-        <logger name="service.HabitService" level="DEBUG" additivity="true">
-            <appender-ref ref="HABIT_FILE"/>
+
+        <!-- SQL queries to file; bind params are very verbose so console is excluded -->
+        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+            <appender-ref ref="HIBERNATE_FILE"/>
+            <appender-ref ref="CONSOLE"/>
         </logger>
-        <logger name="service.HabitCompletionService" level="DEBUG" additivity="true">
-            <appender-ref ref="HABIT_FILE"/>
+        <logger name="org.hibernate.orm.jdbc.bind" level="TRACE" additivity="false">
+            <appender-ref ref="HIBERNATE_FILE"/>
+            <appender-ref ref="CONSOLE"/>
         </logger>
-        <logger name="service.CoinTransactionService" level="DEBUG" additivity="true">
-            <appender-ref ref="COIN_TRANSACTION_FILE"/>
-        </logger>
-        <logger name="org.hibernate.SQL" level="DEBUG"/>
-        <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
     </springProfile>
 
-    <!-- Test Profile -->
+    <!-- ===== Test profile — console only, no file I/O ===== -->
     <springProfile name="test">
         <root level="DEBUG">
             <appender-ref ref="CONSOLE"/>
         </root>
-        <!-- Only REQUEST_TRACE logger writes to the file -->
-        <logger name="REQUEST_TRACE" level="TRACE" additivity="false">
-            <appender-ref ref="REQUEST_TRACE_FILE"/>
+
+        <logger name="controller.logging" level="DEBUG" additivity="false">
             <appender-ref ref="CONSOLE"/>
         </logger>
-        <logger name="app" level="DEBUG"/>
-        <logger name="controller" level="DEBUG"/>
-        <logger name="service.TaskService" level="DEBUG" additivity="true">
-            <appender-ref ref="TASK_FILE"/>
+
+        <logger name="controller" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
         </logger>
-        <logger name="service.UserService" level="DEBUG" additivity="true">
-            <appender-ref ref="USER_FILE"/>
+
+        <logger name="service" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
         </logger>
-        <logger name="service.HabitService" level="DEBUG" additivity="true">
-            <appender-ref ref="HABIT_FILE"/>
+
+        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
         </logger>
-        <logger name="service.HabitCompletionService" level="DEBUG" additivity="true">
-            <appender-ref ref="HABIT_FILE"/>
-        </logger>
-        <logger name="service.CoinTransactionService" level="DEBUG" additivity="true">
-            <appender-ref ref="COIN_TRANSACTION_FILE"/>
+        <logger name="org.hibernate.orm.jdbc.bind" level="TRACE" additivity="false">
+            <appender-ref ref="CONSOLE"/>
         </logger>
     </springProfile>
 
-    <!-- Prod Profile -->
+    <!-- ===== Prod profile — INFO root, WARN for app layers, requests always logged ===== -->
     <springProfile name="prod">
-        <root level="WARN">
+        <root level="INFO">
             <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="DUMP_FILE"/>
         </root>
-        <!-- Only REQUEST_TRACE logger writes to the file -->
-        <logger name="REQUEST_TRACE" level="WARN" additivity="false">
-            <appender-ref ref="REQUEST_TRACE_FILE"/>
-            <appender-ref ref="CONSOLE"/>
+
+        <!-- Always log requests in prod for audit/latency monitoring -->
+        <logger name="controller.logging" level="INFO" additivity="false">
+            <appender-ref ref="REQUESTS_FILE"/>
         </logger>
-        <logger name="app" level="WARN"/>
-        <logger name="controller" level="WARN"/>
-        <logger name="service.TaskService" level="WARN" additivity="true">
-            <appender-ref ref="TASK_FILE"/>
+
+        <logger name="controller" level="WARN" additivity="false">
+            <appender-ref ref="CONTROLLERS_FILE"/>
+            <appender-ref ref="ERRORS_FILE"/>
         </logger>
-        <logger name="service.UserService" level="WARN" additivity="true">
-            <appender-ref ref="USER_FILE"/>
-        </logger>
-        <logger name="service.HabitService" level="WARN" additivity="true">
-            <appender-ref ref="HABIT_FILE"/>
-        </logger>
-        <logger name="service.HabitCompletionService" level="WARN" additivity="true">
-            <appender-ref ref="HABIT_FILE"/>
-        </logger>
-        <logger name="service.CoinTransactionService" level="WARN" additivity="true">
-            <appender-ref ref="COIN_TRANSACTION_FILE"/>
+
+        <logger name="service" level="WARN" additivity="false">
+            <appender-ref ref="SERVICES_FILE"/>
+            <appender-ref ref="ERRORS_FILE"/>
         </logger>
     </springProfile>
+
 </configuration>

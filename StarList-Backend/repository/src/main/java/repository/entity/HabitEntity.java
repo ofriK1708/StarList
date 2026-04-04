@@ -1,6 +1,5 @@
 package repository.entity;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -13,7 +12,8 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -45,6 +45,7 @@ public class HabitEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
@@ -62,56 +63,40 @@ public class HabitEntity {
     @Column(name = "difficulty_level", nullable = false, length = 16)
     private DifficultyLevel difficultyLevel;
 
+    @Builder.Default
     @Column(name = "coin_reward", nullable = false)
-    private Integer coinReward;
+    private Integer coinReward = 0;
 
     @Column(name = "coin_penalty")
     private Integer coinPenalty;
 
+    @Builder.Default
     @Column(name = "current_streak", nullable = false)
-    private Integer currentStreak;
+    private Integer currentStreak = 0;
 
+    @Builder.Default
     @Column(name = "best_streak", nullable = false)
-    private Integer bestStreak;
+    private Integer bestStreak = 0;
 
+    @Builder.Default
     @Column(name = "total_completions", nullable = false)
-    private Integer totalCompletions;
+    private Integer totalCompletions = 0;
 
     @Column(name = "last_completed_date")
     private LocalDate lastCompletedDate;
 
+    @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    private Instant createdAt = Instant.now();
 
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive;
+    private Boolean isActive = Boolean.TRUE;
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
     @Builder.Default
-    @OneToMany(mappedBy = "habit", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "habit")
     private List<HabitCompletionEntity> completions = new ArrayList<>();
-
-    @PrePersist
-    void onCreate() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
-        }
-        if (coinReward == null) {
-            coinReward = 0;
-        }
-        if (currentStreak == null) {
-            currentStreak = 0;
-        }
-        if (bestStreak == null) {
-            bestStreak = 0;
-        }
-        if (totalCompletions == null) {
-            totalCompletions = 0;
-        }
-        if (isActive == null) {
-            isActive = Boolean.TRUE;
-        }
-    }
 }
