@@ -20,14 +20,13 @@ export function Login() {
       if (isSignup) {
         await register({
           email: emailOrId,
-          displayName: displayName || emailOrId.split('@')[0], // ברירת מחדל אם ריק
-          cognitoUserId: `dev-cognito-${Date.now()}` // מזהה זמני עד שנחבר את AWS
+          displayName: displayName || emailOrId.split('@')[0],
+          cognitoUserId: `dev-cognito-${Date.now()}`
         });
       } else {
-        // התחברות (Dev Mode): השרת מצפה ל-ID מספרי
         const userId = parseInt(emailOrId);
         if (isNaN(userId)) {
-          setError("Dev Mode: Please enter your numeric User ID to login.");
+          setError("Please enter your User ID to login.");
           return;
         }
         await loginByDevId(userId);
@@ -123,7 +122,7 @@ export function Login() {
                     value={emailOrId}
                     onChange={(e) => setEmailOrId(e.target.value)}
                     className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
-                    placeholder={isSignup ? "Enter your email" : "Enter your numeric ID"}
+                    placeholder={isSignup ? "Enter your email" : "Enter your ID"}
                     required
                 />
               </div>

@@ -1,33 +1,38 @@
-import { useState } from "react";
-import { X, Flame, Plus } from "lucide-react";
-import { AddHabitRequest, DifficultyLevel, HabitFrequency } from "@/services/habitsApi.ts";
+import { useState, useEffect } from "react";
+import { X, Edit2, Check } from "lucide-react";
+import { HabitResponse, UpdateHabitRequest, DifficultyLevel, HabitFrequency } from "@/services/habitsApi.ts";
 
-interface AddHabitModalProps {
+interface EditHabitModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAdd: (habitData: AddHabitRequest) => void;
+    habitToEdit: HabitResponse | null;
+    onUpdate: (habitId: number, habitData: UpdateHabitRequest) => void;
 }
 
-export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
+export function EditHabitModal({ isOpen, onClose, habitToEdit, onUpdate }: EditHabitModalProps) {
     const [title, setTitle] = useState("");
     const [difficulty, setDifficulty] = useState<DifficultyLevel>('MEDIUM');
     const [frequency, setFrequency] = useState<HabitFrequency>('DAILY');
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        if (habitToEdit) {
+            setTitle(habitToEdit.title);
+            setDifficulty(habitToEdit.difficultyLevel);
+            setFrequency(habitToEdit.frequency);
+        }
+    }, [habitToEdit]);
+
+    if (!isOpen || !habitToEdit) return null;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim()) return;
 
-        onAdd({
+        onUpdate(habitToEdit.habitId, {
             title,
             difficultyLevel: difficulty,
             frequency: frequency
         });
-
-        setTitle("");
-        setDifficulty("MEDIUM");
-        setFrequency("DAILY");
     };
 
     return (
@@ -35,8 +40,8 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
             <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
                 <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-800/50">
                     <h2 className="text-lg text-white font-medium flex items-center gap-2">
-                        <Flame className="w-5 h-5 text-orange-400" />
-                        New Habit
+                        <Edit2 className="w-5 h-5 text-blue-400" />
+                        Edit Habit
                     </h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
                         <X className="w-5 h-5" />
@@ -50,7 +55,6 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder="e.g., Morning run"
                             className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
                             required
                         />
@@ -88,8 +92,8 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
                             Cancel
                         </button>
                         <button type="submit" className="flex-1 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 transition-colors">
-                            <Plus className="w-4 h-4" />
-                            Add Habit
+                            <Check className="w-4 h-4" />
+                            Save Changes
                         </button>
                     </div>
                 </form>

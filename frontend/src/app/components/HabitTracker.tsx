@@ -1,21 +1,16 @@
-import { Check, Flame, AlertTriangle, Plus } from "lucide-react";
+import { Check, Flame, Plus, Trash2, Edit2 } from "lucide-react";
 import { Button } from "./ui/button";
-
-interface Habit {
-    id: string;
-    title: string;
-    streak: number;
-    completedToday: boolean;
-    baseReward: number;
-}
+import { HabitResponse } from "@/services/habitsApi.ts";
 
 interface HabitTrackerProps {
-    habits: Habit[];
-    onHabitCheck: (id: string) => void;
+    habits: HabitResponse[];
+    onHabitCheck: (id: number) => void;
     onAddHabitClick: () => void;
+    onEditHabitClick: (habit: HabitResponse) => void;
+    onDeleteHabit: (id: number) => void;
 }
 
-export function HabitTracker({ habits, onHabitCheck, onAddHabitClick }: HabitTrackerProps) {
+export function HabitTracker({ habits, onHabitCheck, onAddHabitClick, onEditHabitClick, onDeleteHabit }: HabitTrackerProps) {
     return (
         <div className="w-full h-full bg-slate-900/50 overflow-y-auto p-6 animate-in fade-in duration-500">
             <div className="max-w-5xl mx-auto">
@@ -35,9 +30,11 @@ export function HabitTracker({ habits, onHabitCheck, onAddHabitClick }: HabitTra
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {habits.map((habit, index) => (
                         <HabitRadialCard
-                            key={habit.id}
+                            key={habit.habitId}
                             habit={habit}
-                            onCheck={() => onHabitCheck(habit.id)}
+                            onCheck={() => onHabitCheck(habit.habitId)}
+                            onEdit={() => onEditHabitClick(habit)}
+                            onDelete={() => onDeleteHabit(habit.habitId)}
                             index={index}
                         />
                     ))}
@@ -47,7 +44,11 @@ export function HabitTracker({ habits, onHabitCheck, onAddHabitClick }: HabitTra
     );
 }
 
-function HabitRadialCard({ habit, onCheck, index }: { habit: Habit; onCheck: () => void; index: number }) {
+function HabitRadialCard({ habit, onCheck, onEdit, onDelete, index }: { habit: HabitResponse; onCheck: () => void; onEdit: () => void; onDelete: () => void; index: number }) {
+    // Check if habit was completed today
+    const today = new Date().toISOString().split('T')[0];
+    const isCompletedToday = Boolean(habit.lastCompletedDate && habit.lastCompletedDate.startsWith(today));
+
     const daysInMonth = 30;
     const radius = 90;
     const center = 120;
@@ -64,17 +65,34 @@ function HabitRadialCard({ habit, onCheck, index }: { habit: Habit; onCheck: () 
     ];
     const color = colors[index % colors.length];
 
-    const filledSegments = Math.min(habit.streak, daysInMonth);
+    const filledSegments = Math.min(habit.currentStreak, daysInMonth);
     const dashArrayValue = `${segmentLength - gap} ${gap}`;
 
     return (
         <div className="bg-slate-800/40 border border-slate-700/50 rounded-[2.5rem] p-8 flex flex-col items-center group hover:bg-slate-800/60 transition-all duration-300 relative overflow-hidden">
 
+            <div className="absolute top-6 left-6 flex gap-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                    onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                    className="p-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-lg text-slate-300 hover:text-white transition-colors"
+                    title="Edit Habit"
+                >
+                    <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                    className="p-1.5 bg-red-900/30 hover:bg-red-500/80 rounded-lg text-red-400 hover:text-white transition-colors"
+                    title="Delete Habit"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+
             <div className="text-center mb-6 z-10">
                 <h3 className="text-xl font-bold text-white group-hover:text-blue-200 transition-colors">{habit.title}</h3>
                 <div className="flex items-center justify-center gap-1.5 text-orange-400 text-sm mt-1 font-medium">
                     <Flame className="w-4 h-4 fill-orange-400/20" />
-                    <span>{habit.streak} day streak</span>
+                    <span>{habit.currentStreak} day streak</span>
                 </div>
             </div>
 
@@ -90,8 +108,6 @@ function HabitRadialCard({ habit, onCheck, index }: { habit: Habit; onCheck: () 
                         strokeDasharray={dashArrayValue}
                         className="text-slate-800"
                     />
-
-                    {/* Progress Ring - Days Done */}
                     <circle
                         cx={center}
                         cy={center}
@@ -112,14 +128,14 @@ function HabitRadialCard({ habit, onCheck, index }: { habit: Habit; onCheck: () 
                             e.stopPropagation();
                             onCheck();
                         }}
-                        disabled={habit.completedToday}
+                        disabled={isCompletedToday}
                         className={`w-32 h-32 rounded-full flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${
-                            habit.completedToday
+                            isCompletedToday
                                 ? 'bg-transparent text-green-400 cursor-default'
                                 : 'bg-slate-900 text-white hover:scale-105 border border-slate-700 hover:border-slate-500 shadow-2xl'
                         }`}
                     >
-                        {habit.completedToday ? (
+                        {isCompletedToday ? (
                             <>
                                 <Check className="w-12 h-12 animate-in zoom-in" />
                                 <span className="text-[11px] mt-2 uppercase font-black tracking-tighter">Day Logged</span>
@@ -133,8 +149,9 @@ function HabitRadialCard({ habit, onCheck, index }: { habit: Habit; onCheck: () 
                     </button>
                 </div>
             </div>
+
             <div className="absolute top-6 right-8 flex items-center gap-1 opacity-40">
-                <span className="text-xs font-bold text-yellow-500">+{habit.baseReward}</span>
+                <span className="text-xs font-bold text-yellow-500">+{habit.coinReward}</span>
             </div>
 
             <div className={`absolute -bottom-10 -left-10 w-40 h-40 rounded-full blur-[80px] opacity-10 ${color.bg}`} />
