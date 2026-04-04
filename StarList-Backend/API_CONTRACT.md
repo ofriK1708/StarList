@@ -14,7 +14,8 @@
 4. [Users API](#users-api)
 5. [Tasks API](#tasks-api)
 6. [Habits API](#habits-api)
-7. [Health Check](#health-check)
+7. [Store API](#store-api)
+8. [Health Check](#health-check)
 
 ---
 
@@ -109,9 +110,9 @@ All errors return the following JSON body:
 
 | Status            | Trigger                                                                                              |
 |-------------------|------------------------------------------------------------------------------------------------------|
-| `400 Bad Request` | Validation failure (`@NotBlank`, `@Email`, `@NotNull`, `@Positive`, `@Future` violated)              |
-| `404 Not Found`   | `UserNotFoundException`, `TaskNotFoundException`, `HabitNotFoundException`                           |
-| `409 Conflict`    | `UserAlreadyExistsException`, `TaskAlreadyCompletedException`, `HabitAlreadyCompletedTodayException` |
+| `400 Bad Request` | Validation failure (`@NotBlank`, `@Email`, `@NotNull`, `@Positive`, `@Future` violated)                                                                    |
+| `404 Not Found`   | `UserNotFoundException`, `TaskNotFoundException`, `HabitNotFoundException`, `ItemNotFoundException`                                                         |
+| `409 Conflict`    | `UserAlreadyExistsException`, `TaskAlreadyCompletedException`, `HabitAlreadyCompletedTodayException`, `ItemNotAvailableException`, `ItemAlreadyOwnedException`, `InsufficientCoinsException` |
 
 ### Validation Error Body (400)
 
@@ -733,6 +734,109 @@ Soft-deletes the habit: sets `isActive = false` and records `deletedAt`. Habit i
 **Response — `204 No Content`** *(empty body)*
 
 **Errors:** `404` (habit not found)
+
+---
+
+## Store API
+
+> The store lets users browse available galaxy cosmetics and spend coins to add items to their galaxy.
+> Purchasing an item creates a `galaxy_items` record and records a `coin_transactions` audit entry.
+> Each catalog item can only be purchased **once per user**.
+
+### Get Available Items
+
+```
+GET /api/store/items
+```
+
+No auth header required — returns the global catalog visible to all users.
+
+**Response — `200 OK` — `List<ItemCatalogResponse>`**
+
+| Field               | Type          | Description                                          |
+|---------------------|---------------|------------------------------------------------------|
+| `id`                | `Long`        | Catalog item database ID                             |
+| `itemName`          | `String`      | Display name                                         |
+| `itemType`          | `ItemType`    | `STAR`, `PLANET`, `NEBULA`, `ASTEROID`, or `COMET`   |
+| `description`       | `String`      | Flavour text (nullable)                              |
+| `costCoins`         | `Integer`     | Spendable coin price                                 |
+| `rarity`            | `RarityLevel` | `COMMON`, `RARE`, `EPIC`, or `LEGENDARY`             |
+| `imageUrl`          | `String`      | Relative path served by the backend (nullable)       |
+| `positionX`         | `BigDecimal`  | Default X placement in the galaxy view (nullable)    |
+| `positionY`         | `BigDecimal`  | Default Y placement in the galaxy view (nullable)    |
+| `scale`             | `BigDecimal`  | Default render scale (nullable)                      |
+| `rotation`          | `BigDecimal`  | Default rotation in degrees (nullable)               |
+| `unlockRequirement` | `Integer`     | Minimum galaxy cycle required to purchase (0 = none) |
+| `isAvailable`       | `Boolean`     | `false` items are hidden from this endpoint          |
+
+```json
+[
+  {
+    "id": 1,
+    "itemName": "Planet 1",
+    "itemType": "PLANET",
+    "description": "A mysterious planet waiting to join your galaxy.",
+    "costCoins": 50,
+    "rarity": "COMMON",
+    "imageUrl": "/images/Plantes/planet1.png",
+    "positionX": null,
+    "positionY": null,
+    "scale": null,
+    "rotation": null,
+    "unlockRequirement": 0,
+    "isAvailable": true
+  }
+]
+```
+
+---
+
+### Buy Item
+
+```
+POST /api/store/buy/{itemId}
+X-User-Id: <userId>
+```
+
+**Path Parameters**
+
+| Param    | Type   | Description              |
+|----------|--------|--------------------------|
+| `itemId` | `Long` | Catalog item database ID |
+
+Validates the purchase (item exists, is available, not already owned, user has enough coins), deducts `costCoins` from `totalCoins`, creates a `galaxy_items` row, and writes a `ITEM_PURCHASE` coin transaction.
+
+**Response — `201 Created` — `BuyItemResponse`**
+
+| Field           | Type      | Description                             |
+|-----------------|-----------|-----------------------------------------|
+| `galaxyItemId`  | `Long`    | Newly created galaxy item ID            |
+| `catalogItemId` | `Long`    | The purchased catalog item ID           |
+| `itemName`      | `String`  | Name of the purchased item              |
+| `purchaseDate`  | `Instant` | UTC timestamp of the purchase           |
+| `coinsSpent`    | `Integer` | Coins deducted from the user's balance  |
+| `newTotalCoins` | `Integer` | User's updated coin balance after deduction |
+
+```json
+{
+  "galaxyItemId": 7,
+  "catalogItemId": 1,
+  "itemName": "Planet 1",
+  "purchaseDate": "2026-04-04T12:00:00Z",
+  "coinsSpent": 50,
+  "newTotalCoins": 450
+}
+```
+
+**Errors:**
+
+| Status | Trigger                                                    |
+|--------|------------------------------------------------------------|
+| `404`  | `itemId` does not exist in the catalog                     |
+| `404`  | `X-User-Id` user does not exist                            |
+| `409`  | Item is not currently available (`isAvailable = false`)    |
+| `409`  | User already owns this catalog item                        |
+| `409`  | User's `totalCoins` is less than the item's `costCoins`    |
 
 ---
 
