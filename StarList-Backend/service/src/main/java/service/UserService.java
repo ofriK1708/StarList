@@ -78,7 +78,11 @@ public class UserService {
         try {
             return UserResponse.from(save(user));
         } catch (DataIntegrityViolationException e) {
-            throw new UserAlreadyExistsException("email or cognitoUserId", "duplicate value");
+            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if (msg.contains("unique") || msg.contains("duplicate") || msg.contains("constraint")) {
+                throw new UserAlreadyExistsException("email or cognitoUserId", "duplicate value");
+            }
+            throw e;
         }
     }
 

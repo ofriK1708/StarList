@@ -17,10 +17,21 @@ public class User {
     private String email;
     private String cognitoUserId;
     private String displayName;
-    private Integer totalCoins;
-    private Integer lifetimeCoinsEarned;
-    private Integer currentGalaxyCycle;
-    private LocalDate galaxyResetDate;
-    private Instant createdAt;
+
+    @Builder.Default
+    private Integer totalCoins = 0;
+
+    @Builder.Default
+    private Integer lifetimeCoinsEarned = 0;
+
+    @Builder.Default
+    private Integer currentGalaxyCycle = 1;
+
+    @Builder.Default
+    private LocalDate galaxyResetDate = LocalDate.now();
+
+    @Builder.Default
+    private Instant createdAt = Instant.now();
+
     private Instant lastLogin;
 }

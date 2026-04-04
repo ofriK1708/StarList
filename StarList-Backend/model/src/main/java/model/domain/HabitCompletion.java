@@ -16,8 +16,16 @@ public class HabitCompletion {
     private Long id;
     private Long habitId;
     private Long userId;
-    private LocalDate completedDate;
-    private Integer coinsEarned;
-    private Integer streakAtCompletion;
-    private Instant createdAt;
+
+    @Builder.Default
+    private LocalDate completedDate = LocalDate.now();
+
+    @Builder.Default
+    private Integer coinsEarned = 0;
+
+    @Builder.Default
+    private Integer streakAtCompletion = 0;
+
+    @Builder.Default
+    private Instant createdAt = Instant.now();
 }

@@ -15,7 +15,13 @@ public class GalaxyItem {
     private Long id;
     private Long userId;
     private Long catalogItemId;
-    private Instant purchaseDate;
-    private Integer timesSelected;
-    private Boolean isActive;
+
+    @Builder.Default
+    private Instant purchaseDate = Instant.now();
+
+    @Builder.Default
+    private Integer timesSelected = 1;
+
+    @Builder.Default
+    private Boolean isActive = Boolean.TRUE;
 }

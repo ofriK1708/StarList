@@ -16,10 +16,15 @@ public class CoinTransaction {
 
     private Long id;
     private Long userId;
-    private Integer amount;
+
+    @Builder.Default
+    private Integer amount = 0;
+
     private TransactionType transactionType;
     private ReferenceType referenceType;
     private Long referenceId;
     private String description;
-    private Instant createdAt;
+
+    @Builder.Default
+    private Instant createdAt = Instant.now();
 }
