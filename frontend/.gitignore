@@ -1,0 +1,9 @@
+# Frontend (React / Vite)
+node_modules/
+.npm/
+dist/
+build/
+.env
+aws-exports.js
+dist-ssr/
+*.local
