@@ -16,6 +16,7 @@ import repository.entity.ItemCatalogEntity;
 import repository.entity.UserEntity;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,7 +40,7 @@ class ItemCatalogRepositoryTest {
     void setUp() {
         savedUser = userRepository.save(UserEntity.builder()
                 .email("storeuser@example.com")
-                .cognitoUserId("cog-storeuser")
+                .cognitoUserId(UUID.randomUUID())
                 .displayName("Store User")
                 .build());
     }
@@ -109,7 +110,7 @@ class ItemCatalogRepositoryTest {
     void existsByUserIdAndCatalogItemId_differentUser_returnsFalse() {
         UserEntity otherUser = userRepository.save(UserEntity.builder()
                 .email("other@example.com")
-                .cognitoUserId("cog-other")
+                .cognitoUserId(UUID.randomUUID())
                 .displayName("Other")
                 .build());
         ItemCatalogEntity catalogItem = itemCatalogRepository.save(item("Star Gamma", true));

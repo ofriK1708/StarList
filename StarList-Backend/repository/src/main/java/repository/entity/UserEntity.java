@@ -12,6 +12,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -38,7 +40,7 @@ public class UserEntity {
     private String email;
 
     @Column(name = "cognito_user_id", nullable = false, unique = true, updatable = false)
-    private String cognitoUserId;
+    private UUID cognitoUserId;
 
     @Column(name = "display_name", nullable = false)
     private String displayName;

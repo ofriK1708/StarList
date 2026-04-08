@@ -5,8 +5,13 @@
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8080" },
-    { "key": "userId",  "value": "1" }
+    { "key": "userId",  "value": "1" },
+    { "key": "jwt",     "value": "" }
   ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{jwt}}", "type": "string" }]
+  },
   "item": [
     {
       "name": "Not Found",

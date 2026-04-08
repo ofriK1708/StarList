@@ -31,10 +31,10 @@ public class UserController {
         UserResponse response = userService.createUser(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
-
-    @GetMapping("/{userId}")
-    public ResponseEntity<UserResponse> getUser(@PathVariable Long userId) {
-        return ResponseEntity.ok(userService.getUser(userId));
+    @GetMapping("/cognito/{sub}")
+    public ResponseEntity<UserResponse> getUserByCognitoSub(@PathVariable String sub) {
+        UserResponse response = userService.getUserByCognitoSub(sub);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{userId}")

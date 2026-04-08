@@ -14,6 +14,8 @@ import service.dto.UserResponse;
 import service.exceptions.UserAlreadyExistsException;
 import service.exceptions.UserNotFoundException;
 
+import java.util.UUID;
+
 @Slf4j
 @Service
 public class UserService {
@@ -30,15 +32,13 @@ public class UserService {
         return userRepository.existsById(id);
     }
 
-    /**
-     * Finds a user by ID and maps it to the domain model.
-     *
-     * @throws UserNotFoundException if no user exists with the given ID
-     */
-    public User findById(Long id) {
-        log.info("Finding user {}", id);
-        return userMapper.toDomain(userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException(id)));
+    public User findByCognitoId(UUID cognitoId){
+        return userMapper.toDomain(userRepository.findByCognitoUserId(cognitoId)
+                .orElseThrow(() -> new UserNotFoundException(cognitoId)));
+    }
+    public UserResponse getUserByCognitoSub(String sub) {
+        log.info("Finding user by Cognito sub {}", sub);
+        return UserResponse.from(findByCognitoId(UUID.fromString(sub)));
     }
 
     /**
@@ -67,7 +67,7 @@ public class UserService {
         if (userRepository.existsByEmail(request.email())) {
             throw new UserAlreadyExistsException("email", request.email());
         }
-        if (userRepository.existsByCognitoUserId(request.cognitoUserId())) {
+        if (userRepository.existsByCognitoUserId(UUID.fromString(request.cognitoUserId()))) {
             throw new UserAlreadyExistsException("cognitoUserId", request.cognitoUserId());
         }
         User user = User.builder()
@@ -84,15 +84,6 @@ public class UserService {
             }
             throw e;
         }
-    }
-
-    /**
-     * Returns the user with the given ID as a response DTO.
-     *
-     * @throws UserNotFoundException if no user exists with the given ID
-     */
-    public UserResponse getUser(Long id) {
-        return UserResponse.from(findById(id));
     }
 
     /**

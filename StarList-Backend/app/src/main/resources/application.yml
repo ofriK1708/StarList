@@ -1,5 +1,6 @@
 spring:
-  profiles:
-    active: dev
   application:
     name: starlist-backend
+  profiles:
+    active: dev
+
