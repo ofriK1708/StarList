@@ -37,16 +37,16 @@ export const usersApi = {
     /**
      * Update user details
      */
-    updateUser: async (userId: number, updateData: UpdateUserRequest): Promise<UserResponse> => {
-        const response = await api.put<UserResponse>(`/users/${userId}`, updateData);
+    updateUser: async (updateData: UpdateUserRequest): Promise<UserResponse> => {
+        const response = await api.put<UserResponse>('/users/me', updateData);
         return response.data;
     },
 
     /**
-     * Delete user and all associated data
+     * Delete the currently authenticated user and all associated data
      */
-    deleteUser: async (userId: number): Promise<void> => {
-        await api.delete(`/users/${userId}`);
+    deleteUser: async (): Promise<void> => {
+        await api.delete('/users/me');
     },
 
     /**

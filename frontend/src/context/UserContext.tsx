@@ -84,6 +84,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const login = async (email: string, password: string): Promise<void> => {
         setIsLoading(true);
         try {
+            await authService.handleSignOut().catch(() => {});
             await authService.handleSignIn(email, password);
             const token = await authService.getIdToken();
             const sub = await authService.getCognitoSub();

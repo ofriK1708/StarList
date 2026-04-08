@@ -38,7 +38,13 @@ public class UserService {
     }
     public UserResponse getUserByCognitoSub(String sub) {
         log.info("Finding user by Cognito sub {}", sub);
-        return UserResponse.from(findByCognitoId(UUID.fromString(sub)));
+        UUID cognitoId = UUID.fromString(sub);
+        return userRepository.findByCognitoUserId(cognitoId)
+                .map(entity -> UserResponse.from(userMapper.toDomain(entity)))
+                .orElseGet(() -> {
+                    log.warn("No backend user found for Cognito sub {}", sub);
+                    throw new UserNotFoundException(cognitoId);
+                });
     }
 
     /**
