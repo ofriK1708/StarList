@@ -120,6 +120,17 @@ public class UserService {
     }
 
     /**
+     * Deducts {@code amount} from the user's spendable {@code totalCoins} balance and persists the entity.
+     * Does NOT touch {@code lifetimeCoinsEarned}, which is a monotonically increasing lifetime metric.
+     */
+    @Transactional
+    public void spendCoins(UserEntity user, int amount) {
+        log.info("Spending {} coins for user {}", amount, user.getId());
+        user.setTotalCoins(user.getTotalCoins() - amount);
+        userRepository.save(user);
+    }
+
+    /**
      * Adds {@code amount} to the user's {@code totalCoins} and {@code lifetimeCoinsEarned},
      * then persists the entity.
      */
