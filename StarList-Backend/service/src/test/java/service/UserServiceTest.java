@@ -18,6 +18,7 @@ import service.exceptions.UserNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -40,12 +41,12 @@ class UserServiceTest {
 
     @Test
     void createUser_newUser_savesAndReturnsResponse() {
-        CreateUserRequest request = new CreateUserRequest("alice@example.com", "cognito-abc", "Alice");
+        CreateUserRequest request = new CreateUserRequest("alice@example.com", "00000000-0000-0000-0000-000000000001", "Alice");
 
         User savedDomain = User.builder()
                 .id(1L)
                 .email("alice@example.com")
-                .cognitoUserId("cognito-abc")
+                .cognitoUserId("00000000-0000-0000-0000-000000000001")
                 .displayName("Alice")
                 .totalCoins(0)
                 .lifetimeCoinsEarned(0)
@@ -55,7 +56,7 @@ class UserServiceTest {
                 .build();
 
         when(userRepository.existsByEmail("alice@example.com")).thenReturn(false);
-        when(userRepository.existsByCognitoUserId("cognito-abc")).thenReturn(false);
+        when(userRepository.existsByCognitoUserId(UUID.fromString("00000000-0000-0000-0000-000000000001"))).thenReturn(false);
         when(userMapper.fromDomain(any(User.class))).thenReturn(UserEntity.builder().build());
         when(userRepository.save(any(UserEntity.class))).thenReturn(UserEntity.builder().id(1L).build());
         when(userMapper.toDomain(any(UserEntity.class))).thenReturn(savedDomain);
@@ -74,7 +75,7 @@ class UserServiceTest {
 
     @Test
     void createUser_duplicateEmail_throwsUserAlreadyExistsException() {
-        CreateUserRequest request = new CreateUserRequest("alice@example.com", "cognito-abc", "Alice");
+        CreateUserRequest request = new CreateUserRequest("alice@example.com", "00000000-0000-0000-0000-000000000001", "Alice");
 
         when(userRepository.existsByEmail("alice@example.com")).thenReturn(true);
 
@@ -88,10 +89,10 @@ class UserServiceTest {
     @Test
     void createUser_concurrentDuplicate_dbConstraintViolationTranslatedToUserAlreadyExistsException() {
         // Simulates the race: both pre-checks pass, but the DB rejects the INSERT due to a unique constraint violation
-        CreateUserRequest request = new CreateUserRequest("alice@example.com", "cognito-abc", "Alice");
+        CreateUserRequest request = new CreateUserRequest("alice@example.com", "00000000-0000-0000-0000-000000000001", "Alice");
 
         when(userRepository.existsByEmail("alice@example.com")).thenReturn(false);
-        when(userRepository.existsByCognitoUserId("cognito-abc")).thenReturn(false);
+        when(userRepository.existsByCognitoUserId(UUID.fromString("00000000-0000-0000-0000-000000000001"))).thenReturn(false);
         when(userMapper.fromDomain(any(User.class))).thenReturn(UserEntity.builder().build());
         when(userRepository.save(any(UserEntity.class))).thenThrow(new DataIntegrityViolationException("unique constraint"));
 
@@ -101,10 +102,10 @@ class UserServiceTest {
 
     @Test
     void createUser_duplicateCognitoUserId_throwsUserAlreadyExistsException() {
-        CreateUserRequest request = new CreateUserRequest("alice@example.com", "cognito-abc", "Alice");
+        CreateUserRequest request = new CreateUserRequest("alice@example.com", "00000000-0000-0000-0000-000000000001", "Alice");
 
         when(userRepository.existsByEmail("alice@example.com")).thenReturn(false);
-        when(userRepository.existsByCognitoUserId("cognito-abc")).thenReturn(true);
+        when(userRepository.existsByCognitoUserId(UUID.fromString("00000000-0000-0000-0000-000000000001"))).thenReturn(true);
 
         assertThatThrownBy(() -> userService.createUser(request))
                 .isInstanceOf(UserAlreadyExistsException.class)
@@ -117,15 +118,17 @@ class UserServiceTest {
 
     @Test
     void getUser_existingId_returnsResponse() {
-        UserEntity entity = UserEntity.builder().id(1L).email("alice@example.com").displayName("Alice").build();
+        UUID userId = UUID.randomUUID();
+        UserEntity entity = UserEntity.builder().id(1L).cognitoUserId(userId).email("alice@example.com").displayName(
+                "Alice").build();
         User domain = User.builder().id(1L).email("alice@example.com").displayName("Alice").totalCoins(0)
                 .lifetimeCoinsEarned(0).currentGalaxyCycle(1).galaxyResetDate(LocalDate.now())
                 .createdAt(Instant.now()).build();
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(userRepository.findByCognitoUserId(userId)).thenReturn(Optional.of(entity));
         when(userMapper.toDomain(entity)).thenReturn(domain);
 
-        UserResponse response = userService.getUser(1L);
+        UserResponse response = userService.getUserByCognitoSub(String.valueOf(userId));
 
         assertThat(response.id()).isEqualTo(1L);
         assertThat(response.email()).isEqualTo("alice@example.com");
@@ -133,9 +136,10 @@ class UserServiceTest {
 
     @Test
     void getUser_unknownId_throwsUserNotFoundException() {
-        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        UUID randomUUID = UUID.randomUUID();
+        when(userRepository.findByCognitoUserId(randomUUID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.getUser(99L))
+        assertThatThrownBy(() -> userService.getUserByCognitoSub(String.valueOf(randomUUID)))
                 .isInstanceOf(UserNotFoundException.class);
     }
 

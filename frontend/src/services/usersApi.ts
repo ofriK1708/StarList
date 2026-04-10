@@ -35,25 +35,26 @@ export const usersApi = {
     },
 
     /**
-     * Get an existing user by ID (Login / Fetch Profile)
-     */
-    getUser: async (userId: number): Promise<UserResponse> => {
-        const response = await api.get<UserResponse>(`/users/${userId}`);
-        return response.data;
-    },
-
-    /**
      * Update user details
      */
-    updateUser: async (userId: number, updateData: UpdateUserRequest): Promise<UserResponse> => {
-        const response = await api.put<UserResponse>(`/users/${userId}`, updateData);
+    updateUser: async (updateData: UpdateUserRequest): Promise<UserResponse> => {
+        const response = await api.put<UserResponse>('/users/me', updateData);
         return response.data;
     },
 
     /**
-     * Delete user and all associated data
+     * Delete the currently authenticated user and all associated data
      */
-    deleteUser: async (userId: number): Promise<void> => {
-        await api.delete(`/users/${userId}`);
-    }
+    deleteUser: async (): Promise<void> => {
+        await api.delete('/users/me');
+    },
+
+    /**
+     * Look up an existing user by their Cognito sub (UUID).
+     * Requires backend endpoint: GET /users/cognito/{sub}
+     */
+    getUserByCognitoSub: async (sub: string): Promise<UserResponse> => {
+        const response = await api.get<UserResponse>(`/users/cognito/${sub}`);
+        return response.data;
+    },
 };

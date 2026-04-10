@@ -7,6 +7,8 @@ import java.time.YearMonth;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,11 +16,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import service.HabitService;
+import service.UserService;
 import service.dto.AddHabitRequest;
 import service.dto.AddHabitResponse;
 import service.dto.HabitResponse;
@@ -31,15 +33,18 @@ import service.dto.UpdateHabitRequest;
 public class HabitController {
 
     private final HabitService habitService;
+    private final UserService userService;
 
-    public HabitController(HabitService habitService) {
+    public HabitController(HabitService habitService, UserService userService) {
         this.habitService = habitService;
+        this.userService = userService;
     }
 
     @PostMapping
     public ResponseEntity<AddHabitResponse> addHabit(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody AddHabitRequest request) {
+        Long userId = userService.getUserByCognitoSub(jwt.getSubject()).id();
         AddHabitResponse result = habitService.addHabit(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
@@ -54,9 +59,10 @@ public class HabitController {
 
     @GetMapping
     public ResponseEntity<List<HabitResponse>> getUserHabits(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) @Min(2000) Integer year,
             @RequestParam(required = false) @Min(1) @Max(12) Integer month) {
+        Long userId = userService.getUserByCognitoSub(jwt.getSubject()).id();
         return ResponseEntity.ok(habitService.getUserHabits(userId, resolveYearMonth(year, month)));
     }
 

@@ -7,11 +7,11 @@ const api = axios.create({
     },
 });
 
-export const setAuthToken = (userId: number | null) => {
-    if (userId) {
-        api.defaults.headers.common['X-User-Id'] = userId.toString();
+export const setAuthToken = (token: string | null) => {
+    if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
-        delete api.defaults.headers.common['X-User-Id'];
+        delete api.defaults.headers.common['Authorization'];
     }
 };
 

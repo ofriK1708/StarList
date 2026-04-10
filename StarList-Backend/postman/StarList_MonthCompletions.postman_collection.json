@@ -4,10 +4,16 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080" },
-    { "key": "userId",  "value": "" },
-    { "key": "habitId", "value": "" }
+    { "key": "baseUrl",    "value": "http://localhost:8080" },
+    { "key": "userId",     "value": "" },
+    { "key": "habitId",    "value": "" },
+    { "key": "cognitoSub", "value": "" },
+    { "key": "jwt",        "value": "" }
   ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{jwt}}", "type": "string" }]
+  },
   "item": [
     {
       "name": "Setup",
@@ -21,19 +27,20 @@
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
                   "const body = pm.response.json();",
-                  "pm.collectionVariables.set('userId', body.userId);",
-                  "pm.test('userId present', () => pm.expect(body.userId).to.be.a('number'));"
+                  "pm.collectionVariables.set('userId', body.id);",
+                  "pm.test('id present', () => pm.expect(body.id).to.be.a('number'));"
                 ]
               }
             }
           ],
+          "auth": { "type": "noauth" },
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": "{{baseUrl}}/users",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"cognitoUserId\": \"cognito-test-001\",\n  \"displayName\": \"Test User\"\n}"
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"cognitoUserId\": \"{{cognitoSub}}\",\n  \"displayName\": \"Test User\"\n}"
             }
           }
         },

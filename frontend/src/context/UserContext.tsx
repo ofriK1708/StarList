@@ -1,17 +1,18 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { usersApi, UserResponse, CreateUserRequest } from '../services/usersApi';
+import { usersApi, UserResponse } from '../services/usersApi';
 import { setAuthToken } from '../services/api';
+import { authService } from '../services/authService';
 
 interface UserContextType {
     user: UserResponse | null;
     isLoading: boolean;
-    register: (data: CreateUserRequest) => Promise<UserResponse>;
-
-    // TODO: AWS Cognito - This function will be replaced by a real login function:
-    // login: (email, password) => Promise<void>
-    loginByDevId: (userId: number) => Promise<void>;
-
-    logout: () => void;
+    /** Step 1 of sign-up: registers in Cognito and triggers a verification email. */
+    register: (email: string, password: string, name: string) => Promise<void>;
+    /** Step 2 of sign-up: confirms the email code, signs in, then creates the backend user. */
+    confirmSignUp: (email: string, code: string, password: string) => Promise<void>;
+    /** Signs in with email/password via Cognito and fetches the backend user. */
+    login: (email: string, password: string) => Promise<void>;
+    logout: () => Promise<void>;
     spendCoins: (amount: number) => boolean;
 }
 
@@ -22,62 +23,83 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // TODO: AWS Cognito - Instead of reading a fake user ID from local storage,
-        // you will check for a valid JWT Token from AWS Cognito here.
-        const savedUserId = localStorage.getItem('starlist_user_id');
-        if (savedUserId) {
-            loginByDevId(Number(savedUserId)).catch(() => {
-                // Session is stale (e.g. DB was reset); logout() already called inside loginByDevId
-            });
-        } else {
-            setIsLoading(false);
-        }
+        // Restore an existing Cognito session on page load.
+        // Amplify manages its own session storage — no localStorage needed.
+        const restoreSession = async () => {
+            try {
+                const token = await authService.getIdToken();
+                const sub = await authService.getCognitoSub();
+                if (token && sub) {
+                    setAuthToken(token);
+                    const existingUser = await usersApi.getUserByCognitoSub(sub);
+                    setUser(existingUser);
+                }
+            } catch {
+                // No active Cognito session — user needs to log in.
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        restoreSession();
     }, []);
 
-    const register = async (userData: CreateUserRequest): Promise<UserResponse> => {
+    /**
+     * Step 1 of registration: creates the Cognito account and triggers a
+     * verification email. The backend user is NOT created yet.
+     * After this, the UI should prompt the user for their confirmation code.
+     */
+    const register = async (email: string, password: string, name: string): Promise<void> => {
+        await authService.handleSignUp(email, password, name);
+    };
+
+    /**
+     * Step 2 of registration: confirms the email verification code,
+     * signs in automatically, then creates the backend user using the
+     * Cognito sub as cognitoUserId.
+     */
+    const confirmSignUp = async (email: string, code: string, password: string): Promise<void> => {
         setIsLoading(true);
         try {
-            // TODO: AWS Cognito - Later, you will first register the user in AWS Cognito,
-            // get their generated Cognito sub/ID, and THEN save them to your Spring Boot DB.
-            const newUser = await usersApi.createUser(userData);
-
-            // FIXED: Returning the new user so Login.tsx can display the ID
-            return newUser;
-        } catch (error) {
-            console.error("Registration failed:", error);
-            throw error;
+            await authService.handleConfirmSignUp(email, code);
+            await authService.handleSignIn(email, password);
+            const token = await authService.getIdToken();
+            const sub = await authService.getCognitoSub();
+            setAuthToken(token!);
+            const newUser = await usersApi.createUser({
+                email,
+                cognitoUserId: sub!,
+                displayName: email.split('@')[0],
+            });
+            setUser(newUser);
         } finally {
             setIsLoading(false);
         }
     };
 
-    // TODO: AWS Cognito - This entire function is for DEV MODE only.
-    // In production, you will send email & password to AWS Cognito, receive a JWT token,
-    // and then fetch the user details from your backend using that token.
-    const loginByDevId = async (userId: number) => {
+    /**
+     * Signs in with email/password via Cognito, sets the JWT Bearer token
+     * on the Axios instance, then fetches the corresponding backend user.
+     * Requires backend endpoint: GET /users/cognito/{sub}
+     */
+    const login = async (email: string, password: string): Promise<void> => {
         setIsLoading(true);
         try {
-            const existingUser = await usersApi.getUser(userId);
+            await authService.handleSignOut().catch(() => {});
+            await authService.handleSignIn(email, password);
+            const token = await authService.getIdToken();
+            const sub = await authService.getCognitoSub();
+            setAuthToken(token!);
+            const existingUser = await usersApi.getUserByCognitoSub(sub!);
             setUser(existingUser);
-
-            // TODO: AWS Cognito - Here you will save the real JWT Token, not the numeric ID.
-            setAuthToken(existingUser.id);
-            localStorage.setItem('starlist_user_id', existingUser.id.toString());
-        } catch (error) {
-            console.error("Login failed:", error);
-            logout();
-            throw error;
         } finally {
             setIsLoading(false);
         }
     };
 
-    const logout = () => {
-        setUser(null);
-        // TODO: AWS Cognito - Here you will also call AWS Cognito's logout function
-        // to clear their cookies/sessions.
+    const logout = async (): Promise<void> => {
+        await authService.handleSignOut();
         setAuthToken(null);
-        localStorage.removeItem('starlist_user_id');
+        setUser(null);
     };
 
     const spendCoins = (amount: number) => {
@@ -89,7 +111,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <UserContext.Provider value={{ user, isLoading, register, loginByDevId, logout, spendCoins }}>
+        <UserContext.Provider value={{ user, isLoading, register, confirmSignUp, login, logout, spendCoins }}>
             {children}
         </UserContext.Provider>
     );

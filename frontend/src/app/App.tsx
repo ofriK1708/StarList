@@ -16,6 +16,13 @@ import confetti from 'canvas-confetti';
 import { UserProvider, useUser } from "../context/UserContext";
 import { tasksApi, TaskResponse, AddTaskRequest } from "../services/taskApi";
 import { habitsApi, HabitResponse, AddHabitRequest, UpdateHabitRequest } from "../services/habitsApi";
+import { Amplify } from 'aws-amplify';
+import { Authenticator } from '@aws-amplify/ui-react';
+import '@aws-amplify/ui-react/styles.css';
+
+import { awsConfig } from '../aws-config';
+
+Amplify.configure(awsConfig);
 
 type Screen = 'tasks' | 'habits' | 'galaxy' | 'chat' | 'profile' | 'shop' | 'statistics';
 
