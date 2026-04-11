@@ -72,7 +72,6 @@ public class TaskEntity {
     @Column(name = "duration_minutes")
     private Integer durationMinutes;
 
-    // TODO - consider default rewards based on difficulty level
     @Builder.Default
     @Column(name = "coin_reward", nullable = false)
     private Integer coinReward = 0;
