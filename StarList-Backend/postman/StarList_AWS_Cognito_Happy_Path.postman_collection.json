@@ -1,13 +1,16 @@
 {
   "info": {
-    "name": "StarList – User CRUD Happy Path",
+    "name": "StarList – AWS Cognito Auth + User Happy Path",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl",     "value": "http://starlist-env-1.eba-gjim97su.us-east-1.elasticbeanstalk.com" },
-    { "key": "userId",      "value": "" },
-    { "key": "cognitoSub",  "value": "" },
-    { "key": "jwt",         "value": "" }
+    { "key": "baseUrl",        "value": "http://starlist-env-1.eba-gjim97su.us-east-1.elasticbeanstalk.com" },
+    { "key": "cognitoClientId","value": "12j25ufrhgbfei0fmdq33b9e1g" },
+    { "key": "email",          "value": "your@email.com",   "description": "Fill in before running" },
+    { "key": "password",       "value": "YourPassword123!", "description": "Fill in before running" },
+    { "key": "jwt",            "value": "" },
+    { "key": "cognitoSub",     "value": "" },
+    { "key": "userId",         "value": "" }
   ],
   "auth": {
     "type": "bearer",
@@ -15,7 +18,44 @@
   },
   "item": [
     {
-      "name": "1. Create user",
+      "name": "1. Login via Cognito → get JWT",
+      "auth": { "type": "noauth" },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('IdToken present', () => pm.expect(body.AuthenticationResult.IdToken).to.be.a('string'));",
+              "",
+              "const idToken = body.AuthenticationResult.IdToken;",
+              "pm.collectionVariables.set('jwt', idToken);",
+              "",
+              "// Decode the JWT payload (base64) to extract the Cognito sub",
+              "const payload = JSON.parse(atob(idToken.split('.')[1]));",
+              "pm.collectionVariables.set('cognitoSub', payload.sub);",
+              "",
+              "pm.test('cognitoSub extracted', () => pm.expect(payload.sub).to.be.a('string'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type",  "value": "application/x-amz-json-1.1" },
+          { "key": "X-Amz-Target",  "value": "AWSCognitoIdentityProviderService.InitiateAuth" }
+        ],
+        "url": "https://cognito-idp.us-east-1.amazonaws.com/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"AuthFlow\": \"USER_PASSWORD_AUTH\",\n  \"ClientId\": \"{{cognitoClientId}}\",\n  \"AuthParameters\": {\n    \"USERNAME\": \"{{email}}\",\n    \"PASSWORD\": \"{{password}}\"\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "2. Create backend user (POST /users)",
       "auth": { "type": "noauth" },
       "event": [
         {
@@ -26,8 +66,7 @@
               "const body = pm.response.json();",
               "pm.collectionVariables.set('userId', body.id);",
               "pm.test('id present', () => pm.expect(body.id).to.be.a('number'));",
-              "pm.test('email correct', () => pm.expect(body.email).to.eql('testuser@example.com'));",
-              "pm.test('displayName correct', () => pm.expect(body.displayName).to.eql('Test User'));",
+              "pm.test('cognitoUserId matches sub', () => pm.expect(body.cognitoUserId).to.eql(pm.collectionVariables.get('cognitoSub')));",
               "pm.test('totalCoins starts at 0', () => pm.expect(body.totalCoins).to.eql(0));",
               "pm.test('createdAt present', () => pm.expect(body.createdAt).to.be.a('string'));"
             ]
@@ -42,12 +81,12 @@
         "url": "{{baseUrl}}/users",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"cognitoUserId\": \"{{cognitoSub}}\",\n  \"displayName\": \"Test User\"\n}"
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"cognitoUserId\": \"{{cognitoSub}}\",\n  \"displayName\": \"Test User\"\n}"
         }
       }
     },
     {
-      "name": "2. Get user by Cognito sub",
+      "name": "3. Get user by Cognito sub",
       "event": [
         {
           "listen": "test",
@@ -55,7 +94,7 @@
             "exec": [
               "pm.test('Status 200', () => pm.response.to.have.status(200));",
               "const body = pm.response.json();",
-              "pm.test('email correct', () => pm.expect(body.email).to.eql('testuser@example.com'));",
+              "pm.test('email correct', () => pm.expect(body.email).to.eql(pm.collectionVariables.get('email')));",
               "pm.test('displayName correct', () => pm.expect(body.displayName).to.eql('Test User'));"
             ]
           }
@@ -67,7 +106,7 @@
       }
     },
     {
-      "name": "3. Update displayName",
+      "name": "4. Update displayName (PUT /users/me)",
       "event": [
         {
           "listen": "test",
@@ -76,7 +115,7 @@
               "pm.test('Status 200', () => pm.response.to.have.status(200));",
               "const body = pm.response.json();",
               "pm.test('displayName updated', () => pm.expect(body.displayName).to.eql('Updated User'));",
-              "pm.test('email unchanged', () => pm.expect(body.email).to.eql('testuser@example.com'));"
+              "pm.test('email unchanged', () => pm.expect(body.email).to.eql(pm.collectionVariables.get('email')));"
             ]
           }
         }
@@ -94,7 +133,7 @@
       }
     },
     {
-      "name": "4. Get user (verify update)",
+      "name": "5. Get user (verify update)",
       "event": [
         {
           "listen": "test",
@@ -113,7 +152,7 @@
       }
     },
     {
-      "name": "5. Delete user",
+      "name": "6. Delete user (DELETE /users/me)",
       "event": [
         {
           "listen": "test",
@@ -130,7 +169,7 @@
       }
     },
     {
-      "name": "6. Get user after delete → 404",
+      "name": "7. Get user after delete → 404",
       "event": [
         {
           "listen": "test",
