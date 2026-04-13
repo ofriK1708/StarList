@@ -9,7 +9,7 @@ interface UserContextType {
     /** Step 1 of sign-up: registers in Cognito and triggers a verification email. */
     register: (email: string, password: string, name: string) => Promise<void>;
     /** Step 2 of sign-up: confirms the email code, signs in, then creates the backend user. */
-    confirmSignUp: (email: string, code: string, password: string) => Promise<void>;
+    confirmSignUp: (email: string, code: string, password: string, displayName: string) => Promise<void>;
     /** Signs in with email/password via Cognito and fetches the backend user. */
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
@@ -57,7 +57,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
      * signs in automatically, then creates the backend user using the
      * Cognito sub as cognitoUserId.
      */
-    const confirmSignUp = async (email: string, code: string, password: string): Promise<void> => {
+    const confirmSignUp = async (email: string, code: string, password: string, displayName: string): Promise<void> => {
         setIsLoading(true);
         try {
             await authService.handleConfirmSignUp(email, code);
@@ -68,7 +68,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
             const newUser = await usersApi.createUser({
                 email,
                 cognitoUserId: sub!,
-                displayName: email.split('@')[0],
+                displayName,
             });
             setUser(newUser);
         } finally {
@@ -89,8 +89,24 @@ export function UserProvider({ children }: { children: ReactNode }) {
             const token = await authService.getIdToken();
             const sub = await authService.getCognitoSub();
             setAuthToken(token!);
-            const existingUser = await usersApi.getUserByCognitoSub(sub!);
-            setUser(existingUser);
+
+            let backendUser: UserResponse;
+            try {
+                backendUser = await usersApi.getUserByCognitoSub(sub!);
+            } catch (e: any) {
+                if (e?.response?.status === 404) {
+                    // Cognito account exists but backend user was never created (e.g. confirmation
+                    // flow was interrupted). Auto-create it now so the user isn't locked out.
+                    backendUser = await usersApi.createUser({
+                        email,
+                        cognitoUserId: sub!,
+                        displayName: email.split('@')[0],
+                    });
+                } else {
+                    throw e;
+                }
+            }
+            setUser(backendUser);
         } finally {
             setIsLoading(false);
         }

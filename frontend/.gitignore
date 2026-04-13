@@ -3,7 +3,14 @@ node_modules/
 .npm/
 dist/
 build/
-.env
 aws-exports.js
 dist-ssr/
 *.local
+### env files ###
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+### Log files
+*.log

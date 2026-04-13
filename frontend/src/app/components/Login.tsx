@@ -20,6 +20,7 @@ export function Login() {
   // Held across the confirmation step so we can auto-login after confirm
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingPassword, setPendingPassword] = useState("");
+  const [pendingDisplayName, setPendingDisplayName] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,14 +30,16 @@ export function Login() {
     try {
       if (confirmStep) {
         // Step 2: verify email code → auto-login → create backend user
-        await confirmSignUp(pendingEmail, confirmCode, pendingPassword);
+        await confirmSignUp(pendingEmail, confirmCode, pendingPassword, pendingDisplayName);
         // UserContext sets user → AppWrapper renders MainApp automatically
 
       } else if (isSignup) {
         // Step 1: Cognito sign-up → triggers verification email
-        await register(email, password, displayName || email.split('@')[0]);
+        const resolvedDisplayName = displayName || email.split('@')[0];
+        await register(email, password, resolvedDisplayName);
         setPendingEmail(email);
         setPendingPassword(password);
+        setPendingDisplayName(resolvedDisplayName);
         setConfirmStep(true);
         setSuccess("Check your email for a verification code.");
 
@@ -216,6 +219,11 @@ export function Login() {
                           placeholder="Enter your password"
                           required
                       />
+                      {isSignup && (
+                          <p className="mt-2 text-xs text-slate-500 leading-relaxed">
+                            Must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character (e.g. !@#$%).
+                          </p>
+                      )}
                     </div>
                   </>
               )}
