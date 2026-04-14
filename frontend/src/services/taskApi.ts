@@ -1,4 +1,4 @@
-import api from './api'; // מוודא שזה מצביע לקובץ ה-axios שהגדרנו
+import api from './api';
 
 export type DifficultyLevel = 'EASY' | 'MEDIUM' | 'HARD';
 export type TaskStatus = 'PENDING' | 'COMPLETED' | 'DELETED';

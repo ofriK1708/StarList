@@ -1,6 +1,8 @@
 package controller;
 
 import java.util.List;
+
+import model.domain.GalaxyItem;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,5 +44,13 @@ public class StoreController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long itemId) {
         return ResponseEntity.status(HttpStatus.CREATED).body(storeService.buyItem(userId, itemId));
+    }
+
+    /**
+     * Returns all items owned by the authenticated user.
+     */
+    @GetMapping("/my-items")
+    public ResponseEntity<List<GalaxyItem>> getMyItems(@RequestHeader("X-User-Id") Long userId) {
+        return ResponseEntity.ok(storeService.getMyItems(userId));
     }
 }
