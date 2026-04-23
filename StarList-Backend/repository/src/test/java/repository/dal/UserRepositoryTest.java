@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 import repository.api.UserRepository;
 import repository.entity.UserEntity;
 
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -24,7 +26,7 @@ class UserRepositoryTest {
     void existsByEmail_existingEmail_returnsTrue() {
         userRepository.save(UserEntity.builder()
                 .email("alice@example.com")
-                .cognitoUserId("cog-alice")
+                .cognitoUserId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
                 .displayName("Alice")
                 .build());
 
@@ -40,29 +42,29 @@ class UserRepositoryTest {
     void existsByCognitoUserId_existingId_returnsTrue() {
         userRepository.save(UserEntity.builder()
                 .email("bob@example.com")
-                .cognitoUserId("cog-bob")
+                .cognitoUserId(UUID.fromString("00000000-0000-0000-0000-000000000002"))
                 .displayName("Bob")
                 .build());
 
-        assertThat(userRepository.existsByCognitoUserId("cog-bob")).isTrue();
+        assertThat(userRepository.existsByCognitoUserId(UUID.fromString("00000000-0000-0000-0000-000000000002"))).isTrue();
     }
 
     @Test
     void existsByCognitoUserId_unknownId_returnsFalse() {
-        assertThat(userRepository.existsByCognitoUserId("cog-nobody")).isFalse();
+        assertThat(userRepository.existsByCognitoUserId(UUID.fromString("00000000-0000-0000-0000-000000000099"))).isFalse();
     }
 
     @Test
     void save_duplicateEmail_throwsDataIntegrityViolationException() {
         userRepository.save(UserEntity.builder()
                 .email("dup@example.com")
-                .cognitoUserId("cog-dup-1")
+                .cognitoUserId(UUID.fromString("00000000-0000-0000-0000-000000000003"))
                 .displayName("User One")
                 .build());
 
         assertThrows(DataIntegrityViolationException.class, () -> userRepository.save(UserEntity.builder()
                 .email("dup@example.com")
-                .cognitoUserId("cog-dup-2")
+                .cognitoUserId(UUID.fromString("00000000-0000-0000-0000-000000000004"))
                 .displayName("User Two")
                 .build()));
     }
@@ -71,13 +73,13 @@ class UserRepositoryTest {
     void save_duplicateCognitoUserId_throwsDataIntegrityViolationException() {
         userRepository.save(UserEntity.builder()
                 .email("user1@example.com")
-                .cognitoUserId("cog-shared")
+                .cognitoUserId(UUID.fromString("00000000-0000-0000-0000-000000000005"))
                 .displayName("User One")
                 .build());
 
         assertThrows(DataIntegrityViolationException.class, () -> userRepository.save(UserEntity.builder()
                 .email("user2@example.com")
-                .cognitoUserId("cog-shared")
+                .cognitoUserId(UUID.fromString("00000000-0000-0000-0000-000000000005"))
                 .displayName("User Two")
                 .build()));
     }

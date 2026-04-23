@@ -1,11 +1,18 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/starlist}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: ${AWS_DB_URL}
+    username: ${AWS_DB_USERNAME}
+    password: ${AWS_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_WBlndOjnO
+
   jpa:
     hibernate:
+      database-platform: org.hibernate.dialect.PostgreSQLDialect
       ddl-auto: update
     show-sql: false # use logback SQL logger below instead (formats output better)
     properties:

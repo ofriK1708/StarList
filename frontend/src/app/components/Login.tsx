@@ -3,63 +3,79 @@ import { Rocket, Sparkles, AlertCircle } from "lucide-react";
 import { useUser } from "../../context/UserContext";
 
 export function Login() {
-  const { register, loginByDevId } = useUser();
+  const { register, confirmSignUp, login } = useUser();
 
-  // States
-  const [emailOrId, setEmailOrId] = useState("");
+  // Form fields
+  const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmCode, setConfirmCode] = useState("");
+
+  // UI state
   const [isSignup, setIsSignup] = useState(false);
+  const [confirmStep, setConfirmStep] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Held across the confirmation step so we can auto-login after confirm
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [pendingPassword, setPendingPassword] = useState("");
+  const [pendingDisplayName, setPendingDisplayName] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
-    console.log("Form submitted successfully!");
-    console.log("Mode:", isSignup ? "Signup" : "Login");
-    console.log("Data:", { emailOrId, displayName });
+    setSuccess("");
 
     try {
-      if (isSignup) {
-        const newUser = await register({
-          email: emailOrId,
-          displayName: displayName || emailOrId.split('@')[0],
-          cognitoUserId: `dev-cognito-${Date.now()}`
-        });
+      if (confirmStep) {
+        // Step 2: verify email code → auto-login → create backend user
+        await confirmSignUp(pendingEmail, confirmCode, pendingPassword, pendingDisplayName);
+        // UserContext sets user → AppWrapper renders MainApp automatically
 
-        setIsSignup(false);
-        setSuccess(`Account created successfully! Your User ID is: ${newUser.id}. Please use this number to log in.`);
-        setDisplayName("");
-        setEmailOrId("");
+      } else if (isSignup) {
+        // Step 1: Cognito sign-up → triggers verification email
+        const resolvedDisplayName = displayName || email.split('@')[0];
+        await register(email, password, resolvedDisplayName);
+        setPendingEmail(email);
+        setPendingPassword(password);
+        setPendingDisplayName(resolvedDisplayName);
+        setConfirmStep(true);
+        setSuccess("Check your email for a verification code.");
+
       } else {
-        const userId = parseInt(emailOrId);
-        if (isNaN(userId)) {
-          setError("Please enter your numeric User ID to login.");
-          return;
-        }
-        console.log("Sending login to backend with ID:", userId);
-        await loginByDevId(userId);
+        // Regular login
+        await login(email, password);
       }
     } catch (err: any) {
-      console.error("Error connecting to backend:", err);
-      const status = err?.response?.status;
-      if (isSignup) {
-        if (status === 409) {
-          setError("An account with this email already exists.");
-        } else if (status >= 400 && status < 500) {
-          setError("Invalid signup data. Please check your details.");
+      console.error("Auth error:", err);
+      const code = err?.name;
+
+      if (confirmStep) {
+        if (code === 'CodeMismatchException') {
+          setError("Invalid verification code. Please try again.");
+        } else if (code === 'ExpiredCodeException') {
+          setError("Code has expired. Please sign up again.");
         } else {
-          setError("Failed to create account. Is the server running?");
+          setError("Confirmation failed. Please try again.");
+        }
+      } else if (isSignup) {
+        if (code === 'UsernameExistsException') {
+          setError("An account with this email already exists.");
+        } else if (code === 'InvalidPasswordException') {
+          setError("Password must be at least 8 characters and include numbers and symbols.");
+        } else {
+          setError("Failed to create account. Please try again.");
         }
       } else {
-        if (status === 404) {
-          setError("No user found with that ID. Check your ID or sign up.");
-        } else if (!status) {
-          setError("Cannot reach the server. Is the backend running?");
+        if (code === 'NotAuthorizedException') {
+          setError("Incorrect email or password.");
+        } else if (code === 'UserNotFoundException') {
+          setError("No account found with this email.");
+        } else if (code === 'UserNotConfirmedException') {
+          setError("Please verify your email before signing in.");
         } else {
-          setError(`Login failed (error ${status}). Please try again.`);
+          setError("Login failed. Please try again.");
         }
       }
     }
@@ -67,15 +83,24 @@ export function Login() {
 
   const toggleMode = () => {
     setIsSignup(!isSignup);
+    setConfirmStep(false);
     setError("");
+    setSuccess("");
   };
+
+  const headerSubtitle = confirmStep
+      ? "Enter the code we sent to your email"
+      : isSignup
+          ? "Begin your journey through the stars"
+          : "Welcome back, Space Explorer";
+
+  const submitLabel = confirmStep ? "Verify & Launch" : isSignup ? "Launch Into Space" : "Enter Galaxy";
 
   return (
       <div className="relative w-full h-screen flex items-center justify-center overflow-hidden bg-slate-950">
 
         {/* Animated space background */}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-indigo-950 to-slate-950">
-          {/* Stars */}
           {[...Array(150)].map((_, i) => (
               <div
                   key={i}
@@ -98,6 +123,7 @@ export function Login() {
 
         <div className="relative z-10 w-full max-w-md px-6 my-auto">
           <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto scrollbar-hide">
+
             {/* Header */}
             <div className="text-center mb-8">
               <div className="flex items-center justify-center mb-4">
@@ -107,9 +133,7 @@ export function Login() {
                 </div>
               </div>
               <h1 className="text-3xl text-white mb-2">StarList</h1>
-              <p className="text-slate-400 text-sm">
-                {isSignup ? "Begin your journey through the stars" : "Welcome back, Space Explorer"}
-              </p>
+              <p className="text-slate-400 text-sm">{headerSubtitle}</p>
             </div>
 
             {/* Error Message */}
@@ -128,76 +152,103 @@ export function Login() {
                 </div>
             )}
 
-            {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
 
-              {/* Conditional Display Name Field for Signup */}
-              {isSignup && (
+              {/* Confirmation code step */}
+              {confirmStep ? (
                   <div>
-                    <label htmlFor="displayName" className="block text-sm text-slate-300 mb-2">
-                      User Name
+                    <label htmlFor="confirmCode" className="block text-sm text-slate-300 mb-2">
+                      Verification Code
                     </label>
                     <input
                         type="text"
-                        id="displayName"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
-                        placeholder="e.g. Commander Shepard"
-                        required={isSignup}
+                        id="confirmCode"
+                        value={confirmCode}
+                        onChange={(e) => setConfirmCode(e.target.value)}
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all tracking-widest text-center text-lg"
+                        placeholder="______"
+                        maxLength={6}
+                        required
                     />
                   </div>
+              ) : (
+                  <>
+                    {/* Display Name (signup only) */}
+                    {isSignup && (
+                        <div>
+                          <label htmlFor="displayName" className="block text-sm text-slate-300 mb-2">
+                            User Name
+                          </label>
+                          <input
+                              type="text"
+                              id="displayName"
+                              value={displayName}
+                              onChange={(e) => setDisplayName(e.target.value)}
+                              className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
+                              placeholder="e.g. Commander Shepard"
+                              required={isSignup}
+                          />
+                        </div>
+                    )}
+
+                    <div>
+                      <label htmlFor="email" className="block text-sm text-slate-300 mb-2">
+                        Email Address
+                      </label>
+                      <input
+                          type="email"
+                          id="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
+                          placeholder="Enter your email"
+                          required
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="password" className="block text-sm text-slate-300 mb-2">
+                        Password
+                      </label>
+                      <input
+                          type="password"
+                          id="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
+                          placeholder="Enter your password"
+                          required
+                      />
+                      {isSignup && (
+                          <p className="mt-2 text-xs text-slate-500 leading-relaxed">
+                            Must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character (e.g. !@#$%).
+                          </p>
+                      )}
+                    </div>
+                  </>
               )}
-
-              <div>
-                <label htmlFor="emailOrId" className="block text-sm text-slate-300 mb-2">
-                  {isSignup ? "Email Address" : "User ID"}
-                </label>
-                <input
-                    type={isSignup ? "email" : "text"}
-                    id="emailOrId"
-                    value={emailOrId}
-                    onChange={(e) => setEmailOrId(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
-                    placeholder={isSignup ? "Enter your email" : "Enter your ID"}
-                    required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm text-slate-300 mb-2">
-                  Password
-                </label>
-                <input
-                    type="password"
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
-                    placeholder="Enter your password"
-                    required
-                />
-              </div>
 
               <button
                   type="submit"
                   className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl transition-all shadow-lg hover:shadow-blue-500/50 flex items-center justify-center gap-2 font-bold"
               >
                 <Rocket className="w-5 h-5" />
-                <span>{isSignup ? "Launch Into Space" : "Enter Galaxy"}</span>
+                <span>{submitLabel}</span>
               </button>
             </form>
 
-            {/* Toggle buttons */}
-            <div className="mt-6 text-center">
-              <button
-                  type="button"
-                  onClick={toggleMode}
-                  className="text-sm text-slate-400 hover:text-blue-400 transition-colors"
-              >
-                {isSignup ? "Already have an account? Sign in" : "New explorer? Create account"}
-              </button>
-            </div>
+            {/* Toggle sign-in / sign-up (hidden during confirmation step) */}
+            {!confirmStep && (
+                <div className="mt-6 text-center">
+                  <button
+                      type="button"
+                      onClick={toggleMode}
+                      className="text-sm text-slate-400 hover:text-blue-400 transition-colors"
+                  >
+                    {isSignup ? "Already have an account? Sign in" : "New explorer? Create account"}
+                  </button>
+                </div>
+            )}
           </div>
         </div>
 

@@ -1,17 +1,17 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
+    baseURL: import.meta.env.VITE_API_URL,
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-export const setAuthToken = (userId: number | null) => {
-    if (userId) {
-        api.defaults.headers.common['X-User-Id'] = userId.toString();
+export const setAuthToken = (token: string | null) => {
+    if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
-        delete api.defaults.headers.common['X-User-Id'];
+        delete api.defaults.headers.common['Authorization'];
     }
 };
 

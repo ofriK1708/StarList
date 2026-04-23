@@ -14,6 +14,7 @@ import repository.entity.UserEntity;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,7 +35,7 @@ class TaskRepositoryTest {
     void setUp() {
         savedUser = userRepository.save(UserEntity.builder()
                 .email("taskuser@example.com")
-                .cognitoUserId("cog-taskuser")
+                .cognitoUserId(UUID.randomUUID())
                 .displayName("Task User")
                 .build());
     }
@@ -77,7 +78,7 @@ class TaskRepositoryTest {
     void findAllByUser_IdAndDeletedAtIsNull_differentUser_returnsOnlyOwnTasks() {
         UserEntity otherUser = userRepository.save(UserEntity.builder()
                 .email("other@example.com")
-                .cognitoUserId("cog-other")
+                .cognitoUserId(UUID.randomUUID())
                 .displayName("Other User")
                 .build());
         taskRepository.save(task("My Task").build());

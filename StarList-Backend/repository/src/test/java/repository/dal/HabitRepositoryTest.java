@@ -15,6 +15,7 @@ import repository.entity.UserEntity;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -35,7 +36,7 @@ class HabitRepositoryTest {
     void setUp() {
         savedUser = userRepository.save(UserEntity.builder()
                 .email("habituser@example.com")
-                .cognitoUserId("cog-habituser")
+                .cognitoUserId(UUID.randomUUID())
                 .displayName("Habit User")
                 .build());
     }
@@ -78,7 +79,7 @@ class HabitRepositoryTest {
     void findAllByUser_IdAndDeletedAtIsNull_differentUser_returnsOnlyOwnHabits() {
         UserEntity otherUser = userRepository.save(UserEntity.builder()
                 .email("other@example.com")
-                .cognitoUserId("cog-other")
+                .cognitoUserId(UUID.randomUUID())
                 .displayName("Other User")
                 .build());
         habitRepository.save(habit("My Habit").build());

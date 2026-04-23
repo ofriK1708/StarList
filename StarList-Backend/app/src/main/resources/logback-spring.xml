@@ -59,21 +59,6 @@
         </rollingPolicy>
     </appender>
 
-    <!-- SQL queries — dev only, attached per-profile -->
-    <appender name="HIBERNATE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/hibernate/hibernate.log</file>
-        <encoder>
-            <pattern>${LOG_PATTERN}</pattern>
-            <charset>utf8</charset>
-        </encoder>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/hibernate/hibernate-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <maxFileSize>10MB</maxFileSize>
-            <maxHistory>7</maxHistory>
-            <totalSizeCap>200MB</totalSizeCap>
-        </rollingPolicy>
-    </appender>
-
     <!-- All ERROR-level events from any layer, kept longer for post-incident review -->
     <appender name="ERRORS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/errors/errors.log</file>
@@ -94,6 +79,21 @@
 
     <!-- ===== Dev profile ===== -->
     <springProfile name="dev">
+        <!-- SQL queries in dev only -->
+        <appender name="HIBERNATE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/hibernate/hibernate.log</file>
+            <encoder>
+                <pattern>${LOG_PATTERN}</pattern>
+                <charset>utf8</charset>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>logs/hibernate/hibernate-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <maxFileSize>10MB</maxFileSize>
+                <maxHistory>7</maxHistory>
+                <totalSizeCap>200MB</totalSizeCap>
+            </rollingPolicy>
+        </appender>
+
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
         </root>
@@ -155,23 +155,53 @@
 
     <!-- ===== Prod profile — INFO root, WARN for app layers, requests always logged ===== -->
     <springProfile name="prod">
+        <!-- Async wrappers avoid blocking request threads on file I/O -->
+        <appender name="ASYNC_REQUESTS" class="ch.qos.logback.classic.AsyncAppender">
+            <queueSize>8192</queueSize>
+            <discardingThreshold>0</discardingThreshold>
+            <neverBlock>true</neverBlock>
+            <appender-ref ref="REQUESTS_FILE"/>
+        </appender>
+
+        <appender name="ASYNC_CONTROLLERS" class="ch.qos.logback.classic.AsyncAppender">
+            <queueSize>8192</queueSize>
+            <discardingThreshold>0</discardingThreshold>
+            <neverBlock>true</neverBlock>
+            <appender-ref ref="CONTROLLERS_FILE"/>
+        </appender>
+
+        <appender name="ASYNC_SERVICES" class="ch.qos.logback.classic.AsyncAppender">
+            <queueSize>8192</queueSize>
+            <discardingThreshold>0</discardingThreshold>
+            <neverBlock>true</neverBlock>
+            <appender-ref ref="SERVICES_FILE"/>
+        </appender>
+
+        <appender name="ASYNC_ERRORS" class="ch.qos.logback.classic.AsyncAppender">
+            <queueSize>2048</queueSize>
+            <discardingThreshold>0</discardingThreshold>
+            <neverBlock>true</neverBlock>
+            <appender-ref ref="ERRORS_FILE"/>
+        </appender>
+
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_ERRORS"/>
         </root>
 
         <!-- Always log requests in prod for audit/latency monitoring -->
         <logger name="controller.logging" level="INFO" additivity="false">
-            <appender-ref ref="REQUESTS_FILE"/>
+            <appender-ref ref="ASYNC_REQUESTS"/>
         </logger>
 
         <logger name="controller" level="WARN" additivity="false">
-            <appender-ref ref="CONTROLLERS_FILE"/>
-            <appender-ref ref="ERRORS_FILE"/>
+            <appender-ref ref="ASYNC_CONTROLLERS"/>
+            <appender-ref ref="ASYNC_ERRORS"/>
         </logger>
 
         <logger name="service" level="WARN" additivity="false">
-            <appender-ref ref="SERVICES_FILE"/>
-            <appender-ref ref="ERRORS_FILE"/>
+            <appender-ref ref="ASYNC_SERVICES"/>
+            <appender-ref ref="ASYNC_ERRORS"/>
         </logger>
     </springProfile>
 

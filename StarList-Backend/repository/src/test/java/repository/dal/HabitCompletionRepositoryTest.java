@@ -18,6 +18,7 @@ import repository.entity.UserEntity;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -44,7 +45,7 @@ class HabitCompletionRepositoryTest {
     void setUp() {
         savedUser = userRepository.save(UserEntity.builder()
                 .email("completionuser@example.com")
-                .cognitoUserId("cog-completionuser")
+                .cognitoUserId(UUID.randomUUID())
                 .displayName("Completion User")
                 .build());
         savedHabit = habitRepository.save(HabitEntity.builder()

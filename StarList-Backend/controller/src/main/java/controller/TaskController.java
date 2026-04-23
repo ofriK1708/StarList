@@ -4,16 +4,18 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import service.TaskService;
+import service.UserService;
 import service.dto.AddTaskRequest;
 import service.dto.AddTaskResponse;
 import service.dto.MarkTaskDoneResponse;
@@ -25,15 +27,18 @@ import service.dto.UpdateTaskRequest;
 public class TaskController {
 
     private final TaskService taskService;
+    private final UserService userService;
 
-    public TaskController(TaskService taskService) {
+    public TaskController(TaskService taskService, UserService userService) {
         this.taskService = taskService;
+        this.userService = userService;
     }
 
     @PostMapping
     public ResponseEntity<AddTaskResponse> addTask(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody AddTaskRequest request) {
+        Long userId = userService.getUserByCognitoSub(jwt.getSubject()).id();
         AddTaskResponse result = taskService.addTask(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
@@ -44,8 +49,8 @@ public class TaskController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TaskResponse>> getUserTasks(
-            @RequestHeader("X-User-Id") Long userId) {
+    public ResponseEntity<List<TaskResponse>> getUserTasks(@AuthenticationPrincipal Jwt jwt) {
+        Long userId = userService.getUserByCognitoSub(jwt.getSubject()).id();
         return ResponseEntity.ok(taskService.getUserTasks(userId));
     }
 
