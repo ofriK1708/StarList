@@ -61,6 +61,18 @@ public class StoreService {
     }
 
     /**
+     * Returns all items owned by a specific user.
+     */
+    @Transactional(readOnly = true)
+    public List<GalaxyItem> getMyItems(Long userId) {
+        log.info("Fetching galaxy items for user {}", userId);
+        return galaxyItemRepository.findAllByUser_Id(userId)
+                .stream()
+                .map(galaxyItemMapper::toDomain)
+                .toList();
+    }
+
+    /**
      * Purchases a catalog item for the given user: validates the purchase, deducts coins,
      * creates a {@link GalaxyItemEntity}, and records the coin transaction.
      *

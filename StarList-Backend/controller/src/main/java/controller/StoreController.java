@@ -1,6 +1,8 @@
 package controller;
 
 import java.util.List;
+
+import model.domain.GalaxyItem;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -46,5 +48,13 @@ public class StoreController {
             @PathVariable Long itemId) {
         Long userId = userService.getUserByCognitoSub(jwt.getSubject()).id();
         return ResponseEntity.status(HttpStatus.CREATED).body(storeService.buyItem(userId, itemId));
+    }
+
+    /**
+     * Returns all items owned by the authenticated user.
+     */
+    @GetMapping("/my-items")
+    public ResponseEntity<List<GalaxyItem>> getMyItems(@RequestHeader("X-User-Id") Long userId) {
+        return ResponseEntity.ok(storeService.getMyItems(userId));
     }
 }

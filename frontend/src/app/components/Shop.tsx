@@ -1,13 +1,17 @@
 import { Sparkles, Lock, ShoppingCart } from "lucide-react";
 import { Button } from "./ui/button";
 
+// 1. BASE URL FOR IMAGES - Change this to your AWS S3 URL later!
+const IMAGE_BASE_URL = "http://localhost:8080";
+
 interface ShopItem {
   id: string;
   name: string;
-  type: 'sun' | 'nebula' | 'earth' | 'jupiter' | 'mars' | 'saturn' | 'neptune' | 'venus' | 'mercury';
+  type: string; // Changed to string to be more flexible with DB types
   price: number;
   description: string;
   unlocked: boolean;
+  imageUrl?: string; // 2. Added imageUrl from Backend
 }
 
 interface ShopProps {
@@ -16,7 +20,7 @@ interface ShopProps {
   onPurchase: (itemId: string) => void;
 }
 
-const itemStyles: Record<string, { gradient: string; glow: string; effect?: React.ReactNode }> = {
+const itemStyles: Record<string, { gradient: string; glow: string }> = {
   sun: {
     gradient: 'from-yellow-300 via-orange-400 to-yellow-500',
     glow: 'rgba(251, 191, 36, 0.7)',
@@ -49,6 +53,10 @@ const itemStyles: Record<string, { gradient: string; glow: string; effect?: Reac
     gradient: 'from-gray-400 via-slate-300 to-gray-500',
     glow: 'rgba(148, 163, 184, 0.5)',
   },
+  nebula: {
+    gradient: 'from-purple-500 via-fuchsia-400 to-pink-500',
+    glow: 'rgba(168, 85, 247, 0.4)',
+  }
 };
 
 export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
@@ -58,8 +66,8 @@ export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
         <div className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700/50 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl text-white/90">Cosmic Shop</h1>
-              <p className="text-sm text-slate-400">Unlock beautiful celestial objects</p>
+              <h1 className="text-2xl text-white/90">Shop</h1>
+              <p className="text-sm text-slate-400">Unlock beautiful planets for your galaxy</p>
             </div>
             <div className="bg-yellow-500/20 backdrop-blur-sm border border-yellow-500/30 rounded-full px-6 py-3 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-yellow-400" />
@@ -75,7 +83,9 @@ export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
             {items.map((item) => {
               const canAfford = coinBalance >= item.price;
               const isUnlocked = item.unlocked;
-              const style = itemStyles[item.type];
+
+              // Fallback to a default style if type is missing
+              const style = itemStyles[item.type?.toLowerCase()] || itemStyles.earth;
 
               return (
                   <div
@@ -86,7 +96,7 @@ export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
                               : 'bg-slate-800/60 border-slate-700 hover:border-slate-600'
                       }`}
                   >
-                    {/* Image/Preview */}
+                    {/* Image/Preview Container */}
                     <div
                         className={`relative h-56 flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 overflow-hidden ${
                             !isUnlocked && 'opacity-60'
@@ -109,73 +119,30 @@ export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
                         ))}
                       </div>
 
-                      {/* Planet/Celestial Object */}
-                      <div className="relative z-10">
-                        {item.type === 'nebula' ? (
-                            <div className="relative w-32 h-32">
-                              <div className={`absolute inset-0 bg-gradient-to-br ${style.gradient} rounded-full blur-2xl opacity-80`} />
-                              <div className={`absolute inset-4 bg-gradient-to-tr ${style.gradient} rounded-full blur-xl opacity-60`} />
-                              <div className="absolute inset-8 bg-white/20 rounded-full blur-lg" />
-                            </div>
-                        ) : item.type === 'saturn' ? (
-                            // Saturn with rings
-                            <div className="relative">
-                              <div
-                                  className={`w-28 h-28 rounded-full bg-gradient-to-br ${style.gradient} shadow-2xl`}
-                                  style={{
-                                    boxShadow: `0 0 40px ${style.glow}, inset -10px -10px 20px rgba(0, 0, 0, 0.3)`,
-                                  }}
-                              />
-                              <div
-                                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 border-[6px] border-amber-300/40 rounded-full"
-                                  style={{
-                                    width: '160px',
-                                    height: '45px',
-                                    borderTopColor: 'transparent',
-                                    borderBottomColor: 'transparent',
-                                    boxShadow: '0 0 20px rgba(251, 191, 36, 0.3)',
-                                  }}
-                              />
-                              <div
-                                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full opacity-30 blur-xl -z-10"
-                                  style={{
-                                    width: '140px',
-                                    height: '140px',
-                                    background: style.glow,
-                                  }}
-                              />
-                            </div>
-                        ) : (
-                            // Regular planets
-                            <div className="relative">
-                              <div
-                                  className={`w-28 h-28 rounded-full bg-gradient-to-br ${style.gradient} shadow-2xl ${item.type === 'sun' ? 'animate-pulse' : ''}`}
-                                  style={{
-                                    boxShadow: `0 0 40px ${style.glow}, inset -10px -10px 20px rgba(0, 0, 0, 0.3)`,
-                                  }}
-                              >
-                                {/* Cloud effect for Earth and Jupiter */}
-                                {(item.type === 'earth' || item.type === 'jupiter') && (
-                                    <div
-                                        className="absolute inset-0 rounded-full"
-                                        style={{
-                                          background:
-                                              'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3) 0%, transparent 50%)',
-                                        }}
-                                    />
-                                )}
-                              </div>
-                              {/* Glow effect */}
-                              <div
-                                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full opacity-30 blur-xl -z-10"
-                                  style={{
-                                    width: '140px',
-                                    height: '140px',
-                                    background: style.glow,
-                                  }}
-                              />
-                            </div>
-                        )}
+                      {/* ACTUAL PLANET IMAGE FROM BACKEND */}
+                      <div className="relative z-10 w-56 h-56 flex items-center justify-center">
+                        <img
+                            // 3. Using the dynamic path from the database!
+                            src={`${IMAGE_BASE_URL}${item.imageUrl}`}
+                            alt={item.name}
+                            className={`w-full h-full object-contain relative z-20 scale-200 ${item.type === 'sun' ? 'animate-pulse' : ''}`}
+                            style={{
+                              filter: `drop-shadow(0px 0px 25px ${style.glow})`
+                            }}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                        />
+
+                        {/* Glow effect behind the image */}
+                        <div
+                            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-xl z-0"
+                            style={{
+                              width: '140px',
+                              height: '140px',
+                              background: style.glow,
+                            }}
+                        />
                       </div>
 
                       {!isUnlocked && !canAfford && (
