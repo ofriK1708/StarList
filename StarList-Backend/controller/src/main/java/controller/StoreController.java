@@ -7,11 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import service.StoreService;
 import service.UserService;
 import service.dto.BuyItemResponse;
@@ -54,7 +50,10 @@ public class StoreController {
      * Returns all items owned by the authenticated user.
      */
     @GetMapping("/my-items")
-    public ResponseEntity<List<GalaxyItem>> getMyItems(@RequestHeader("X-User-Id") Long userId) {
+    public ResponseEntity<List<GalaxyItem>> getMyItems(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        Long userId = userService.getUserByCognitoSub(jwt.getSubject()).id();
         return ResponseEntity.ok(storeService.getMyItems(userId));
     }
 }

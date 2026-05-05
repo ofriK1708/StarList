@@ -9,12 +9,6 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_WBlndOjnO
-
-openai:
-  api-key: ${OPENAI_API_KEY}
-  model: gpt-4o-mini
-
-spring:
   jpa:
     hibernate:
       database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -29,4 +23,8 @@ spring:
       level:
         org.hibernate.SQL: DEBUG
         org.hibernate.orm.jdbc.bind: TRACE
+
+openai:
+  api-key: ${OPENAI_API_KEY}
+  model: gpt-4o-mini
 
