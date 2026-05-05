@@ -1,3 +1,7 @@
+openai:
+  api-key: ${OPENAI_API_KEY}
+  model: gpt-4o-mini
+
 spring:
   datasource:
     url: ${AWS_DB_URL}
