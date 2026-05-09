@@ -11,6 +11,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import com.openai.errors.RateLimitException;
 import service.exceptions.ConflictException;
 import service.exceptions.NotFoundException;
 
@@ -87,6 +88,16 @@ public class GlobalExceptionHandler {
         problem.setDetail("The request body could not be parsed. Check that the JSON is valid and all required fields are present.");
         problem.setInstance(URI.create(request.getRequestURI()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(RateLimitException.class)
+    public ResponseEntity<ProblemDetail> handleOpenAiRateLimit(RateLimitException e, HttpServletRequest request) {
+        log.warn("OpenAI quota exceeded [uri={}]", request.getRequestURI());
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.SERVICE_UNAVAILABLE);
+        problem.setTitle("AI service unavailable");
+        problem.setDetail("The AI service is temporarily unavailable due to quota limits. Please try again later.");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problem);
     }
 
     @ExceptionHandler(Exception.class)

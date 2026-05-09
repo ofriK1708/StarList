@@ -58,9 +58,11 @@ public class AiService {
     private final HabitService habitService;
     private final UserService userService;
     private final AiConversationRepository aiConversationRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .findAndRegisterModules()
+            .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-    @Value("${openai.model:gpt-4o-mini}")
+    @Value("${openai.model:gpt-5-nano}")
     private String model;
 
     public AiService(OpenAIClient openAIClient, TaskService taskService, HabitService habitService,
@@ -152,7 +154,7 @@ public class AiService {
                                 "difficultyLevel", Map.of("type", "string",
                                         "description", "NONE, EASY, MEDIUM, HARD, VERY_HARD, or EXTREME"),
                                 "durationMinutes", Map.of("type", "integer", "description", "Duration in minutes, positive"),
-                                "dueDate", Map.of("type", "string", "description", "ISO-8601 UTC due date, must be future")
+                                "dueDate", Map.of("type", "string", "description", "Local ISO-8601 datetime with the user's UTC offset (e.g. 2026-05-09T21:35:00+03:00). Must be in the future in the user's local time.")
                         ), List.of("title", "difficultyLevel"))),
                 tool("update_task", "Update an existing task's fields",
                         params(Map.of(
@@ -203,7 +205,7 @@ public class AiService {
         ChatCompletionCreateParams.Builder paramsBuilder = ChatCompletionCreateParams.builder()
                 .model(ChatModel.of(model))
                 .maxCompletionTokens(1024)
-                .addSystemMessage(buildSystemPrompt(userEntity, tasks, habits))
+                .addSystemMessage(buildSystemPrompt(userEntity, tasks, habits, request.userTimezone()))
                 .tools(buildTools());
 
         if (!Boolean.TRUE.equals(request.newConversation())) {
@@ -212,8 +214,9 @@ public class AiService {
         paramsBuilder.addUserMessage(request.message());
 
         List<Long> createdTaskIds = new ArrayList<>();
+        List<Long> createdHabitIds = new ArrayList<>();
         Set<String> toolsUsed = new HashSet<>();
-        String aiMessage = runAgenticLoop(paramsBuilder, userId, userEntity, createdTaskIds, toolsUsed);
+        String aiMessage = runAgenticLoop(paramsBuilder, userId, userEntity, createdTaskIds, createdHabitIds, toolsUsed);
 
         ConversationType conversationType = classifyConversation(toolsUsed);
 
@@ -228,12 +231,13 @@ public class AiService {
 
         createdTaskIds.forEach(taskId -> taskService.linkToAiConversation(taskId, saved));
 
-        log.info("AI chat done for user {}: type={}, tasksCreated={}", userId, conversationType, createdTaskIds.size());
+        log.info("AI chat done for user {}: type={}, tasksCreated={}, habitsCreated={}", userId, conversationType, createdTaskIds.size(), createdHabitIds.size());
         return AiChatResponse.builder()
                 .conversationId(saved.getId())
                 .aiMessage(aiMessage)
                 .conversationType(conversationType)
                 .tasksCreated(createdTaskIds.size())
+                .habitsCreated(createdHabitIds.size())
                 .createdAt(saved.getCreatedAt())
                 .build();
     }
@@ -264,11 +268,22 @@ public class AiService {
 
     private String buildSystemPrompt(UserEntity user,
                                      List<service.dto.TaskResponse> taskList,
-                                     List<service.dto.HabitResponse> habitList) {
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+                                     List<service.dto.HabitResponse> habitList,
+                                     String userTimezone) {
+        java.time.ZoneId zone = resolveZone(userTimezone);
+        java.time.ZonedDateTime nowLocal = java.time.ZonedDateTime.now(zone);
+        java.time.ZonedDateTime nowUtc = nowLocal.withZoneSameInstant(ZoneOffset.UTC);
+        LocalDate today = nowLocal.toLocalDate();
 
         StringBuilder sb = new StringBuilder();
         sb.append("You are a personal productivity assistant for StarList, a gamified task and habit tracker.\n");
+        String offsetStr = nowLocal.getOffset().getId(); // e.g. "+03:00"
+        sb.append("User's local time: ").append(nowLocal.toLocalTime().withSecond(0).withNano(0))
+                .append(" (").append(zone).append(", UTC").append(offsetStr).append("). ")
+                .append("UTC now: ").append(nowUtc.toLocalTime().withSecond(0).withNano(0)).append(" UTC.\n");
+        sb.append("When the user mentions a time, interpret it in their local timezone. ")
+                .append("For dueDate, send a local ISO-8601 string with the user's offset (e.g. 2026-05-09T21:35:00").append(offsetStr).append("). ")
+                .append("Validate that the time is in the future relative to the user's current local time above.\n\n");
         sb.append("Today is ").append(today).append(". User: ").append(user.getDisplayName())
                 .append(". Coins: ").append(user.getTotalCoins())
                 .append(", Lifetime earned: ").append(user.getLifetimeCoinsEarned()).append(".\n\n");
@@ -300,8 +315,10 @@ public class AiService {
         }
 
         sb.append("\n=== INSTRUCTIONS ===\n");
-        sb.append("Help manage tasks and habits. Suggest appropriate difficulty and duration when creating tasks. "
-                + "Be concise and encouraging. Confirm destructive actions (delete) before executing unless user explicitly says to just do it.");
+        sb.append("Help manage tasks and habits. Suggest appropriate difficulty and duration when creating tasks. Be concise and encouraging.\n");
+        sb.append("IMPORTANT: Before calling any create, update, or delete tool, always describe what you are about to do in plain, friendly language and ask the user to confirm. ")
+                .append("Never show ISO dates, UTC offsets, or timezone codes to the user — use natural phrasing like 'tonight at 10pm' or 'tomorrow morning'. ")
+                .append("Example: \"Got it! Shall I add a task 'Go to bed' due tonight at 22:00?\" — only call the tool after the user explicitly approves.");
 
         return sb.toString();
     }
@@ -330,18 +347,21 @@ public class AiService {
         List<AiConversationEntity> history = aiConversationRepository
                 .findAllByUser_IdOrderByCreatedAtDesc(userId, PageRequest.of(0, HISTORY_TURNS));
         Collections.reverse(history);
-        history.forEach(turn -> {
-            paramsBuilder.addMessage(ChatCompletionUserMessageParam.builder()
-                    .content(turn.getUserMessage()).build());
-            paramsBuilder.addMessage(ChatCompletionAssistantMessageParam.builder()
-                    .content(turn.getAiResponse()).build());
-        });
+        history.stream()
+                .filter(turn -> !turn.getAiResponse().isBlank())
+                .forEach(turn -> {
+                    paramsBuilder.addMessage(ChatCompletionUserMessageParam.builder()
+                            .content(turn.getUserMessage()).build());
+                    paramsBuilder.addMessage(ChatCompletionAssistantMessageParam.builder()
+                            .content(turn.getAiResponse()).build());
+                });
     }
 
     private String runAgenticLoop(ChatCompletionCreateParams.Builder paramsBuilder,
                                   Long userId,
                                   UserEntity userEntity,
                                   List<Long> createdTaskIds,
+                                  List<Long> createdHabitIds,
                                   Set<String> toolsUsed) {
         String finalResponse = "I'm sorry, I couldn't process your request. Please try again.";
 
@@ -356,7 +376,13 @@ public class AiService {
                     .stream().flatMap(Collection::stream).toList();
 
             if (toolCalls.isEmpty()) {
-                finalResponse = assistantMessage.content().orElse(finalResponse);
+                log.info("AI final response: finishReason={}, contentPresent={}, content='{}'",
+                        completion.choices().get(0).finishReason(),
+                        assistantMessage.content().isPresent(),
+                        assistantMessage.content().orElse("<empty>"));
+                finalResponse = assistantMessage.content()
+                        .filter(s -> !s.isBlank())
+                        .orElse(finalResponse);
                 break;
             }
 
@@ -370,7 +396,7 @@ public class AiService {
                 log.debug("Executing AI tool: {}", toolName);
 
                 Object result = dispatchTool(toolName, toolCall.function(), userId,
-                        userEntity, createdTaskIds);
+                        userEntity, createdTaskIds, createdHabitIds);
 
                 String resultJson;
                 try {
@@ -394,7 +420,8 @@ public class AiService {
                                 ChatCompletionMessageToolCall.Function fn,
                                 Long userId,
                                 UserEntity userEntity,
-                                List<Long> createdTaskIds) {
+                                List<Long> createdTaskIds,
+                                List<Long> createdHabitIds) {
         try {
             return switch (name) {
                 case "get_tasks" -> taskService.getUserTasks(userId);
@@ -410,7 +437,7 @@ public class AiService {
                             .description(args.description)
                             .difficultyLevel(parseDifficulty(args.difficultyLevel))
                             .durationMinutes(args.durationMinutes)
-                            .dueDate(args.dueDate != null ? Instant.parse(args.dueDate) : null)
+                            .dueDate(args.dueDate != null ? java.time.OffsetDateTime.parse(args.dueDate).toInstant() : null)
                             .build();
                     var created = taskService.addTask(userId, req);
                     createdTaskIds.add(created.taskId());
@@ -432,12 +459,14 @@ public class AiService {
                 }
                 case "create_habit" -> {
                     var args = objectMapper.readValue(fn.arguments(), CreateHabitArgs.class);
-                    yield habitService.addHabit(userId, AddHabitRequest.builder()
+                    var created = habitService.addHabit(userId, AddHabitRequest.builder()
                             .title(args.title)
                             .description(args.description)
                             .frequency(HabitFrequency.valueOf(args.frequency.toUpperCase()))
                             .difficultyLevel(parseDifficulty(args.difficultyLevel))
                             .build());
+                    createdHabitIds.add(created.habitId());
+                    yield created;
                 }
                 case "update_habit" -> {
                     var args = objectMapper.readValue(fn.arguments(), UpdateHabitArgs.class);
@@ -475,6 +504,16 @@ public class AiService {
             return ConversationType.STUDY_PLAN;
         }
         return ConversationType.GENERAL_CHAT;
+    }
+
+    private java.time.ZoneId resolveZone(String userTimezone) {
+        if (userTimezone == null || userTimezone.isBlank()) return ZoneOffset.UTC;
+        try {
+            return java.time.ZoneId.of(userTimezone);
+        } catch (Exception e) {
+            log.warn("Invalid timezone '{}', falling back to UTC", userTimezone);
+            return ZoneOffset.UTC;
+        }
     }
 
     private DifficultyLevel parseDifficulty(String value) {

@@ -297,12 +297,21 @@ function MainApp() {
     setIsAiLoading(true);
 
     try {
-      const response = await aiApi.sendMessage({ message, newConversation: false });
+      const response = await aiApi.sendMessage({
+        message,
+        newConversation: false,
+        userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
       appendAiMessage(response.aiMessage);
       if (response.tasksCreated > 0) {
         const updatedTasks = await tasksApi.getTasks();
         setTasks(updatedTasks);
         showToast(`AI created ${response.tasksCreated} task${response.tasksCreated > 1 ? 's' : ''} for you!`);
+      }
+      if (response.habitsCreated > 0) {
+        const updatedHabits = await habitsApi.getHabits();
+        setHabits(updatedHabits);
+        showToast(`AI created ${response.habitsCreated} habit${response.habitsCreated > 1 ? 's' : ''} for you!`);
       }
     } catch {
       appendAiMessage("Sorry, I'm having trouble connecting right now. Please try again.");

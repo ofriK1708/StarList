@@ -1,6 +1,7 @@
 openai:
   api-key: ${OPENAI_API_KEY}
-  model: gpt-4o-mini
+  model: gpt-4.1-mini
+
 
 spring:
   datasource:

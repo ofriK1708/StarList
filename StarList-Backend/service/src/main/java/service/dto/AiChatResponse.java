@@ -10,5 +10,6 @@ public record AiChatResponse(
         String aiMessage,
         ConversationType conversationType,
         Integer tasksCreated,
+        Integer habitsCreated,
         Instant createdAt
 ) {}

@@ -5,6 +5,7 @@ export type ConversationType = 'TASK_CREATION' | 'STUDY_PLAN' | 'HABIT_SUGGESTIO
 export interface AiChatRequest {
     message: string;
     newConversation?: boolean;
+    userTimezone?: string;
 }
 
 export interface AiChatResponse {
@@ -12,6 +13,7 @@ export interface AiChatResponse {
     aiMessage: string;
     conversationType: ConversationType;
     tasksCreated: number;
+    habitsCreated: number;
     createdAt: string;
 }
 
