@@ -1,4 +1,4 @@
-import { BarChart3, PieChart, TrendingUp, Award, CheckCircle2, Zap } from "lucide-react";
+import { BarChart3, PieChart, TrendingUp, Award, UserCheck, CheckCircle2, Zap } from "lucide-react";
 
 interface StatisticsProps {
   tasks: any[];
@@ -28,23 +28,35 @@ export function Statistics({ tasks, habits, currentCoins, totalCoinsEarned }: St
           <p className="text-slate-400 text-sm">Tracking your journey through the galaxy 🚀</p>
         </div>
 
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={<CheckCircle2 className="text-green-400" />} label="Tasks Done" value={completedTasks} subValue={`of ${tasks.length}`} />
-          <StatCard icon={<Zap className="text-blue-400" />} label="Task Completion %" value={`${completionRate}%`} />
+        <div className="p-6 grid grid-cols-2 gap-4">
           <StatCard icon={<Award className="text-yellow-400" />} label="Current Coins" value={currentCoins} subValue="Coins" />
           <StatCard icon={<Award className="text-yellow-600" />} label="Overall Coins Earned" value={totalCoinsEarned} subValue="Coins" />
         </div>
 
-        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <PieChart className="w-5 h-5 text-purple-400" />
-              <h3 className="text-white font-medium">Task Difficulty Distribution</h3>
-            </div>
-            <div className="space-y-4">
-              <DifficultyBar label="Hard" count={difficultyData.hard} color="bg-red-500" total={completedTasks} />
-              <DifficultyBar label="Medium" count={difficultyData.medium} color="bg-yellow-500" total={completedTasks} />
-              <DifficultyBar label="Easy" count={difficultyData.easy} color="bg-green-500" total={completedTasks} />
+        <br />
+
+        <div className="pl-6 flex items-center gap-2">
+          <UserCheck className="text-blue-500" />
+          <h1 className="text-white font-bold">Tasks</h1>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 p-6">
+          <div className="grid grid-cols-1 gap-4">
+            <StatCard icon={<CheckCircle2 className="text-green-400" />} label="Tasks Done" value={completedTasks} subValue={`of ${tasks.length}`} />
+            <StatCard icon={<Zap className="text-blue-400" />} label="Task Completion %" value={`${completionRate}%`} />
+          </div>
+
+          <div>
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 h-full">
+              <div className="flex items-center gap-2 mb-6">
+                <PieChart className="w-5 h-5 text-purple-400" />
+                <h3 className="text-white font-medium">Task Difficulty Distribution</h3>
+              </div>
+              <div className="space-y-4">
+                <DifficultyBar label="Hard" count={difficultyData.hard} color="bg-red-500" total={completedTasks} />
+                <DifficultyBar label="Medium" count={difficultyData.medium} color="bg-yellow-500" total={completedTasks} />
+                <DifficultyBar label="Easy" count={difficultyData.easy} color="bg-green-500" total={completedTasks} />
+              </div>
             </div>
           </div>
         </div>
