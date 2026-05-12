@@ -4,14 +4,13 @@ interface StatisticsProps {
   tasks: any[];
   habits: any[];
   totalCoinsEarned: number;
-  currentStreak: number;
 }
 
 function isCompleted(task: { status: string }): boolean {
   return task.status === 'COMPLETED';
 }
 
-export function Statistics({ tasks, habits, totalCoinsEarned, currentStreak }: StatisticsProps) {
+export function Statistics({ tasks, habits, totalCoinsEarned }: StatisticsProps) {
   const completedTasks = tasks.filter(t => isCompleted(t)).length;
   const completionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
 
@@ -31,7 +30,6 @@ export function Statistics({ tasks, habits, totalCoinsEarned, currentStreak }: S
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard icon={<CheckCircle2 className="text-green-400" />} label="Tasks Done" value={completedTasks} subValue={`of ${tasks.length}`} />
           <StatCard icon={<Zap className="text-blue-400" />} label="Completion" value={`${completionRate}%`} />
-          <StatCard icon={<TrendingUp className="text-orange-400" />} label="Best Streak" value={currentStreak} subValue="Days" />
           <StatCard icon={<Award className="text-yellow-400" />} label="Total Balance" value={totalCoinsEarned} subValue="Coins" />
         </div>
 
@@ -45,17 +43,6 @@ export function Statistics({ tasks, habits, totalCoinsEarned, currentStreak }: S
               <DifficultyBar label="Hard" count={difficultyData.hard} color="bg-red-500" total={completedTasks} />
               <DifficultyBar label="Medium" count={difficultyData.medium} color="bg-yellow-500" total={completedTasks} />
               <DifficultyBar label="Easy" count={difficultyData.easy} color="bg-green-500" total={completedTasks} />
-            </div>
-          </div>
-
-          {/* Upcoming Achievements */}
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Award className="w-5 h-5 text-yellow-400" />
-              <h3 className="text-white font-medium">Next Milestones</h3>
-            </div>
-            <div className="space-y-4">
-              <Milestone label="Habit Master" desc="Reach a 7-day streak" progress={Math.min(100, (currentStreak/7)*100)} />
             </div>
           </div>
         </div>
