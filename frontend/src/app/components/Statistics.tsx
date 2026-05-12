@@ -1,8 +1,10 @@
-import { BarChart3, PieChart, TrendingUp, Award, UserCheck, CheckCircle2, Zap } from "lucide-react";
+import { BarChart3, PieChart, TrendingUp, Award, UserCheck, FlameIcon, CalendarFoldIcon, Sparkles, LucideShoppingCart, CheckCircle2, Zap, Star } from "lucide-react";
+import { ShopItemState } from "@/app/App.tsx";
 
 interface StatisticsProps {
   tasks: any[];
   habits: any[];
+  shopItems: ShopItemState[];
   currentCoins: number;
   totalCoinsEarned: number;
 }
@@ -11,15 +13,34 @@ function isCompleted(task: { status: string }): boolean {
   return task.status === 'COMPLETED';
 }
 
-export function Statistics({ tasks, habits, currentCoins, totalCoinsEarned }: StatisticsProps) {
+function sum(numbers: number[]): number {
+  return numbers.reduce((currentSum, currentNumber) => currentSum + currentNumber, 0);
+}
+
+export function Statistics({ tasks, habits, currentCoins, totalCoinsEarned, shopItems }: StatisticsProps) {
+  console.log(shopItems);
+
   const completedTasks = tasks.filter(t => isCompleted(t)).length;
   const completionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
 
-  const difficultyData = {
-    easy: tasks.filter(t => isCompleted(t) && t.difficultyLevel === 'EASY').length,
-    medium: tasks.filter(t => isCompleted(t) && t.difficultyLevel === 'MEDIUM').length,
-    hard: tasks.filter(t => isCompleted(t) && t.difficultyLevel === 'HARD').length,
+  const bestOverallHabitStreak = Math.max(...habits.map(habit => habit.bestStreak));
+  const totalHabitCompletions = sum(habits.map(habit => habit.totalCompletions));
+
+  const totalStarsInUniverse = shopItems.length;
+  const totalStarsBought = shopItems.filter(item => item.unlocked).length;
+  const universeCompletionRate = totalStarsBought > 0 ? Math.round((totalStarsBought / totalStarsInUniverse) * 100) : 0;
+
+  const taskDifficultyData = {
+    easy: tasks.filter(t => t.difficultyLevel === 'EASY').length,
+    medium: tasks.filter(t => t.difficultyLevel === 'MEDIUM').length,
+    hard: tasks.filter(t => t.difficultyLevel === 'HARD').length,
   };
+
+  const habitDifficultyData = {
+    easy: sum(habits.filter(h => h.difficultyLevel === 'EASY').map(h => h.totalCompletions)),
+    medium: sum(habits.filter(h => h.difficultyLevel === 'MEDIUM').map(h => h.totalCompletions)),
+    hard: sum(habits.filter(h => h.difficultyLevel === 'HARD').map(h => h.totalCompletions)),
+  }
 
   return (
       <div className="h-full flex flex-col w-full animate-in fade-in duration-500 overflow-y-auto bg-slate-900/50">
@@ -28,9 +49,11 @@ export function Statistics({ tasks, habits, currentCoins, totalCoinsEarned }: St
           <p className="text-slate-400 text-sm">Tracking your journey through the galaxy 🚀</p>
         </div>
 
-        <div className="p-6 grid grid-cols-2 gap-4">
-          <StatCard icon={<Award className="text-yellow-400" />} label="Current Coins" value={currentCoins} subValue="Coins" />
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard icon={<Sparkles className="text-yellow-400" />} label="Current Coins" value={currentCoins} subValue="Coins" />
           <StatCard icon={<Award className="text-yellow-600" />} label="Overall Coins Earned" value={totalCoinsEarned} subValue="Coins" />
+          <StatCard icon={<LucideShoppingCart className="text-green-300" />} label="Total Stars Bought" value={totalStarsBought} subValue={`of ${totalStarsInUniverse} in the universe`} />
+          <StatCard icon={<Star className="text-purple-400" />} label="Universe Completion %" value={`${universeCompletionRate}%`} />
         </div>
 
         <br />
@@ -49,13 +72,41 @@ export function Statistics({ tasks, habits, currentCoins, totalCoinsEarned }: St
           <div>
             <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 h-full">
               <div className="flex items-center gap-2 mb-6">
-                <PieChart className="w-5 h-5 text-purple-400" />
+                <PieChart className="w-5 h-5 text-purple-300" />
                 <h3 className="text-white font-medium">Task Difficulty Distribution</h3>
               </div>
               <div className="space-y-4">
-                <DifficultyBar label="Hard" count={difficultyData.hard} color="bg-red-500" total={completedTasks} />
-                <DifficultyBar label="Medium" count={difficultyData.medium} color="bg-yellow-500" total={completedTasks} />
-                <DifficultyBar label="Easy" count={difficultyData.easy} color="bg-green-500" total={completedTasks} />
+                <DifficultyBar type="task" label="Hard" count={taskDifficultyData.hard} color="bg-red-400" total={completedTasks} />
+                <DifficultyBar type="task" label="Medium" count={taskDifficultyData.medium} color="bg-yellow-400" total={completedTasks} />
+                <DifficultyBar type="task" label="Easy" count={taskDifficultyData.easy} color="bg-green-400" total={completedTasks} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <br />
+
+        <div className="pl-6 flex items-center gap-2">
+          <CalendarFoldIcon className="text-purple-500" />
+          <h1 className="text-white font-bold">Habits</h1>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 p-6">
+          <div className="grid grid-cols-1 gap-4">
+            <StatCard icon={<CheckCircle2 className="text-green-300" />} label="Total Habit Completions Overall" value={totalHabitCompletions} />
+            <StatCard icon={<FlameIcon className="text-orange-400" />} label="Best Habit Streak Overall" value={bestOverallHabitStreak} />
+          </div>
+
+          <div>
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 h-full">
+              <div className="flex items-center gap-2 mb-6">
+                <PieChart className="w-5 h-5 text-purple-300" />
+                <h3 className="text-white font-medium">Habit Difficulty Distribution</h3>
+              </div>
+              <div className="space-y-4">
+                <DifficultyBar type="habit" label="Hard" count={habitDifficultyData.hard} color="bg-red-400" total={completedTasks} />
+                <DifficultyBar type="habit" label="Medium" count={habitDifficultyData.medium} color="bg-yellow-400" total={completedTasks} />
+                <DifficultyBar type="habit" label="Easy" count={habitDifficultyData.easy} color="bg-green-400" total={completedTasks} />
               </div>
             </div>
           </div>
@@ -76,13 +127,13 @@ function StatCard({ icon, label, value, subValue }: any) {
   );
 }
 
-function DifficultyBar({ label, count, color, total }: any) {
+function DifficultyBar({ label, type, count, color, total }: any) {
   const percentage = total > 0 ? (count / total) * 100 : 0;
   return (
       <div>
         <div className="flex justify-between text-xs mb-1">
           <span className="text-slate-300">{label}</span>
-          <span className="text-slate-500">{count} tasks</span>
+          <span className="text-slate-500">{count} {type}s</span>
         </div>
         <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
           <div className={`${color} h-full transition-all duration-1000`} style={{ width: `${percentage}%` }} />
