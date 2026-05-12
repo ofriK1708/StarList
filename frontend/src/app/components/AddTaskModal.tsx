@@ -13,6 +13,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
     const [description, setDescription] = useState("");
     const [difficulty, setDifficulty] = useState<'EASY' | 'MEDIUM' | 'HARD'>('MEDIUM');
     const [durationMinutes, setDurationMinutes] = useState<number>(30);
+    const [dueDate, setDueDate] = useState<string>("");
 
     if (!isOpen) return null;
 
@@ -24,13 +25,15 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
             title,
             description,
             difficultyLevel: difficulty,
-            durationMinutes
+            durationMinutes,
+            dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
         });
 
         setTitle("");
         setDescription("");
         setDifficulty("MEDIUM");
         setDurationMinutes(30);
+        setDueDate("");
         onClose();
     };
 
@@ -95,6 +98,16 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
                                 className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                             />
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-slate-300 mb-1">Due Date (Optional)</label>
+                        <input
+                            type="datetime-local"
+                            value={dueDate}
+                            onChange={(e) => setDueDate(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+                        />
                     </div>
 
                     <div className="pt-4 flex gap-3">

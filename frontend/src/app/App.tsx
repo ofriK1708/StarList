@@ -17,6 +17,7 @@ import { UserProvider, useUser } from "../context/UserContext";
 import { tasksApi, TaskResponse, AddTaskRequest } from "../services/taskApi";
 import { habitsApi, HabitResponse, AddHabitRequest, UpdateHabitRequest } from "../services/habitsApi";
 import { storeApi, ItemCatalogResponse } from "../services/storeApi";
+import { aiApi } from "../services/aiApi";
 
 type Screen = 'tasks' | 'habits' | 'galaxy' | 'chat' | 'profile' | 'shop' | 'statistics';
 
@@ -245,16 +246,90 @@ function MainApp() {
     }
   };
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { id: '1', type: 'ai', content: 'Hello! How can I help today?', timestamp: new Date() },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [chatHistoryLoaded, setChatHistoryLoaded] = useState(false);
 
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isAddHabitModalOpen, setIsAddHabitModalOpen] = useState(false);
 
-  const handleSendMessage = (message: string) => {
-    const newMessage: ChatMessage = { id: Date.now().toString(), type: 'user', content: message, timestamp: new Date() };
-    setChatMessages([...chatMessages, newMessage]);
+  // Load chat history the first time the user opens the chat screen
+  useEffect(() => {
+    if (currentScreen === 'chat' && !chatHistoryLoaded && user) {
+      aiApi.getHistory().then((history) => {
+        const historyMessages: ChatMessage[] = history
+          .slice()
+          .reverse()
+          .flatMap((turn) => [
+            { id: `u-${turn.conversationId}`, type: 'user' as const, content: turn.userMessage, timestamp: new Date(turn.createdAt) },
+            { id: `a-${turn.conversationId}`, type: 'ai' as const, content: turn.aiResponse, timestamp: new Date(turn.createdAt) },
+          ]);
+        if (historyMessages.length > 0) {
+          setChatMessages(historyMessages);
+        }
+        setChatHistoryLoaded(true);
+      }).catch(() => setChatHistoryLoaded(true));
+    }
+  }, [currentScreen, chatHistoryLoaded, user]);
+
+  const appendAiMessage = (content: string) => {
+    setChatMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      type: 'ai',
+      content,
+      timestamp: new Date(),
+    }]);
+  };
+
+  const handleSendMessage = async (message: string, newConversation?: boolean) => {
+    if (newConversation) {
+      setChatMessages([]);
+      return;
+    }
+    if (!message.trim()) return;
+
+    setChatMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      type: 'user',
+      content: message,
+      timestamp: new Date(),
+    }]);
+    setIsAiLoading(true);
+
+    try {
+      const response = await aiApi.sendMessage({
+        message,
+        newConversation: false,
+        userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+      appendAiMessage(response.aiMessage);
+      if (response.tasksCreated > 0) {
+        const updatedTasks = await tasksApi.getTasks();
+        setTasks(updatedTasks);
+        showToast(`AI created ${response.tasksCreated} task${response.tasksCreated > 1 ? 's' : ''} for you!`);
+      }
+      if (response.habitsCreated > 0) {
+        const updatedHabits = await habitsApi.getHabits();
+        setHabits(updatedHabits);
+        showToast(`AI created ${response.habitsCreated} habit${response.habitsCreated > 1 ? 's' : ''} for you!`);
+      }
+    } catch {
+      appendAiMessage("Sorry, I'm having trouble connecting right now. Please try again.");
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const handleDailyBriefing = async () => {
+    setIsAiLoading(true);
+    try {
+      const response = await aiApi.getDailyBriefing();
+      appendAiMessage(response.aiMessage);
+    } catch {
+      appendAiMessage("Couldn't load your daily briefing. Please try again.");
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   const handlePurchase = async (itemId: string) => {
@@ -319,7 +394,7 @@ function MainApp() {
           {currentScreen === 'galaxy' && <GalaxyView coinBalance={coinBalance} planets={planets} />}
           {currentScreen === 'tasks' && <TaskDashboard tasks={tasks} onTaskToggle={handleTaskToggle} onQuickAdd={() => setIsAddTaskModalOpen(true)} onOpenChat={() => setCurrentScreen('chat')} onTaskDelete={handleTaskDelete} />}
           {currentScreen === 'habits' && <HabitTracker habits={habits} onHabitCheck={handleHabitCheck} onAddHabitClick={() => setIsAddHabitModalOpen(true)} onEditHabitClick={(h) => { setHabitToEdit(h); setIsEditHabitModalOpen(true); }} onDeleteHabit={handleDeleteHabit} />}
-          {currentScreen === 'chat' && <AIChat messages={chatMessages} onSendMessage={handleSendMessage} onAddTask={() => {}} />}
+          {currentScreen === 'chat' && <AIChat messages={chatMessages} onSendMessage={handleSendMessage} onAddTask={() => {}} onDailyBriefing={handleDailyBriefing} isLoading={isAiLoading} />}
           {currentScreen === 'shop' && <Shop items={shopItems as any} coinBalance={coinBalance} onPurchase={handlePurchase} />}
           {currentScreen === 'statistics' && <Statistics tasks={tasks as any} habits={habits} totalCoinsEarned={coinBalance} currentStreak={0} />}
           {currentScreen === 'profile' && <Profile user={{ name: user?.displayName || 'Explorer', email: user?.email || '', level: 1, xp: 0, xpToNextLevel: 1000, tasksCompleted: 0, achievements: [] }} coinBalance={coinBalance} />}

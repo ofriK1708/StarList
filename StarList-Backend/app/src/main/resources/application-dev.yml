@@ -10,20 +10,22 @@ spring:
         jwt:
           issuer-uri: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_WBlndOjnO
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    hibernate:
-      ddl-auto: update
-    show-sql: false # use logback SQL logger below instead (formats output better)
-    properties:
+      database-platform: org.hibernate.dialect.PostgreSQLDialect
       hibernate:
-        jdbc:
-          time_zone: UTC
-        format_sql: true
-    logging:
-      level:
-        org.hibernate.SQL: DEBUG
-        org.hibernate.orm.jdbc.bind: TRACE
+        ddl-auto: update
+      show-sql: false # use logback SQL logger below instead (formats output better)
+      properties:
+        hibernate:
+          jdbc:
+            time_zone: UTC
+          format_sql: true
+      logging:
+        level:
+          org.hibernate.SQL: DEBUG
+          org.hibernate.orm.jdbc.bind: TRACE
 
 openai:
   api-key: ${OPENAI_API_KEY}
   model: gpt-4.1-mini
+
+

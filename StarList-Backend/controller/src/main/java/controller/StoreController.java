@@ -50,7 +50,10 @@ public class StoreController {
      * Returns all items owned by the authenticated user.
      */
     @GetMapping("/my-items")
-    public ResponseEntity<List<GalaxyItem>> getMyItems(@RequestHeader("X-User-Id") Long userId) {
+    public ResponseEntity<List<GalaxyItem>> getMyItems(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        Long userId = userService.getUserByCognitoSub(jwt.getSubject()).id();
         return ResponseEntity.ok(storeService.getMyItems(userId));
     }
 }

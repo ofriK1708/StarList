@@ -182,6 +182,20 @@ public class TaskService {
         taskRepository.save(entity);
     }
 
+    /**
+     * Links an existing task to the AI conversation that created it and marks it as AI-created.
+     * Called by {@link AiService} after persisting the conversation turn.
+     */
+    @Transactional
+    public void linkToAiConversation(Long taskId, repository.entity.AiConversationEntity aiConversation) {
+        log.info("Linking task {} to AI conversation {}", taskId, aiConversation.getId());
+        TaskEntity entity = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        entity.setCreatedByAi(true);
+        entity.setAiConversation(aiConversation);
+        taskRepository.save(entity);
+    }
+
     /** Loads an active (non-deleted) task by ID, throwing {@link TaskNotFoundException} if absent or soft-deleted. */
     private TaskEntity loadActiveTask(Long taskId) {
         return taskRepository.findById(taskId)

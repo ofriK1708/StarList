@@ -14,5 +14,5 @@ public record AddTaskRequest(
         String description,
         @NotNull DifficultyLevel difficultyLevel,
         @Positive Integer durationMinutes,
-        @Future Instant dueDate
+        Instant dueDate
 ) {}
