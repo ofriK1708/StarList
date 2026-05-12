@@ -3,6 +3,7 @@ import { BarChart3, PieChart, TrendingUp, Award, CheckCircle2, Zap } from "lucid
 interface StatisticsProps {
   tasks: any[];
   habits: any[];
+  currentCoins: number;
   totalCoinsEarned: number;
 }
 
@@ -10,7 +11,7 @@ function isCompleted(task: { status: string }): boolean {
   return task.status === 'COMPLETED';
 }
 
-export function Statistics({ tasks, habits, totalCoinsEarned }: StatisticsProps) {
+export function Statistics({ tasks, habits, currentCoins, totalCoinsEarned }: StatisticsProps) {
   const completedTasks = tasks.filter(t => isCompleted(t)).length;
   const completionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
 
@@ -29,8 +30,9 @@ export function Statistics({ tasks, habits, totalCoinsEarned }: StatisticsProps)
 
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard icon={<CheckCircle2 className="text-green-400" />} label="Tasks Done" value={completedTasks} subValue={`of ${tasks.length}`} />
-          <StatCard icon={<Zap className="text-blue-400" />} label="Completion" value={`${completionRate}%`} />
-          <StatCard icon={<Award className="text-yellow-400" />} label="Total Balance" value={totalCoinsEarned} subValue="Coins" />
+          <StatCard icon={<Zap className="text-blue-400" />} label="Task Completion %" value={`${completionRate}%`} />
+          <StatCard icon={<Award className="text-yellow-400" />} label="Current Coins" value={currentCoins} subValue="Coins" />
+          <StatCard icon={<Award className="text-yellow-600" />} label="Overall Coins Earned" value={totalCoinsEarned} subValue="Coins" />
         </div>
 
         <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
