@@ -1,18 +1,17 @@
 spring:
   datasource:
-    url: ${AWS_DB_URL}
-    username: ${AWS_DB_USERNAME}
-    password: ${AWS_DB_PASSWORD}
+    url: jdbc:postgresql://localhost:5431/starlist
+    username: postgres
+    password: postgres
     driver-class-name: org.postgresql.Driver
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_WBlndOjnO
-
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      database-platform: org.hibernate.dialect.PostgreSQLDialect
       ddl-auto: update
     show-sql: false # use logback SQL logger below instead (formats output better)
     properties:
@@ -25,3 +24,6 @@ spring:
         org.hibernate.SQL: DEBUG
         org.hibernate.orm.jdbc.bind: TRACE
 
+openai:
+  api-key: ${OPENAI_API_KEY}
+  model: gpt-4.1-mini
