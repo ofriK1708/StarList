@@ -16,4 +16,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      '/tasks': { target: 'http://localhost:8080', changeOrigin: true },
+      '/habits': { target: 'http://localhost:8080', changeOrigin: true },
+      '/users': { target: 'http://localhost:8080', changeOrigin: true },
+      '/ai': { target: 'http://localhost:8080', changeOrigin: true },
+      '/store': { target: 'http://localhost:8080', changeOrigin: true },
+      '/images': { target: 'http://localhost:8080', changeOrigin: true },
+    },
+  },
 })

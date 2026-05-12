@@ -1,6 +1,6 @@
 import { Sparkles, ShoppingCart } from "lucide-react";
 
-const IMAGE_BASE_URL = "http://localhost:8080";
+const IMAGE_BASE_URL = "";
 
 interface GalaxyViewProps {
   coinBalance: number;

@@ -2,7 +2,7 @@ import { Sparkles, Lock, ShoppingCart } from "lucide-react";
 import { Button } from "./ui/button";
 
 // 1. BASE URL FOR IMAGES - Change this to your AWS S3 URL later!
-const IMAGE_BASE_URL = "http://localhost:8080";
+const IMAGE_BASE_URL = "";
 
 interface ShopItem {
   id: string;

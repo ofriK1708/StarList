@@ -63,6 +63,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST, "/users").permitAll()
                 .requestMatchers(HttpMethod.GET, "/health").permitAll()
+                .requestMatchers(HttpMethod.GET, "/images/**").permitAll()
                 .anyRequest().authenticated())
             .oauth2ResourceServer(oauth2 ->
                 oauth2.jwt(jwt -> {}));
