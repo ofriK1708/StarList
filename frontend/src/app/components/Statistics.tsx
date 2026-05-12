@@ -7,14 +7,18 @@ interface StatisticsProps {
   currentStreak: number;
 }
 
+function isCompleted(task: { status: string }): boolean {
+  return task.status === 'COMPLETED';
+}
+
 export function Statistics({ tasks, habits, totalCoinsEarned, currentStreak }: StatisticsProps) {
-  const completedTasks = tasks.filter(t => t.completed).length;
+  const completedTasks = tasks.filter(t => isCompleted(t)).length;
   const completionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
 
   const difficultyData = {
-    easy: tasks.filter(t => t.completed && t.difficulty === 'easy').length,
-    medium: tasks.filter(t => t.completed && t.difficulty === 'medium').length,
-    hard: tasks.filter(t => t.completed && t.difficulty === 'hard').length,
+    easy: tasks.filter(t => isCompleted(t) && t.difficultyLevel === 'EASY').length,
+    medium: tasks.filter(t => isCompleted(t) && t.difficultyLevel === 'MEDIUM').length,
+    hard: tasks.filter(t => isCompleted(t) && t.difficultyLevel === 'HARD').length,
   };
 
   return (
