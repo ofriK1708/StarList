@@ -1,14 +1,14 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5431/starlist
-    username: postgres
-    password: postgres
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_WBlndOjnO
+          issuer-uri: ${JWT_ISSUER_URI}
   jpa:
       database-platform: org.hibernate.dialect.PostgreSQLDialect
       hibernate:
@@ -27,5 +27,3 @@ spring:
 openai:
   api-key: ${OPENAI_API_KEY}
   model: gpt-4.1-mini
-
-
