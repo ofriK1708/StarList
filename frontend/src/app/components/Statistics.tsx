@@ -42,7 +42,7 @@ export function Statistics({ tasks, habits, currentCoins, totalCoinsEarned }: St
 
         <div className="grid grid-cols-2 gap-4 p-6">
           <div className="grid grid-cols-1 gap-4">
-            <StatCard icon={<CheckCircle2 className="text-green-400" />} label="Tasks Done" value={completedTasks} subValue={`of ${tasks.length}`} />
+            <StatCard icon={<CheckCircle2 className="text-green-300" />} label="Tasks Done" value={completedTasks} subValue={`of ${tasks.length}`} />
             <StatCard icon={<Zap className="text-blue-400" />} label="Task Completion %" value={`${completionRate}%`} />
           </div>
 
