@@ -6,6 +6,7 @@ const api = axios.create({
         'Content-Type': 'application/json',
     },
 });
+console.log("Current API URL:", import.meta.env.VITE_API_URL); // TODO - delete this
 
 export const setAuthToken = (token: string | null) => {
     if (token) {
@@ -16,3 +17,4 @@ export const setAuthToken = (token: string | null) => {
 };
 
 export default api;
+

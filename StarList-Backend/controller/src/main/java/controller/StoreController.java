@@ -14,7 +14,7 @@ import service.dto.BuyItemResponse;
 import service.dto.ItemCatalogResponse;
 
 @RestController
-@RequestMapping("/api/store")
+@RequestMapping("/store")
 public class StoreController {
 
     private final StoreService storeService;

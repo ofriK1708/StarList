@@ -31,17 +31,17 @@ export interface GalaxyItem {
 
 export const storeApi = {
     getAvailableItems: async (): Promise<ItemCatalogResponse[]> => {
-        const response = await api.get('/api/store/items');
+        const response = await api.get('/store/items');
         return response.data;
     },
 
     getMyItems: async (): Promise<GalaxyItem[]> => {
-        const response = await api.get('/api/store/my-items');
+        const response = await api.get('/store/my-items');
         return response.data;
     },
 
     buyItem: async (itemId: number): Promise<BuyItemResponse> => {
-        const response = await api.post(`/api/store/buy/${itemId}`);
+        const response = await api.post(`/store/buy/${itemId}`);
         return response.data;
     }
 };
