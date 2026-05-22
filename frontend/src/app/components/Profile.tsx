@@ -6,18 +6,13 @@ interface ProfileProps {
   user: {
     name: string;
     email: string;
-    level: number;
-    xp: number;
-    xpToNextLevel: number;
-    tasksCompleted: number;
-    achievements: Array<{ id: string; name: string; icon: string; unlocked: boolean }>;
+    achievements: Array<{ id: string; name: string; icon: string; description: string; unlocked: boolean }>;
   };
   coinBalance: number;
 }
 
 export function Profile({ user, coinBalance }: ProfileProps) {
   const { logout } = useUser();
-  const progressPercent = (user.xp / user.xpToNextLevel) * 100;
 
   return (
       <div className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-y-auto relative">
@@ -71,106 +66,36 @@ export function Profile({ user, coinBalance }: ProfileProps) {
             </Button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Trophy className="w-5 h-5 text-yellow-400" />
-                <span className="text-sm text-slate-400">Level</span>
-              </div>
-              <p className="text-3xl text-white">{user.level}</p>
+          {/* Coins */}
+          <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 text-center mb-6">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Sparkles className="w-5 h-5 text-yellow-400" />
+              <span className="text-sm text-slate-400">Coins</span>
             </div>
-
-            <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Sparkles className="w-5 h-5 text-yellow-400" />
-                <span className="text-sm text-slate-400">Coins</span>
-              </div>
-              <p className="text-3xl text-white">{coinBalance}</p>
-            </div>
-          </div>
-
-          {/* XP Progress */}
-          <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-slate-400">Experience</span>
-              <span className="text-sm text-slate-300">
-              {user.xp} / {user.xpToNextLevel} XP
-            </span>
-            </div>
-            <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
-              <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"
-                  style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <p className="text-xs text-slate-500 mt-2 text-center">
-              {user.xpToNextLevel - user.xp} XP to Level {user.level + 1}
-            </p>
-          </div>
-
-          {/* Tasks Completed */}
-          <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-400">Total Tasks Completed</span>
-              <span className="text-2xl text-white">{user.tasksCompleted}</span>
-            </div>
+            <p className="text-3xl text-white">{coinBalance}</p>
           </div>
 
           {/* Achievements */}
-          <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-6">
+          <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 pb-20">
             <h2 className="text-lg text-white/90 mb-4 flex items-center gap-2">
               <Trophy className="w-5 h-5 text-yellow-400" />
               Achievements
             </h2>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {user.achievements.map((achievement) => (
                   <div
                       key={achievement.id}
-                      className={`aspect-square rounded-lg flex items-center justify-center text-3xl ${
+                      className={`aspect-square flex flex-col items-center justify-center gap-2 p-3 rounded-lg text-center ${
                           achievement.unlocked
                               ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/40'
                               : 'bg-slate-700/30 border border-slate-600 opacity-40'
                       }`}
-                      title={achievement.name}
                   >
-                    {achievement.icon}
+                    <span className="text-4xl">{achievement.icon}</span>
+                    <p className="text-sm text-white font-medium leading-tight">{achievement.name}</p>
+                    <p className="text-xs text-slate-400 leading-tight">{achievement.description}</p>
                   </div>
               ))}
-            </div>
-          </div>
-
-          {/* Activity Section */}
-          <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 pb-20">
-            <h2 className="text-lg text-white/90 mb-3">Recent Activity</h2>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 text-sm">
-                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <Trophy className="w-4 h-4 text-green-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-slate-300">Completed 5 tasks today</p>
-                  <p className="text-xs text-slate-500">2 hours ago</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-                  <Crown className="w-4 h-4 text-purple-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-slate-300">Reached Level {user.level}</p>
-                  <p className="text-xs text-slate-500">Yesterday</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-blue-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-slate-300">Unlocked "Nebula Effect"</p>
-                  <p className="text-xs text-slate-500">2 days ago</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>

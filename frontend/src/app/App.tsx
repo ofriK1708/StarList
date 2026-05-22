@@ -85,16 +85,20 @@ function MainApp() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [fetchedTasks, fetchedHabits, fetchedAchievements] = await Promise.all([
+        const [fetchedTasks, fetchedHabits] = await Promise.all([
           tasksApi.getTasks(),
           habitsApi.getHabits(),
-          achievementsApi.getMyAchievements(),
         ]);
         setTasks(fetchedTasks);
         setHabits(fetchedHabits);
-        setAchievements(fetchedAchievements);
       } catch (error) {
         console.error(error);
+      }
+      try {
+        const fetchedAchievements = await achievementsApi.getMyAchievements();
+        if (Array.isArray(fetchedAchievements)) setAchievements(fetchedAchievements);
+      } catch (error) {
+        console.error('Achievements fetch failed:', error);
       }
     };
 
@@ -406,7 +410,7 @@ function MainApp() {
           {currentScreen === 'chat' && <AIChat messages={chatMessages} onSendMessage={handleSendMessage} onAddTask={() => {}} onDailyBriefing={handleDailyBriefing} isLoading={isAiLoading} />}
           {currentScreen === 'shop' && <Shop items={shopItems as any} coinBalance={coinBalance} onPurchase={handlePurchase} />}
           {currentScreen === 'statistics' && <Statistics tasks={tasks as any} habits={habits} totalCoinsEarned={coinBalance + spentCoins} currentCoins={coinBalance} shopItems={shopItems} />}
-          {currentScreen === 'profile' && <Profile user={{ name: user?.displayName || 'Explorer', email: user?.email || '', level: 1, xp: 0, xpToNextLevel: 1000, tasksCompleted: tasks.filter(t => t.status === 'COMPLETED').length, achievements: achievements.map(a => ({ id: a.id, name: a.name, icon: a.icon, unlocked: a.unlocked })) }} coinBalance={coinBalance} />}
+          {currentScreen === 'profile' && <Profile user={{ name: user?.displayName || 'Explorer', email: user?.email || '', achievements: achievements.map(a => ({ id: a.id, name: a.name, icon: a.icon, description: a.description, unlocked: a.unlocked })) }} coinBalance={coinBalance} />}
         </div>
 
         <AddTaskModal isOpen={isAddTaskModalOpen} onClose={() => setIsAddTaskModalOpen(false)} onAdd={handleCreateNewTask} />

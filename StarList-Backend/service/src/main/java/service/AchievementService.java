@@ -47,8 +47,11 @@ public class AchievementService {
     }
 
     /** Returns all achievement types for a user, each marked as unlocked or locked. */
-    @Transactional(readOnly = true)
+    @Transactional
     public List<AchievementResponse> getUserAchievements(Long userId) {
+        // Grant STARTER retroactively in case the user existed before the achievement system.
+        tryUnlock(userId, AchievementType.STARTER);
+
         Map<AchievementType, Instant> unlockedMap = achievementRepository.findAllByUser_Id(userId).stream()
                 .collect(Collectors.toMap(AchievementEntity::getType, AchievementEntity::getUnlockedAt));
 
