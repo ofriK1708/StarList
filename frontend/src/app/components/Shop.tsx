@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Sparkles, Lock, ShoppingCart } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -60,11 +61,19 @@ const itemStyles: Record<string, { gradient: string; glow: string }> = {
 };
 
 export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
+  const [filter, setFilter] = useState<'all' | 'available' | 'owned'>('available');
+
+  const filteredItems = items.filter((item) => {
+    if (filter === 'available') return !item.unlocked;
+    if (filter === 'owned') return item.unlocked;
+    return true;
+  });
+
   return (
       <div className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700/50 px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div>
               <h1 className="text-2xl text-white/90">Shop</h1>
               <p className="text-sm text-slate-400">Unlock beautiful planets for your galaxy</p>
@@ -75,12 +84,27 @@ export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
               <span className="text-sm text-yellow-200/80">Coins</span>
             </div>
           </div>
+          <div className="flex gap-2">
+            {(['all', 'available', 'owned'] as const).map((f) => (
+                <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                        filter === f
+                            ? 'bg-slate-700 text-white'
+                            : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300'
+                    }`}
+                >
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+            ))}
+          </div>
         </div>
 
         {/* Shop Grid */}
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((item) => {
+            {filteredItems.map((item) => {
               const canAfford = coinBalance >= item.price;
               const isUnlocked = item.unlocked;
 
@@ -125,7 +149,7 @@ export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
                             // 3. Using the dynamic path from the database!
                             src={`${IMAGE_BASE_URL}${item.imageUrl}`}
                             alt={item.name}
-                            className={`w-full h-full object-contain relative z-20 scale-200 ${item.type === 'sun' ? 'animate-pulse' : ''}`}
+                            className={`w-full h-full object-contain relative z-20 scale-100 ${item.type === 'sun' ? 'animate-pulse' : ''}`}
                             style={{
                               filter: `drop-shadow(0px 0px 25px ${style.glow})`
                             }}
@@ -152,10 +176,17 @@ export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
                           </div>
                       )}
 
+                      {!isUnlocked && canAfford && (
+                          <div className="absolute top-3 left-3 bg-blue-500/20 border border-blue-500/30 text-blue-200 text-[10px] font-bold tracking-wider px-2 py-1 rounded-md flex items-center gap-1 backdrop-blur-md z-20">
+                            <Sparkles className="w-3 h-3" />
+                            AVAILABLE
+                          </div>
+                      )}
+
                       {isUnlocked && (
-                          <div className="absolute top-3 right-3 bg-green-500/90 text-white px-3 py-1 rounded-full text-xs flex items-center gap-1 z-20">
+                          <div className="absolute top-3 left-3 bg-green-500/20 border border-green-500/30 text-green-200 text-[10px] font-bold tracking-wider px-2 py-1 rounded-md flex items-center gap-1 backdrop-blur-md z-20">
                             <ShoppingCart className="w-3 h-3" />
-                            Owned
+                            OWNED
                           </div>
                       )}
 

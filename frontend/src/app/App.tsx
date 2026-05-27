@@ -51,6 +51,22 @@ export interface ShopItemState {
   scale?: number;
 }
 
+// Positions spread across the full canvas (y >= 18 to stay below the header overlay).
+// Designed for 180px visual planets (120px container + scale-150) on 1280×720+.
+// Minimum ~200px center-to-center distance on a 1280×720 viewport.
+const GALAXY_POSITIONS = [
+  { x: 18, y: 20 },
+  { x: 50, y: 18 },
+  { x: 85, y: 18 },
+  { x: 90, y: 50 },
+  { x: 78, y: 80 },
+  { x: 48, y: 88 },
+  { x: 18, y: 78 },
+  { x: 28, y: 50 },
+  { x: 50, y: 58 },
+  { x: 70, y: 38 },
+];
+
 function MainApp() {
   const { user, spendCoins } = useUser();
   const [localCoins, setLocalCoins] = useState(user?.totalCoins || 0);
@@ -118,30 +134,27 @@ function MainApp() {
 
         setShopItems(formattedShopItems);
 
-        const typeCount: Record<string, number> = {};
+        let nonSunIndex = 0;
         const myPlanetsData = myItems.map((myVal: any) => {
           const catalogInfo = catalogItems.find((c: any) => c.id === myVal.catalogItemId);
           const itemType = (catalogInfo?.itemType || catalogInfo?.type || 'planet').toLowerCase();
-          typeCount[itemType] = (typeCount[itemType] || 0) + 1;
-          const duplicateIndex = typeCount[itemType] - 1;
+          const isSun = itemType === 'star' || itemType === 'sun';
 
-          let baseSize = 130;
-          let baseX = 50;
-          let baseY = 50;
+          let baseSize = 100;
+          let baseX: number;
+          let baseY: number;
 
-          if (itemType === 'star' || itemType === 'sun') {
-            baseSize = 150;
-            baseX = 10;
+          if (isSun) {
+            baseX = 8;
             baseY = 50;
           } else {
-            baseSize = 200;
-            baseX = 30 + (duplicateIndex * 15);
-            baseY = 50 + (duplicateIndex % 2 === 0 ? 8 : -8);
+            const pos = GALAXY_POSITIONS[nonSunIndex % GALAXY_POSITIONS.length];
+            baseX = pos.x;
+            baseY = pos.y;
+            nonSunIndex++;
           }
 
           if (catalogInfo?.scale && Number(catalogInfo.scale) > 0) baseSize = Number(catalogInfo.scale);
-          if (catalogInfo?.positionX) baseX = Number(catalogInfo.positionX);
-          if (catalogInfo?.positionY) baseY = Number(catalogInfo.positionY);
 
           return {
             id: myVal.id.toString(),
@@ -343,25 +356,23 @@ function MainApp() {
       setShopItems(prevItems => prevItems.map(i => i.id === itemId ? { ...i, unlocked: true } : i));
 
       const itemType = (item.type || 'planet').toLowerCase();
-      const duplicateCount = planets.filter(p => p.type.toLowerCase() === itemType).length;
+      const isSun = itemType === 'star' || itemType === 'sun';
 
-      let baseSize = 130;
-      let baseX = 50;
-      let baseY = 50;
+      let baseSize = 100;
+      let baseX: number;
+      let baseY: number;
 
-      if (itemType === 'star' || itemType === 'sun') {
-        baseSize = 150;
-        baseX = 10;
+      if (isSun) {
+        baseX = 8;
         baseY = 50;
       } else {
-        baseSize = 150;
-        baseX = 30 + (duplicateCount * 15);
-        baseY = 50 + (duplicateCount % 2 === 0 ? 8 : -8);
+        const nonSunCount = planets.filter(p => p.type !== 'sun' && p.type !== 'star').length;
+        const pos = GALAXY_POSITIONS[nonSunCount % GALAXY_POSITIONS.length];
+        baseX = pos.x;
+        baseY = pos.y;
       }
 
       if (item.scale && Number(item.scale) > 0) baseSize = Number(item.scale);
-      if (item.positionX) baseX = Number(item.positionX);
-      if (item.positionY) baseY = Number(item.positionY);
 
       const newPlanet = {
         id: Date.now().toString(),

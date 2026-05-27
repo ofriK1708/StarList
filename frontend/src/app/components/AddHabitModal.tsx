@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X, Flame, Plus } from "lucide-react";
-import { AddHabitRequest, DifficultyLevel, HabitFrequency } from "@/services/habitsApi.ts";
+import { AddHabitRequest, DifficultyLevel } from "@/services/habitsApi.ts";
 
 interface AddHabitModalProps {
     isOpen: boolean;
@@ -11,7 +11,6 @@ interface AddHabitModalProps {
 export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
     const [title, setTitle] = useState("");
     const [difficulty, setDifficulty] = useState<DifficultyLevel>('MEDIUM');
-    const [frequency, setFrequency] = useState<HabitFrequency>('DAILY');
 
     if (!isOpen) return null;
 
@@ -22,12 +21,11 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
         onAdd({
             title,
             difficultyLevel: difficulty,
-            frequency: frequency
+            frequency: 'DAILY'
         });
 
         setTitle("");
         setDifficulty("MEDIUM");
-        setFrequency("DAILY");
     };
 
     return (
@@ -71,15 +69,9 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
                         </div>
                         <div>
                             <label className="block text-sm text-slate-300 mb-1">Frequency</label>
-                            <select
-                                value={frequency}
-                                onChange={(e) => setFrequency(e.target.value as HabitFrequency)}
-                                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
-                            >
-                                <option value="DAILY">Daily</option>
-                                <option value="WEEKLY">Weekly</option>
-                                <option value="CUSTOM">Custom</option>
-                            </select>
+                            <div className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-400 cursor-not-allowed">
+                                Daily
+                            </div>
                         </div>
                     </div>
 
