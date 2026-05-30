@@ -39,6 +39,8 @@ class TaskServiceTest {
     @Mock
     CoinTransactionService coinTransactionService;
     @Mock
+    AchievementService achievementService;
+    @Mock
     TaskMapper taskMapper;
     @Mock
     CoinCalculator coinCalculator;

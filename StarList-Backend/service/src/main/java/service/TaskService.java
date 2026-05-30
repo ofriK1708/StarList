@@ -30,14 +30,17 @@ public class TaskService {
 
     private final UserService userService;
     private final CoinTransactionService coinTransactionService;
+    private final AchievementService achievementService;
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
     private final CoinCalculator coinCalculator;
 
     public TaskService(UserService userService, CoinTransactionService coinTransactionService,
+                       AchievementService achievementService,
                        TaskRepository taskRepository, TaskMapper taskMapper, CoinCalculator coinCalculator) {
         this.userService = userService;
         this.coinTransactionService = coinTransactionService;
+        this.achievementService = achievementService;
         this.taskRepository = taskRepository;
         this.taskMapper = taskMapper;
         this.coinCalculator = coinCalculator;
@@ -63,10 +66,12 @@ public class TaskService {
                 .coinPenalty(coins[1])
                 .createdByAi(false)
                 .build();
-        return AddTaskResponse.from(
+        AddTaskResponse response = AddTaskResponse.from(
                 taskMapper.toDomain(
                         taskRepository.save(
                                 taskMapper.fromDomain(task, userEntity))));
+        achievementService.onTaskOrHabitCreated(userId);
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -145,6 +150,7 @@ public class TaskService {
         coinTransactionService.record(user, coinsEarned, TransactionType.TASK_COMPLETION,
                 ReferenceType.TASK, taskId, "Completed task: " + entity.getTitle());
         userService.addCoins(user, coinsEarned);
+        achievementService.onTaskCompleted(user.getId(), entity.getCompletedAt());
 
         return MarkTaskDoneResponse.builder()
                 .taskId(taskId)

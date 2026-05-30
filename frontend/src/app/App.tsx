@@ -18,6 +18,7 @@ import { tasksApi, TaskResponse, AddTaskRequest } from "../services/taskApi";
 import { habitsApi, HabitResponse, AddHabitRequest, UpdateHabitRequest } from "../services/habitsApi";
 import { storeApi, ItemCatalogResponse } from "../services/storeApi";
 import { aiApi } from "../services/aiApi";
+import { achievementsApi, AchievementResponse } from "../services/achievementsApi";
 
 type Screen = 'tasks' | 'habits' | 'galaxy' | 'chat' | 'profile' | 'shop' | 'statistics';
 
@@ -77,6 +78,7 @@ function MainApp() {
 
   const [tasks, setTasks] = useState<TaskResponse[]>([]);
   const [habits, setHabits] = useState<HabitResponse[]>([]);
+  const [achievements, setAchievements] = useState<AchievementResponse[]>([]);
   const [shopItems, setShopItems] = useState<ShopItemState[]>([]);
   const [planets, setPlanets] = useState<PlanetData[]>([]);
 
@@ -85,12 +87,18 @@ function MainApp() {
       try {
         const [fetchedTasks, fetchedHabits] = await Promise.all([
           tasksApi.getTasks(),
-          habitsApi.getHabits()
+          habitsApi.getHabits(),
         ]);
         setTasks(fetchedTasks);
         setHabits(fetchedHabits);
       } catch (error) {
         console.error(error);
+      }
+      try {
+        const fetchedAchievements = await achievementsApi.getMyAchievements();
+        if (Array.isArray(fetchedAchievements)) setAchievements(fetchedAchievements);
+      } catch (error) {
+        console.error('Achievements fetch failed:', error);
       }
     };
 
@@ -402,7 +410,7 @@ function MainApp() {
           {currentScreen === 'chat' && <AIChat messages={chatMessages} onSendMessage={handleSendMessage} onAddTask={() => {}} onDailyBriefing={handleDailyBriefing} isLoading={isAiLoading} />}
           {currentScreen === 'shop' && <Shop items={shopItems as any} coinBalance={coinBalance} onPurchase={handlePurchase} />}
           {currentScreen === 'statistics' && <Statistics tasks={tasks as any} habits={habits} totalCoinsEarned={coinBalance + spentCoins} currentCoins={coinBalance} shopItems={shopItems} />}
-          {currentScreen === 'profile' && <Profile user={{ name: user?.displayName || 'Explorer', email: user?.email || '', level: 1, xp: 0, xpToNextLevel: 1000, tasksCompleted: 0, achievements: [] }} coinBalance={coinBalance} />}
+          {currentScreen === 'profile' && <Profile user={{ name: user?.displayName || 'Explorer', email: user?.email || '', achievements: achievements.map(a => ({ id: a.id, name: a.name, icon: a.icon, description: a.description, unlocked: a.unlocked })) }} coinBalance={coinBalance} />}
         </div>
 
         <AddTaskModal isOpen={isAddTaskModalOpen} onClose={() => setIsAddTaskModalOpen(false)} onAdd={handleCreateNewTask} />
