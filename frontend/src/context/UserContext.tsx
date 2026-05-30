@@ -58,22 +58,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
      * Cognito sub as cognitoUserId.
      */
     const confirmSignUp = async (email: string, code: string, password: string, displayName: string): Promise<void> => {
-        setIsLoading(true);
-        try {
-            await authService.handleConfirmSignUp(email, code);
-            await authService.handleSignIn(email, password);
-            const token = await authService.getIdToken();
-            const sub = await authService.getCognitoSub();
-            setAuthToken(token!);
-            const newUser = await usersApi.createUser({
-                email,
-                cognitoUserId: sub!,
-                displayName,
-            });
-            setUser(newUser);
-        } finally {
-            setIsLoading(false);
-        }
+        await authService.handleConfirmSignUp(email, code);
+        await authService.handleSignIn(email, password);
+        const token = await authService.getIdToken();
+        const sub = await authService.getCognitoSub();
+        setAuthToken(token!);
+        const newUser = await usersApi.createUser({
+            email,
+            cognitoUserId: sub!,
+            displayName,
+        });
+        setUser(newUser);
     };
 
     /**
@@ -82,34 +77,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
      * Requires backend endpoint: GET /users/cognito/{sub}
      */
     const login = async (email: string, password: string): Promise<void> => {
-        setIsLoading(true);
-        try {
-            await authService.handleSignOut().catch(() => {});
-            await authService.handleSignIn(email, password);
-            const token = await authService.getIdToken();
-            const sub = await authService.getCognitoSub();
-            setAuthToken(token!);
+        await authService.handleSignOut().catch(() => {});
+        await authService.handleSignIn(email, password);
+        const token = await authService.getIdToken();
+        const sub = await authService.getCognitoSub();
+        setAuthToken(token!);
 
-            let backendUser: UserResponse;
-            try {
-                backendUser = await usersApi.getUserByCognitoSub(sub!);
-            } catch (e: any) {
-                if (e?.response?.status === 404) {
-                    // Cognito account exists but backend user was never created (e.g. confirmation
-                    // flow was interrupted). Auto-create it now so the user isn't locked out.
-                    backendUser = await usersApi.createUser({
-                        email,
-                        cognitoUserId: sub!,
-                        displayName: email.split('@')[0],
-                    });
-                } else {
-                    throw e;
-                }
+        let backendUser: UserResponse;
+        try {
+            backendUser = await usersApi.getUserByCognitoSub(sub!);
+        } catch (e: any) {
+            if (e?.response?.status === 404) {
+                // Cognito account exists but backend user was never created (e.g. confirmation
+                // flow was interrupted). Auto-create it now so the user isn't locked out.
+                backendUser = await usersApi.createUser({
+                    email,
+                    cognitoUserId: sub!,
+                    displayName: email.split('@')[0],
+                });
+            } else {
+                throw e;
             }
-            setUser(backendUser);
-        } finally {
-            setIsLoading(false);
         }
+        setUser(backendUser);
     };
 
     const logout = async (): Promise<void> => {
