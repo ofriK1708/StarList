@@ -5,6 +5,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import model.enums.ItemType;
 import model.enums.RarityLevel;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
@@ -16,9 +17,9 @@ import repository.entity.ItemCatalogEntity;
  * Seeds the {@code item_catalog} table with planet and star cosmetics on every startup.
  * Skips seeding if any catalog items already exist, so it is safe to run in all environments.
  *
- * <p>Planet images are served from {@code /images/Plantes/planet{n}.png}.
- * Star images are served from {@code /images/stars/star{n}.png} — place the images
- * under {@code app/src/main/resources/static/images/stars/} before enabling stars.
+ * <p>Image URLs are constructed as {@code {app.images.base-url}/Plantes/planet{n}.png}
+ * and {@code {app.images.base-url}/Stars/star{n}.png}. In production, set
+ * {@code S3_IMAGES_BASE_URL} to your S3 bucket base URL (e.g. {@code https://my-bucket.s3.amazonaws.com}).
  */
 @Slf4j
 @Component
@@ -29,9 +30,12 @@ public class CatalogSeeder implements ApplicationRunner {
     private static final int STAR_COUNT   = 5;
 
     private final ItemCatalogRepository itemCatalogRepository;
+    private final String imagesBaseUrl;
 
-    public CatalogSeeder(ItemCatalogRepository itemCatalogRepository) {
+    public CatalogSeeder(ItemCatalogRepository itemCatalogRepository,
+                         @Value("${app.images.base-url}") String imagesBaseUrl) {
         this.itemCatalogRepository = itemCatalogRepository;
+        this.imagesBaseUrl = imagesBaseUrl;
     }
 
     @Override
@@ -58,7 +62,7 @@ public class CatalogSeeder implements ApplicationRunner {
                     .description("A mysterious planet waiting to join your galaxy.")
                     .costCoins(planetCost(i))
                     .rarity(planetRarity(i))
-                    .imageUrl("/images/Plantes/planet" + i + ".png")
+                    .imageUrl(imagesBaseUrl + "/Plantes/planet" + i + ".png")
                     .build());
         }
         return planets;
@@ -73,7 +77,7 @@ public class CatalogSeeder implements ApplicationRunner {
                     .description("A radiant star to light up your galaxy.")
                     .costCoins(starCost(i))
                     .rarity(starRarity(i))
-                    .imageUrl("/images/stars/star" + i + ".png")
+                    .imageUrl(imagesBaseUrl + "/Stars/star" + i + ".png")
                     .build());
         }
         return stars;
