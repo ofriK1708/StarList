@@ -21,10 +21,13 @@ import java.util.UUID;
 public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final AchievementService achievementService;
 
-    public UserService(UserRepository userRepository, UserMapper userMapper) {
+    public UserService(UserRepository userRepository, UserMapper userMapper,
+                       AchievementService achievementService) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
+        this.achievementService = achievementService;
     }
 
     public boolean existsById(Long id) {
@@ -82,7 +85,9 @@ public class UserService {
                 .displayName(request.displayName())
                 .build();
         try {
-            return UserResponse.from(save(user));
+            UserResponse response = UserResponse.from(save(user));
+            achievementService.onUserCreated(response.id());
+            return response;
         } catch (DataIntegrityViolationException e) {
             String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
             if (msg.contains("unique") || msg.contains("duplicate") || msg.contains("constraint")) {

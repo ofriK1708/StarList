@@ -39,16 +39,18 @@ public class HabitService {
     private final UserService userService;
     private final HabitCompletionService habitCompletionService;
     private final CoinTransactionService coinTransactionService;
+    private final AchievementService achievementService;
     private final HabitRepository habitRepository;
     private final HabitMapper habitMapper;
     private final CoinCalculator coinCalculator;
 
     public HabitService(UserService userService, HabitCompletionService habitCompletionService,
-                        CoinTransactionService coinTransactionService, HabitRepository habitRepository,
-                        HabitMapper habitMapper, CoinCalculator coinCalculator) {
+                        CoinTransactionService coinTransactionService, AchievementService achievementService,
+                        HabitRepository habitRepository, HabitMapper habitMapper, CoinCalculator coinCalculator) {
         this.userService = userService;
         this.habitCompletionService = habitCompletionService;
         this.coinTransactionService = coinTransactionService;
+        this.achievementService = achievementService;
         this.habitRepository = habitRepository;
         this.habitMapper = habitMapper;
         this.coinCalculator = coinCalculator;
@@ -74,10 +76,12 @@ public class HabitService {
                 .isActive(true)
                 .build();
 
-        return AddHabitResponse.from(
+        AddHabitResponse response = AddHabitResponse.from(
                 habitMapper.toDomain(
                         habitRepository.save(
                                 habitMapper.fromDomain(habit, userEntity))));
+        achievementService.onTaskOrHabitCreated(userId);
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -170,9 +174,10 @@ public class HabitService {
 
         LocalDate today = LocalDate.now();
 
+        int oldBestStreak = entity.getBestStreak();
         int newStreak = today.minusDays(1).equals(entity.getLastCompletedDate()) ?
                 entity.getCurrentStreak() + 1 : 1;
-        int newBestStreak = Math.max(newStreak, entity.getBestStreak());
+        int newBestStreak = Math.max(newStreak, oldBestStreak);
 
         int coinsEarned = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
         log.debug("Habit {} '{}' completed: streak {} -> {}, best={}, coins={}",
@@ -193,6 +198,7 @@ public class HabitService {
         coinTransactionService.record(user, coinsEarned, TransactionType.HABIT_COMPLETION,
                 ReferenceType.HABIT, habitId, "Completed habit: " + entity.getTitle());
         userService.addCoins(user, coinsEarned);
+        achievementService.onHabitCompleted(user.getId(), newStreak, oldBestStreak, Instant.now());
 
         return MarkHabitDoneResponse.builder()
                 .habitId(habitId)

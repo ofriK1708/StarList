@@ -47,6 +47,7 @@ class HabitServiceTest {
     @Mock HabitRepository habitRepository;
     @Mock HabitCompletionService habitCompletionService;
     @Mock CoinTransactionService coinTransactionService;
+    @Mock AchievementService achievementService;
     @Mock UserService userService;
     @Mock HabitMapper habitMapper;
     @Mock CoinCalculator coinCalculator;

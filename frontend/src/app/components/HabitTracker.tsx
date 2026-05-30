@@ -45,17 +45,37 @@ export function HabitTracker({ habits, onHabitCheck, onAddHabitClick, onEditHabi
 }
 
 function HabitRadialCard({ habit, onCheck, onEdit, onDelete, index }: { habit: HabitResponse; onCheck: () => void; onEdit: () => void; onDelete: () => void; index: number }) {
-    // Check if habit was completed today
-    const today = new Date().toISOString().split('T')[0];
-    const isCompletedToday = Boolean(habit.lastCompletedDate && habit.lastCompletedDate.startsWith(today));
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const todayDate = now.getDate();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const isCompletedToday = Boolean(habit.lastCompletedDate && habit.lastCompletedDate.startsWith(todayStr));
 
-    const daysInMonth = 30;
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    // Work out which days of this month are part of the current streak
+    const completedDaysInMonth = new Set<number>();
+    if (habit.lastCompletedDate && habit.currentStreak > 0) {
+        const lastCompleted = new Date(habit.lastCompletedDate + 'T00:00:00');
+        const monthStart = new Date(currentYear, currentMonth, 1);
+        for (let i = 0; i < habit.currentStreak; i++) {
+            const d = new Date(lastCompleted);
+            d.setDate(d.getDate() - i);
+            if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
+                completedDaysInMonth.add(d.getDate());
+            } else if (d < monthStart) {
+                break;
+            }
+        }
+    }
+
     const radius = 90;
     const center = 120;
     const circumference = 2 * Math.PI * radius;
     const segmentLength = circumference / daysInMonth;
-    const gap = 6;
-    const strokeWidth = 14;
+    const gap = 4;
+    const strokeWidth = 12;
 
     const colors = [
         { stroke: 'text-blue-400', glow: 'rgba(96, 165, 250, 0.5)', bg: 'bg-blue-400' },
@@ -64,9 +84,6 @@ function HabitRadialCard({ habit, onCheck, onEdit, onDelete, index }: { habit: H
         { stroke: 'text-orange-400', glow: 'rgba(251, 146, 60, 0.5)', bg: 'bg-orange-400' },
     ];
     const color = colors[index % colors.length];
-
-    const filledSegments = Math.min(habit.currentStreak, daysInMonth);
-    const dashArrayValue = `${segmentLength - gap} ${gap}`;
 
     return (
         <div className="bg-slate-800/40 border border-slate-700/50 rounded-[2.5rem] p-8 flex flex-col items-center group hover:bg-slate-800/60 transition-all duration-300 relative overflow-hidden">
@@ -97,29 +114,55 @@ function HabitRadialCard({ habit, onCheck, onEdit, onDelete, index }: { habit: H
             </div>
 
             <div className="relative w-64 h-64 flex items-center justify-center z-10 my-4">
+                {/* One arc segment per day of the month */}
                 <svg viewBox="0 0 240 240" className="w-full h-full transform -rotate-90 drop-shadow-2xl">
-                    <circle
-                        cx={center}
-                        cy={center}
-                        r={radius}
-                        fill="transparent"
-                        stroke="currentColor"
-                        strokeWidth={strokeWidth}
-                        strokeDasharray={dashArrayValue}
-                        className="text-slate-800"
-                    />
-                    <circle
-                        cx={center}
-                        cy={center}
-                        r={radius}
-                        fill="transparent"
-                        stroke="currentColor"
-                        strokeWidth={strokeWidth}
-                        strokeDasharray={`${Math.max(0, filledSegments * segmentLength - gap)} ${circumference}`}
-                        strokeDashoffset={0}
-                        className={`${color.stroke} transition-all duration-1000 ease-in-out`}
-                        style={{ filter: `drop-shadow(0 0 10px ${color.glow})` }}
-                    />
+                    {Array.from({ length: daysInMonth }, (_, i) => {
+                        const dayNum = i + 1;
+                        const isCompleted = completedDaysInMonth.has(dayNum);
+                        const isFuture = dayNum > todayDate;
+                        const segActualLength = segmentLength - gap;
+                        return (
+                            <circle
+                                key={dayNum}
+                                cx={center}
+                                cy={center}
+                                r={radius}
+                                fill="transparent"
+                                stroke="currentColor"
+                                strokeWidth={strokeWidth}
+                                strokeDasharray={`${segActualLength} ${circumference - segActualLength}`}
+                                strokeDashoffset={-(i * segmentLength)}
+                                className={isCompleted ? color.stroke : isFuture ? 'text-slate-800' : 'text-slate-700'}
+                                style={isCompleted ? { filter: `drop-shadow(0 0 6px ${color.glow})` } : undefined}
+                            />
+                        );
+                    })}
+                </svg>
+
+                {/* Day number labels — separate unrotated SVG so numbers stay upright */}
+                <svg viewBox="0 0 240 240" className="w-full h-full absolute inset-0 pointer-events-none">
+                    {Array.from({ length: daysInMonth }, (_, i) => {
+                        const dayNum = i + 1;
+                        const theta = (i + 0.5) / daysInMonth * 2 * Math.PI;
+                        const x = center + radius * Math.sin(theta);
+                        const y = center - radius * Math.cos(theta);
+                        const isCompleted = completedDaysInMonth.has(dayNum);
+                        const isFuture = dayNum > todayDate;
+                        return (
+                            <text
+                                key={dayNum}
+                                x={x}
+                                y={y}
+                                textAnchor="middle"
+                                dominantBaseline="central"
+                                fill={isCompleted ? 'white' : isFuture ? '#1e293b' : '#475569'}
+                                fontSize="7"
+                                fontWeight={isCompleted ? '700' : '400'}
+                            >
+                                {dayNum}
+                            </text>
+                        );
+                    })}
                 </svg>
 
                 <div className="absolute inset-0 flex items-center justify-center">

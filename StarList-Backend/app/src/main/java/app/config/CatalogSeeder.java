@@ -2,6 +2,7 @@ package app.config;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import model.enums.ItemType;
 import model.enums.RarityLevel;
@@ -38,10 +39,44 @@ public class CatalogSeeder implements ApplicationRunner {
         this.imagesBaseUrl = imagesBaseUrl;
     }
 
+    // Meaningful names and short descriptions keyed by original generic name.
+    private static final Map<String, String[]> CATALOG_DETAILS = Map.ofEntries(
+        // Stars
+        Map.entry("Star 1",    new String[]{ "Solara",    "Ancient yellow dwarf, steady and enduring." }),
+        Map.entry("Star 2",    new String[]{ "Aethon",    "Blazing blue giant, fierce and powerful." }),
+        Map.entry("Star 3",    new String[]{ "Veyra",     "Luminous wanderer, guiding explorers home." }),
+        Map.entry("Star 4",    new String[]{ "Noctis",    "Crimson subgiant, ancient and formidable." }),
+        Map.entry("Star 5",    new String[]{ "Astralis",  "Legendary giant, crown jewel of the galaxy." }),
+        // Planets
+        Map.entry("Planet 1",  new String[]{ "Terranova", "A lush world teeming with life." }),
+        Map.entry("Planet 2",  new String[]{ "Pyraxis",   "A scorched volcanic world of fire." }),
+        Map.entry("Planet 3",  new String[]{ "Glacius",   "A frozen giant in eternal winter." }),
+        Map.entry("Planet 4",  new String[]{ "Verdania",  "Covered in endless emerald forests." }),
+        Map.entry("Planet 5",  new String[]{ "Caelum",    "A serene world of floating islands." }),
+        Map.entry("Planet 6",  new String[]{ "Duskara",   "Shrouded in perpetual twilight." }),
+        Map.entry("Planet 7",  new String[]{ "Aqualis",   "An ocean world with no land in sight." }),
+        Map.entry("Planet 8",  new String[]{ "Umbros",    "A shadowy world far from any star." }),
+        Map.entry("Planet 9",  new String[]{ "Solitus",   "Bathed in golden light all day." }),
+        Map.entry("Planet 10", new String[]{ "Ferrum",    "A dense metallic world rich in ore." }),
+        Map.entry("Planet 11", new String[]{ "Nimbus",    "Wrapped in endless swirling storms." }),
+        Map.entry("Planet 12", new String[]{ "Crestfall", "Where towering mountains never end." }),
+        Map.entry("Planet 13", new String[]{ "Miraxis",   "A mirrored world reflecting the cosmos." }),
+        Map.entry("Planet 14", new String[]{ "Vortexia",  "Caught in a permanent magnetic storm." }),
+        Map.entry("Planet 15", new String[]{ "Aurantis",  "Glowing amber, warmed by twin suns." }),
+        Map.entry("Planet 16", new String[]{ "Nebulos",   "Born from the heart of a nebula." }),
+        Map.entry("Planet 17", new String[]{ "Crystallus","Its surface shimmers like pure crystal." }),
+        Map.entry("Planet 18", new String[]{ "Ignareth",  "A smoldering remnant of a dead star." }),
+        Map.entry("Planet 19", new String[]{ "Aethoria",  "Drifting peacefully at the galaxy's edge." }),
+        Map.entry("Planet 20", new String[]{ "Solanum",   "The final world, mysterious and ancient." }),
+        Map.entry("Planet 21", new String[]{ "Eclipsis",  "Forever caught between light and shadow." }),
+        Map.entry("Planet 22", new String[]{ "Novaris",   "A newborn world still cooling from its birth." })
+    );
+
     @Override
     public void run(ApplicationArguments args) {
         if (itemCatalogRepository.count() > 0) {
-            log.info("CatalogSeeder: catalog already populated, skipping");
+            log.info("CatalogSeeder: catalog already populated, skipping seed — running name patch");
+            patchCatalogDetails();
             return;
         }
 
@@ -51,6 +86,20 @@ public class CatalogSeeder implements ApplicationRunner {
 
         itemCatalogRepository.saveAll(items);
         log.info("CatalogSeeder: seeded {} catalog items", items.size());
+        patchCatalogDetails();
+    }
+
+    private void patchCatalogDetails() {
+        itemCatalogRepository.findAll().forEach(item -> {
+            String[] details = CATALOG_DETAILS.get(item.getItemName());
+            if (details != null) {
+                String originalName = item.getItemName();
+                item.setItemName(details[0]);
+                item.setDescription(details[1]);
+                itemCatalogRepository.save(item);
+                log.info("CatalogSeeder: renamed '{}' → '{}'", originalName, details[0]);
+            }
+        });
     }
 
     private List<ItemCatalogEntity> buildPlanets() {

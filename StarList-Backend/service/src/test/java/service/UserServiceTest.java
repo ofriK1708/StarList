@@ -34,6 +34,7 @@ class UserServiceTest {
 
     @Mock UserRepository userRepository;
     @Mock UserMapper userMapper;
+    @Mock AchievementService achievementService;
 
     @InjectMocks UserService userService;
 

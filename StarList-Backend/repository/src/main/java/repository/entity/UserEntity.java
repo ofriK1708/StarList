@@ -91,4 +91,8 @@ public class UserEntity {
     @Builder.Default
     @OneToMany(mappedBy = "user")
     private List<AiConversationEntity> aiConversations = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "user")
+    private List<AchievementEntity> achievements = new ArrayList<>();
 }
