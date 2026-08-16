@@ -42,4 +42,15 @@ export const authService = {
         const session = await fetchAuthSession();
         return (session.tokens?.idToken?.payload?.sub as string) ?? null;
     },
+
+    /**
+     * Returns the verified email from the current session's idToken,
+     * or null if there is no active session. Used to self-heal a backend
+     * user record that never got created (e.g. createUser failed right
+     * after Cognito confirmation).
+     */
+    getEmail: async (): Promise<string | null> => {
+        const session = await fetchAuthSession();
+        return (session.tokens?.idToken?.payload?.email as string) ?? null;
+    },
 };

@@ -15,5 +15,6 @@ public interface UserMapper {
     @Mapping(target = "galaxyItems", ignore = true)
     @Mapping(target = "coinTransactions", ignore = true)
     @Mapping(target = "aiConversations", ignore = true)
+    @Mapping(target= "achievements", ignore = true)
     UserEntity fromDomain(User user);
 }
