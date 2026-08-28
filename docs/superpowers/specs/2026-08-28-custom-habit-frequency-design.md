@@ -167,7 +167,7 @@ CUSTOM → "{n} period streak"
 ## 4. Validation Rules
 
 - CUSTOM `intervalDays` must be one of {7, 14, 30}; anything else → 400
-- `scheduledDayOfWeek` required when `frequency = WEEKLY`; forbidden otherwise
+- `scheduledDayOfWeek` required when `frequency = WEEKLY` or `frequency = CUSTOM`; forbidden for `DAILY`
 - `scheduledHour` required when `scheduledTimeType = CUSTOM`; ignored otherwise
 - A habit cannot be completed more than once per period (any frequency)
 - Min frequency = once per month (30 days); no interval > 30 supported
