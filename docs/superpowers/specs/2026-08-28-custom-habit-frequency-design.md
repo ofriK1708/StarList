@@ -30,7 +30,7 @@ New nullable columns on the `habits` table (added via Hibernate `update` in dev;
 | `custom_interval_days` | `SMALLINT` | yes | CUSTOM only: 7, 14, or 30 (enforced in service layer) |
 
 **Constraints:**
-- `scheduled_day_of_week` only present when `frequency = WEEKLY`
+- `scheduled_day_of_week` present for both `WEEKLY` and `CUSTOM` (preferred/target day within the period)
 - `custom_interval_days` only present when `frequency = CUSTOM`; values outside {7, 14, 30} rejected with 400
 - `scheduled_hour` only present when `scheduled_time_type = CUSTOM`
 - Time fields are informational — they do not gate completion
@@ -39,6 +39,14 @@ New enum in `model.enums`:
 ```
 ScheduledTimeType { MORNING, AFTERNOON, EVENING, CUSTOM }
 ```
+
+Time-type hour ranges (informational, enforced on the frontend):
+| Value | Range |
+|---|---|
+| `MORNING` | 00:00 – 11:59 |
+| `AFTERNOON` | 12:00 – 16:59 |
+| `EVENING` | 17:00 – 22:59 |
+| `CUSTOM` | specific hour 0–23 stored in `scheduled_hour` |
 
 ---
 
