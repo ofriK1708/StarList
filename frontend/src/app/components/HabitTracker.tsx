@@ -44,50 +44,110 @@ export function HabitTracker({ habits, onHabitCheck, onAddHabitClick, onEditHabi
     );
 }
 
-function HabitRadialCard({ habit, onCheck, onEdit, onDelete, index }: { habit: HabitResponse; onCheck: () => void; onEdit: () => void; onDelete: () => void; index: number }) {
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const todayDate = now.getDate();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const isCompletedToday = Boolean(habit.lastCompletedDate && habit.lastCompletedDate.startsWith(todayStr));
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+/** Returns true when the current period has already been completed. */
+function isCurrentPeriodDone(habit: HabitResponse): boolean {
+    if (!habit.lastCompletedDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const last = new Date(habit.lastCompletedDate + "T00:00:00");
 
-    // Work out which days of this month are part of the current streak
-    const completedDaysInMonth = new Set<number>();
-    if (habit.lastCompletedDate && habit.currentStreak > 0) {
-        const lastCompleted = new Date(habit.lastCompletedDate + 'T00:00:00');
-        const monthStart = new Date(currentYear, currentMonth, 1);
-        for (let i = 0; i < habit.currentStreak; i++) {
-            const d = new Date(lastCompleted);
-            d.setDate(d.getDate() - i);
-            if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
-                completedDaysInMonth.add(d.getDate());
-            } else if (d < monthStart) {
-                break;
-            }
+    switch (habit.frequency) {
+        case "DAILY":
+            return habit.lastCompletedDate === new Date().toISOString().split("T")[0];
+
+        case "WEEKLY": {
+            // Monday of the current ISO week
+            const dow = today.getDay(); // 0=Sun
+            const offsetToMon = dow === 0 ? -6 : 1 - dow;
+            const monday = new Date(today);
+            monday.setDate(today.getDate() + offsetToMon);
+            return last >= monday;
+        }
+
+        case "CUSTOM": {
+            // lastCompletedDate is within the last customIntervalDays window
+            const interval = habit.customIntervalDays ?? 30;
+            const windowStart = new Date(today);
+            windowStart.setDate(today.getDate() - interval + 1);
+            return last >= windowStart;
         }
     }
+}
 
+/** Derives a label for each radial segment based on frequency. */
+function segmentLabel(frequency: HabitResponse["frequency"], index: number): string {
+    switch (frequency) {
+        case "DAILY":   return String(index + 1);
+        case "WEEKLY":  return `W${index + 1}`;
+        case "CUSTOM":  return `P${index + 1}`;
+    }
+}
+
+/** Label shown in the center button when the period is already done. */
+function doneLabelFor(frequency: HabitResponse["frequency"]): string {
+    switch (frequency) {
+        case "DAILY":  return "Day Logged";
+        case "WEEKLY": return "Week Logged";
+        case "CUSTOM": return "Period Logged";
+    }
+}
+
+// ── HabitRadialCard ────────────────────────────────────────────────────────────
+
+const CARD_COLORS = [
+    { stroke: "text-blue-400",    glow: "rgba(96, 165, 250, 0.5)",  bg: "bg-blue-400"    },
+    { stroke: "text-purple-400",  glow: "rgba(192, 132, 252, 0.5)", bg: "bg-purple-400"  },
+    { stroke: "text-emerald-400", glow: "rgba(52, 211, 153, 0.5)",  bg: "bg-emerald-400" },
+    { stroke: "text-orange-400",  glow: "rgba(251, 146, 60, 0.5)",  bg: "bg-orange-400"  },
+];
+
+function HabitRadialCard({
+    habit,
+    onCheck,
+    onEdit,
+    onDelete,
+    index,
+}: {
+    habit: HabitResponse;
+    onCheck: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
+    index: number;
+}) {
+    const color = CARD_COLORS[index % CARD_COLORS.length];
+    const isDone = isCurrentPeriodDone(habit);
+
+    // monthCompletions drives the segment count; fall back to days-in-month for bare DAILY habits.
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const completions: Array<"DONE" | "MISSED" | "NA"> =
+        habit.monthCompletions && habit.monthCompletions.length > 0
+            ? (habit.monthCompletions as Array<"DONE" | "MISSED" | "NA">)
+            : Array.from({ length: daysInMonth }, (_, i) => {
+                  // Fallback for when monthCompletions isn't returned (e.g. after a mutation)
+                  const dayNum = i + 1;
+                  const todayNum = now.getDate();
+                  if (dayNum > todayNum) return "NA";
+                  if (dayNum === todayNum) return isDone ? "DONE" : "NA";
+                  return "MISSED";
+              });
+
+    const segCount = completions.length;
     const radius = 90;
     const center = 120;
     const circumference = 2 * Math.PI * radius;
-    const segmentLength = circumference / daysInMonth;
-    const gap = 4;
-    const strokeWidth = 12;
+    const segLen = circumference / segCount;
+    const gap = segCount <= 6 ? 8 : segCount <= 12 ? 6 : 4;
+    const strokeWidth = segCount <= 6 ? 16 : 12;
 
-    const colors = [
-        { stroke: 'text-blue-400', glow: 'rgba(96, 165, 250, 0.5)', bg: 'bg-blue-400' },
-        { stroke: 'text-purple-400', glow: 'rgba(192, 132, 252, 0.5)', bg: 'bg-purple-400' },
-        { stroke: 'text-emerald-400', glow: 'rgba(52, 211, 153, 0.5)', bg: 'bg-emerald-400' },
-        { stroke: 'text-orange-400', glow: 'rgba(251, 146, 60, 0.5)', bg: 'bg-orange-400' },
-    ];
-    const color = colors[index % colors.length];
+    const streakUnit = habit.streakUnit ?? "day";
 
     return (
         <div className="bg-slate-800/40 border border-slate-700/50 rounded-[2.5rem] p-8 flex flex-col items-center group hover:bg-slate-800/60 transition-all duration-300 relative overflow-hidden">
 
+            {/* ── Edit / Delete buttons (hover) ── */}
             <div className="absolute top-6 left-6 flex gap-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                     onClick={(e) => { e.stopPropagation(); onEdit(); }}
@@ -105,83 +165,100 @@ function HabitRadialCard({ habit, onCheck, onEdit, onDelete, index }: { habit: H
                 </button>
             </div>
 
+            {/* ── Title + streak ── */}
             <div className="text-center mb-6 z-10">
                 <h3 className="text-xl font-bold text-white group-hover:text-blue-200 transition-colors">{habit.title}</h3>
                 <div className="flex items-center justify-center gap-1.5 text-orange-400 text-sm mt-1 font-medium">
                     <Flame className="w-4 h-4 fill-orange-400/20" />
-                    <span>{habit.currentStreak} day streak</span>
+                    <span>{habit.currentStreak} {streakUnit} streak</span>
                 </div>
             </div>
 
+            {/* ── Radial ring ── */}
             <div className="relative w-64 h-64 flex items-center justify-center z-10 my-4">
-                {/* One arc segment per day of the month */}
+
+                {/* Arcs — one per period */}
                 <svg viewBox="0 0 240 240" className="w-full h-full transform -rotate-90 drop-shadow-2xl">
-                    {Array.from({ length: daysInMonth }, (_, i) => {
-                        const dayNum = i + 1;
-                        const isCompleted = completedDaysInMonth.has(dayNum);
-                        const isFuture = dayNum > todayDate;
-                        const segActualLength = segmentLength - gap;
+                    {completions.map((status, i) => {
+                        const segActual = segLen - gap;
+                        let strokeClass: string;
+                        let glowStyle: React.CSSProperties | undefined;
+                        if (status === "DONE") {
+                            strokeClass = color.stroke;
+                            glowStyle = { filter: `drop-shadow(0 0 6px ${color.glow})` };
+                        } else if (status === "MISSED") {
+                            strokeClass = "text-rose-900";
+                            glowStyle = undefined;
+                        } else {
+                            strokeClass = "text-slate-800";
+                            glowStyle = undefined;
+                        }
                         return (
                             <circle
-                                key={dayNum}
+                                key={i}
                                 cx={center}
                                 cy={center}
                                 r={radius}
                                 fill="transparent"
                                 stroke="currentColor"
                                 strokeWidth={strokeWidth}
-                                strokeDasharray={`${segActualLength} ${circumference - segActualLength}`}
-                                strokeDashoffset={-(i * segmentLength)}
-                                className={isCompleted ? color.stroke : isFuture ? 'text-slate-800' : 'text-slate-700'}
-                                style={isCompleted ? { filter: `drop-shadow(0 0 6px ${color.glow})` } : undefined}
+                                strokeDasharray={`${segActual} ${circumference - segActual}`}
+                                strokeDashoffset={-(i * segLen)}
+                                className={strokeClass}
+                                style={glowStyle}
                             />
                         );
                     })}
                 </svg>
 
-                {/* Day number labels — separate unrotated SVG so numbers stay upright */}
+                {/* Segment labels — unrotated overlay */}
                 <svg viewBox="0 0 240 240" className="w-full h-full absolute inset-0 pointer-events-none">
-                    {Array.from({ length: daysInMonth }, (_, i) => {
-                        const dayNum = i + 1;
-                        const theta = (i + 0.5) / daysInMonth * 2 * Math.PI;
+                    {completions.map((status, i) => {
+                        const theta = (i + 0.5) / segCount * 2 * Math.PI;
                         const x = center + radius * Math.sin(theta);
                         const y = center - radius * Math.cos(theta);
-                        const isCompleted = completedDaysInMonth.has(dayNum);
-                        const isFuture = dayNum > todayDate;
+                        const fill =
+                            status === "DONE"   ? "white"   :
+                            status === "MISSED" ? "#881337" :
+                                                  "#1e293b";
+                        const label = segmentLabel(habit.frequency, i);
+                        // Show labels only when segments are large enough to read
+                        const minSegForLabel = 8;
+                        if (segCount > 31 || (segCount > minSegForLabel && label.length > 2)) return null;
                         return (
                             <text
-                                key={dayNum}
+                                key={i}
                                 x={x}
                                 y={y}
                                 textAnchor="middle"
                                 dominantBaseline="central"
-                                fill={isCompleted ? 'white' : isFuture ? '#1e293b' : '#475569'}
-                                fontSize="7"
-                                fontWeight={isCompleted ? '700' : '400'}
+                                fill={fill}
+                                fontSize={segCount <= 6 ? "9" : segCount <= 12 ? "8" : "7"}
+                                fontWeight={status === "DONE" ? "700" : "400"}
                             >
-                                {dayNum}
+                                {label}
                             </text>
                         );
                     })}
                 </svg>
 
+                {/* Center complete button */}
                 <div className="absolute inset-0 flex items-center justify-center">
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onCheck();
-                        }}
-                        disabled={isCompletedToday}
+                        onClick={(e) => { e.stopPropagation(); onCheck(); }}
+                        disabled={isDone}
                         className={`w-32 h-32 rounded-full flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${
-                            isCompletedToday
-                                ? 'bg-transparent text-green-400 cursor-default'
-                                : 'bg-slate-900 text-white hover:scale-105 border border-slate-700 hover:border-slate-500 shadow-2xl'
+                            isDone
+                                ? "bg-transparent text-green-400 cursor-default"
+                                : "bg-slate-900 text-white hover:scale-105 border border-slate-700 hover:border-slate-500 shadow-2xl"
                         }`}
                     >
-                        {isCompletedToday ? (
+                        {isDone ? (
                             <>
                                 <Check className="w-12 h-12 animate-in zoom-in" />
-                                <span className="text-[11px] mt-2 uppercase font-black tracking-tighter">Day Logged</span>
+                                <span className="text-[11px] mt-2 uppercase font-black tracking-tighter">
+                                    {doneLabelFor(habit.frequency)}
+                                </span>
                             </>
                         ) : (
                             <>
@@ -193,10 +270,12 @@ function HabitRadialCard({ habit, onCheck, onEdit, onDelete, index }: { habit: H
                 </div>
             </div>
 
+            {/* Coin reward badge */}
             <div className="absolute top-6 right-8 flex items-center gap-1 opacity-40">
                 <span className="text-xs font-bold text-yellow-500">+{habit.coinReward}</span>
             </div>
 
+            {/* Background glow */}
             <div className={`absolute -bottom-10 -left-10 w-40 h-40 rounded-full blur-[80px] opacity-10 ${color.bg}`} />
         </div>
     );
