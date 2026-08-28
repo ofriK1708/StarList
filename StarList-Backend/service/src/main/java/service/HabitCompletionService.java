@@ -30,6 +30,11 @@ public class HabitCompletionService {
         return habitCompletionRepository.existsByHabit_IdAndCompletedDate(habitId, LocalDate.now());
     }
 
+    /** Returns true if the habit has any completion record in the inclusive date range [{@code start}, {@code end}]. */
+    public boolean existsForPeriod(Long habitId, LocalDate start, LocalDate end) {
+        return habitCompletionRepository.existsByHabit_IdAndCompletedDateBetween(habitId, start, end);
+    }
+
     /**
      * Returns a map of habitId → set of completed dates within the given month.
      * Queries only the supplied habit IDs in a single DB call.
