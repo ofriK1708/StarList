@@ -98,16 +98,13 @@ public class HabitService {
     public HabitResponse getHabit(Long habitId, YearMonth yearMonth) {
         log.info("About to get habit {} for {}", habitId, yearMonth);
 
-        Habit habit = habitMapper.toDomain(loadActiveHabit(habitId));
+        HabitEntity entity = loadActiveHabit(habitId);
         Map<Long, Set<LocalDate>> completionsMap =
                 habitCompletionService.getCompletedDatesForHabits(List.of(habitId), yearMonth);
-        LocalDate habitCreatedDate = habit.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate();
 
-        return HabitResponse.from(habit,
-                buildMonthCompletions(
-                        completionsMap.getOrDefault(habitId, Collections.emptySet()),
-                        yearMonth,
-                        habitCreatedDate));
+        return HabitResponse.from(
+                habitMapper.toDomain(entity),
+                buildMonthCompletions(completionsMap.getOrDefault(habitId, Collections.emptySet()), yearMonth, entity));
     }
 
     @Transactional(readOnly = true)
@@ -120,13 +117,12 @@ public class HabitService {
                 habitCompletionService.getCompletedDatesForHabits(habitIds, yearMonth);
 
         return entities.stream()
-                .map(habitMapper::toDomain)
-                .map(habit -> HabitResponse
-                        .from(habit,
-                                buildMonthCompletions(
-                                        completionsMap.getOrDefault(habit.getId(), Collections.emptySet()),
-                                        yearMonth,
-                                        habit.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate())))
+                .map(entity -> HabitResponse.from(
+                        habitMapper.toDomain(entity),
+                        buildMonthCompletions(
+                                completionsMap.getOrDefault(entity.getId(), Collections.emptySet()),
+                                yearMonth,
+                                entity)))
                 .toList();
     }
 
@@ -284,38 +280,42 @@ public class HabitService {
     }
 
     /**
-     * Builds a per-day {@link CompletionStatus} array for the given month.
+     * Builds a per-period {@link CompletionStatus} list for the given month, driven by the habit's frequency.
+     *
+     * <p>Periods are determined by {@link HabitPeriodCalculator#periodsForMonth}: one slot per expected completion
+     * (one per day for DAILY, one per scheduled-day-of-week for WEEKLY, one per interval window for CUSTOM).
+     * The length of the returned list equals the number of radial segments shown on the frontend.
      *
      * <ul>
-     *   <li>{@code DONE} — day is in the past or today, on/after {@code habitCreatedDate}, and appears in {@code
-     *   completedDates}</li>
-     *   <li>{@code MISSED} — day is in the past, on/after {@code habitCreatedDate}, and not in {@code completedDates
-     *   }</li>
-     *   <li>{@code NA} — day is today and not marked yet, OR in the future, OR before the habit was created</li>
+     *   <li>{@code DONE} — at least one completion date falls within {@code [periodStart, periodEnd]}</li>
+     *   <li>{@code MISSED} — period has fully elapsed ({@code periodEnd < today}), habit existed by then, and no
+     *   completion recorded</li>
+     *   <li>{@code NA} — period hasn't started yet, period is still ongoing, or the habit hadn't been created by
+     *   {@code periodStart}</li>
      * </ul>
      */
     private List<CompletionStatus> buildMonthCompletions(
-            Set<LocalDate> completedDates, YearMonth yearMonth, LocalDate habitCreatedDate) {
+            Set<LocalDate> completedDates, YearMonth yearMonth, HabitEntity entity) {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        log.debug("Building month completions for {}: habitCreatedDate={}, today={}, completedDates={}",
-                yearMonth, habitCreatedDate, today, completedDates);
-        List<CompletionStatus> result = new ArrayList<>(yearMonth.lengthOfMonth());
-        for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
-            LocalDate date = yearMonth.atDay(day);
-            if (date.isAfter(today) || date.isBefore(habitCreatedDate)) {
+        LocalDate habitCreatedDate = entity.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate();
+        List<LocalDate[]> periods = habitPeriodCalculator.periodsForMonth(entity, yearMonth);
+        log.debug("Building month completions for {}: frequency={}, periods={}, completedDates={}",
+                yearMonth, entity.getFrequency(), periods.size(), completedDates);
+        List<CompletionStatus> result = new ArrayList<>(periods.size());
+        for (LocalDate[] period : periods) {
+            LocalDate periodStart = period[0];
+            LocalDate periodEnd = period[1];
+            if (periodStart.isBefore(habitCreatedDate) || periodStart.isAfter(today)) {
                 result.add(CompletionStatus.NA);
-                log.debug("Date {} is {}, marking as NA", date,
-                        date.isAfter(today) ? "in the future" : "before habit creation");
-            } else if (completedDates.contains(date)) {
-                result.add(CompletionStatus.DONE);
-                log.debug("Date {} is in completedDates, marking as DONE", date);
             } else {
-                if (date.isEqual(today)) {
-                    result.add(CompletionStatus.NA);
-                    log.debug("Date {} is today, not in completedDates yet, marking as NA", date);
-                } else {
+                boolean done = completedDates.stream()
+                        .anyMatch(d -> !d.isBefore(periodStart) && !d.isAfter(periodEnd));
+                if (done) {
+                    result.add(CompletionStatus.DONE);
+                } else if (periodEnd.isBefore(today)) {
                     result.add(CompletionStatus.MISSED);
-                    log.debug("Date {} is not in completedDates, marking as MISSED", date);
+                } else {
+                    result.add(CompletionStatus.NA);
                 }
             }
         }
