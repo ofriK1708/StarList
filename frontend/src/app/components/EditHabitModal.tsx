@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Edit2, Check } from "lucide-react";
-import { HabitResponse, UpdateHabitRequest, DifficultyLevel, HabitFrequency } from "@/services/habitsApi.ts";
+import { HabitResponse, UpdateHabitRequest, DifficultyLevel } from "@/services/habitsApi.ts";
+import { FrequencyConfig, FrequencyConfigSection } from "./FrequencyConfigSection.tsx";
 
 interface EditHabitModalProps {
     isOpen: boolean;
@@ -9,29 +10,58 @@ interface EditHabitModalProps {
     onUpdate: (habitId: number, habitData: UpdateHabitRequest) => void;
 }
 
+function habitToFreqConfig(habit: HabitResponse): FrequencyConfig {
+    return {
+        frequency: habit.frequency,
+        scheduledDayOfWeek: habit.scheduledDayOfWeek,
+        scheduledTimeType: habit.scheduledTimeType,
+        scheduledHour: habit.scheduledHour,
+        customIntervalDays: (habit.customIntervalDays as 7 | 14 | 30 | null) ?? null,
+    };
+}
+
 export function EditHabitModal({ isOpen, onClose, habitToEdit, onUpdate }: EditHabitModalProps) {
     const [title, setTitle] = useState("");
-    const [difficulty, setDifficulty] = useState<DifficultyLevel>('MEDIUM');
-    const [frequency, setFrequency] = useState<HabitFrequency>('DAILY');
+    const [difficulty, setDifficulty] = useState<DifficultyLevel>("MEDIUM");
+    const [freqConfig, setFreqConfig] = useState<FrequencyConfig>({
+        frequency: "DAILY",
+        scheduledDayOfWeek: null,
+        scheduledTimeType: null,
+        scheduledHour: null,
+        customIntervalDays: null,
+    });
 
     useEffect(() => {
         if (habitToEdit) {
             setTitle(habitToEdit.title);
             setDifficulty(habitToEdit.difficultyLevel);
-            setFrequency(habitToEdit.frequency);
+            setFreqConfig(habitToFreqConfig(habitToEdit));
         }
     }, [habitToEdit]);
 
     if (!isOpen || !habitToEdit) return null;
 
+    const isValid = () => {
+        if (!title.trim()) return false;
+        if (freqConfig.frequency === "WEEKLY" || freqConfig.frequency === "CUSTOM") {
+            if (!freqConfig.scheduledDayOfWeek) return false;
+        }
+        if (freqConfig.frequency === "CUSTOM" && !freqConfig.customIntervalDays) return false;
+        return true;
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim()) return;
+        if (!isValid()) return;
 
         onUpdate(habitToEdit.habitId, {
             title,
             difficultyLevel: difficulty,
-            frequency: frequency
+            frequency: freqConfig.frequency,
+            scheduledDayOfWeek: freqConfig.scheduledDayOfWeek ?? undefined,
+            scheduledTimeType: freqConfig.scheduledTimeType ?? undefined,
+            scheduledHour: freqConfig.scheduledHour ?? undefined,
+            customIntervalDays: freqConfig.customIntervalDays ?? undefined,
         });
     };
 
@@ -60,38 +90,34 @@ export function EditHabitModal({ isOpen, onClose, habitToEdit, onUpdate }: EditH
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm text-slate-300 mb-1">Difficulty</label>
-                            <select
-                                value={difficulty}
-                                onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
-                                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
-                            >
-                                <option value="EASY">Easy</option>
-                                <option value="MEDIUM">Medium</option>
-                                <option value="HARD">Hard</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm text-slate-300 mb-1">Frequency</label>
-                            <select
-                                value={frequency}
-                                onChange={(e) => setFrequency(e.target.value as HabitFrequency)}
-                                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
-                            >
-                                <option value="DAILY">Daily</option>
-                                <option value="WEEKLY">Weekly</option>
-                                <option value="CUSTOM">Custom</option>
-                            </select>
-                        </div>
+                    <div>
+                        <label className="block text-sm text-slate-300 mb-1">Difficulty</label>
+                        <select
+                            value={difficulty}
+                            onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
+                            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
+                        >
+                            <option value="EASY">Easy</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="HARD">Hard</option>
+                        </select>
                     </div>
 
-                    <div className="pt-4 flex gap-3">
-                        <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg font-medium bg-slate-700 hover:bg-slate-600 text-white transition-colors">
+                    <FrequencyConfigSection value={freqConfig} onChange={setFreqConfig} />
+
+                    <div className="pt-2 flex gap-3">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 py-2 rounded-lg font-medium bg-slate-700 hover:bg-slate-600 text-white transition-colors"
+                        >
                             Cancel
                         </button>
-                        <button type="submit" className="flex-1 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 transition-colors">
+                        <button
+                            type="submit"
+                            disabled={!isValid()}
+                            className="flex-1 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center gap-2 transition-colors"
+                        >
                             <Check className="w-4 h-4" />
                             Save Changes
                         </button>

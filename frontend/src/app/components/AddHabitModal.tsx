@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Flame, Plus } from "lucide-react";
 import { AddHabitRequest, DifficultyLevel } from "@/services/habitsApi.ts";
+import { FrequencyConfig, FrequencyConfigSection } from "./FrequencyConfigSection.tsx";
 
 interface AddHabitModalProps {
     isOpen: boolean;
@@ -8,24 +9,47 @@ interface AddHabitModalProps {
     onAdd: (habitData: AddHabitRequest) => void;
 }
 
+const DEFAULT_FREQ_CONFIG: FrequencyConfig = {
+    frequency: "DAILY",
+    scheduledDayOfWeek: null,
+    scheduledTimeType: null,
+    scheduledHour: null,
+    customIntervalDays: null,
+};
+
 export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
     const [title, setTitle] = useState("");
-    const [difficulty, setDifficulty] = useState<DifficultyLevel>('MEDIUM');
+    const [difficulty, setDifficulty] = useState<DifficultyLevel>("MEDIUM");
+    const [freqConfig, setFreqConfig] = useState<FrequencyConfig>(DEFAULT_FREQ_CONFIG);
 
     if (!isOpen) return null;
 
+    const isValid = () => {
+        if (!title.trim()) return false;
+        if (freqConfig.frequency === "WEEKLY" || freqConfig.frequency === "CUSTOM") {
+            if (!freqConfig.scheduledDayOfWeek) return false;
+        }
+        if (freqConfig.frequency === "CUSTOM" && !freqConfig.customIntervalDays) return false;
+        return true;
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim()) return;
+        if (!isValid()) return;
 
         onAdd({
             title,
             difficultyLevel: difficulty,
-            frequency: 'DAILY'
+            frequency: freqConfig.frequency,
+            scheduledDayOfWeek: freqConfig.scheduledDayOfWeek ?? undefined,
+            scheduledTimeType: freqConfig.scheduledTimeType ?? undefined,
+            scheduledHour: freqConfig.scheduledHour ?? undefined,
+            customIntervalDays: freqConfig.customIntervalDays ?? undefined,
         });
 
         setTitle("");
         setDifficulty("MEDIUM");
+        setFreqConfig(DEFAULT_FREQ_CONFIG);
     };
 
     return (
@@ -54,32 +78,34 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm text-slate-300 mb-1">Difficulty</label>
-                            <select
-                                value={difficulty}
-                                onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
-                                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
-                            >
-                                <option value="EASY">Easy</option>
-                                <option value="MEDIUM">Medium</option>
-                                <option value="HARD">Hard</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm text-slate-300 mb-1">Frequency</label>
-                            <div className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-400 cursor-not-allowed">
-                                Daily
-                            </div>
-                        </div>
+                    <div>
+                        <label className="block text-sm text-slate-300 mb-1">Difficulty</label>
+                        <select
+                            value={difficulty}
+                            onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
+                            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
+                        >
+                            <option value="EASY">Easy</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="HARD">Hard</option>
+                        </select>
                     </div>
 
-                    <div className="pt-4 flex gap-3">
-                        <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg font-medium bg-slate-700 hover:bg-slate-600 text-white transition-colors">
+                    <FrequencyConfigSection value={freqConfig} onChange={setFreqConfig} />
+
+                    <div className="pt-2 flex gap-3">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 py-2 rounded-lg font-medium bg-slate-700 hover:bg-slate-600 text-white transition-colors"
+                        >
                             Cancel
                         </button>
-                        <button type="submit" className="flex-1 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 transition-colors">
+                        <button
+                            type="submit"
+                            disabled={!isValid()}
+                            className="flex-1 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center gap-2 transition-colors"
+                        >
                             <Plus className="w-4 h-4" />
                             Add Habit
                         </button>
