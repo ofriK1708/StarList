@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import model.domain.Habit;
 import model.enums.CompletionStatus;
 import model.enums.DifficultyLevel;
+import model.enums.HabitFrequency;
 import model.enums.ReferenceType;
 import model.enums.TransactionType;
 import org.jspecify.annotations.NonNull;
@@ -43,10 +44,12 @@ public class HabitService {
     private final HabitRepository habitRepository;
     private final HabitMapper habitMapper;
     private final CoinCalculator coinCalculator;
+    private final HabitPeriodCalculator habitPeriodCalculator;
 
     public HabitService(UserService userService, HabitCompletionService habitCompletionService,
                         CoinTransactionService coinTransactionService, AchievementService achievementService,
-                        HabitRepository habitRepository, HabitMapper habitMapper, CoinCalculator coinCalculator) {
+                        HabitRepository habitRepository, HabitMapper habitMapper, CoinCalculator coinCalculator,
+                        HabitPeriodCalculator habitPeriodCalculator) {
         this.userService = userService;
         this.habitCompletionService = habitCompletionService;
         this.coinTransactionService = coinTransactionService;
@@ -54,6 +57,7 @@ public class HabitService {
         this.habitRepository = habitRepository;
         this.habitMapper = habitMapper;
         this.coinCalculator = coinCalculator;
+        this.habitPeriodCalculator = habitPeriodCalculator;
     }
 
     @Transactional
@@ -61,6 +65,8 @@ public class HabitService {
         log.info("About to add habit for user {}", userId);
 
         UserEntity userEntity = userService.findEntityById(userId);
+
+        validateFrequencyConfig(request.frequency(), request.scheduledDayOfWeek(), request.customIntervalDays());
 
         int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
         log.debug("Computed coins for {}: reward={}, penalty={}", request.difficultyLevel(), coins[0], coins[1]);
@@ -70,6 +76,10 @@ public class HabitService {
                 .title(request.title())
                 .description(request.description())
                 .frequency(request.frequency())
+                .scheduledDayOfWeek(request.scheduledDayOfWeek())
+                .scheduledTimeType(request.scheduledTimeType())
+                .scheduledHour(request.scheduledHour())
+                .customIntervalDays(request.customIntervalDays())
                 .difficultyLevel(request.difficultyLevel())
                 .coinReward(coins[0])
                 .coinPenalty(coins[1])
@@ -137,6 +147,10 @@ public class HabitService {
         if (request.description() != null) entity.setDescription(request.description());
         if (request.frequency() != null) entity.setFrequency(request.frequency());
         if (request.difficultyLevel() != null) entity.setDifficultyLevel(request.difficultyLevel());
+        if (request.scheduledDayOfWeek() != null) entity.setScheduledDayOfWeek(request.scheduledDayOfWeek());
+        if (request.scheduledTimeType() != null) entity.setScheduledTimeType(request.scheduledTimeType());
+        if (request.scheduledHour() != null) entity.setScheduledHour(request.scheduledHour());
+        if (request.customIntervalDays() != null) entity.setCustomIntervalDays(request.customIntervalDays());
 
         if (difficultyChanged) {
             int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
@@ -167,23 +181,33 @@ public class HabitService {
         log.info("About to complete habit {}", habitId);
 
         HabitEntity entity = loadActiveHabit(habitId);
+        LocalDate today = LocalDate.now();
+        LocalDate[] period = habitPeriodCalculator.currentPeriod(entity, today);
+        LocalDate periodStart = period[0];
+        LocalDate periodEnd = period[1];
 
-        if (habitCompletionService.existsToday(habitId)) {
+        boolean alreadyDone = entity.getFrequency() == HabitFrequency.DAILY
+                ? habitCompletionService.existsToday(habitId)
+                : habitCompletionService.existsForPeriod(habitId, periodStart, periodEnd);
+
+        if (alreadyDone) {
             throw new HabitAlreadyCompletedTodayException(habitId);
         }
 
-        LocalDate today = LocalDate.now();
-
+        boolean late = habitPeriodCalculator.isLateCompletion(entity, today);
         int oldBestStreak = entity.getBestStreak();
-        int newStreak = today.minusDays(1).equals(entity.getLastCompletedDate()) ?
+        int newStreak = isStreakContinued(entity, today, periodStart) ?
                 entity.getCurrentStreak() + 1 : 1;
         int newBestStreak = Math.max(newStreak, oldBestStreak);
 
-        int coinsEarned = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
-        log.debug("Habit {} '{}' completed: streak {} -> {}, best={}, coins={}",
-                habitId, entity.getTitle(), entity.getCurrentStreak(), newStreak, newBestStreak, coinsEarned);
-        UserEntity user = entity.getUser();
+        int baseCoins = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
+        int penalty = late ? (entity.getCoinPenalty() != null ? entity.getCoinPenalty() : 0) : 0;
+        int coinsEarned = Math.max(0, baseCoins - penalty);
 
+        log.debug("Habit {} '{}' completed: streak {} -> {}, best={}, late={}, coins={}",
+                habitId, entity.getTitle(), entity.getCurrentStreak(), newStreak, newBestStreak, late, coinsEarned);
+
+        UserEntity user = entity.getUser();
         try {
             habitCompletionService.record(entity, user, today, coinsEarned, newStreak);
         } catch (DataIntegrityViolationException e) {
@@ -207,6 +231,46 @@ public class HabitService {
                 .currentStreak(newStreak)
                 .bestStreak(newBestStreak)
                 .build();
+    }
+
+    /**
+     * Returns true if the user's last completion falls within the period immediately preceding the current one.
+     *
+     * <ul>
+     *   <li>DAILY — last completed yesterday</li>
+     *   <li>WEEKLY — last completed anywhere in the previous ISO week</li>
+     *   <li>CUSTOM — last completed within the period ending the day before the current period starts</li>
+     * </ul>
+     */
+    private boolean isStreakContinued(HabitEntity entity, LocalDate today, LocalDate currentPeriodStart) {
+        LocalDate last = entity.getLastCompletedDate();
+        if (last == null) return false;
+        return switch (entity.getFrequency()) {
+            case DAILY -> today.minusDays(1).equals(last);
+            case WEEKLY -> {
+                LocalDate prevWeekStart = currentPeriodStart.minusWeeks(1);
+                LocalDate prevWeekEnd = currentPeriodStart.minusDays(1);
+                yield !last.isBefore(prevWeekStart) && !last.isAfter(prevWeekEnd);
+            }
+            case CUSTOM -> {
+                LocalDate prevPeriodEnd = currentPeriodStart.minusDays(1);
+                LocalDate prevPeriodStart = prevPeriodEnd.minusDays(entity.getCustomIntervalDays() - 1);
+                yield !last.isBefore(prevPeriodStart) && !last.isAfter(prevPeriodEnd);
+            }
+        };
+    }
+
+    private void validateFrequencyConfig(HabitFrequency frequency, Integer scheduledDayOfWeek, Integer customIntervalDays) {
+        if (frequency == HabitFrequency.WEEKLY || frequency == HabitFrequency.CUSTOM) {
+            if (scheduledDayOfWeek == null || scheduledDayOfWeek < 1 || scheduledDayOfWeek > 7) {
+                throw new IllegalArgumentException("scheduledDayOfWeek (1–7) is required for WEEKLY and CUSTOM habits");
+            }
+        }
+        if (frequency == HabitFrequency.CUSTOM) {
+            if (customIntervalDays == null || (customIntervalDays != 7 && customIntervalDays != 14 && customIntervalDays != 30)) {
+                throw new IllegalArgumentException("customIntervalDays must be 7, 14, or 30");
+            }
+        }
     }
 
     @Transactional
