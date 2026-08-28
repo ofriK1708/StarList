@@ -288,11 +288,15 @@ public class HabitService {
      *
      * <ul>
      *   <li>{@code DONE} — at least one completion date falls within {@code [periodStart, periodEnd]}</li>
-     *   <li>{@code MISSED} — period has fully elapsed ({@code periodEnd < today}), habit existed by then, and no
-     *   completion recorded</li>
-     *   <li>{@code NA} — period hasn't started yet, period is still ongoing, or the habit hadn't been created by
-     *   {@code periodStart}</li>
+     *   <li>{@code MISSED} — period has fully elapsed ({@code periodEnd < today}), habit existed before the
+     *   period ended, and no completion recorded</li>
+     *   <li>{@code NA} — period hasn't started yet, period is still ongoing, or the habit was created after
+     *   the period already ended</li>
      * </ul>
+     *
+     * <p>Note: for WEEKLY habits the period window starts on Monday but the habit may be created mid-week.
+     * We use {@code periodEnd} (not {@code periodStart}) for the creation-date guard so that mid-week creation
+     * still allows the current period to be completed and counted.
      */
     private List<CompletionStatus> buildMonthCompletions(
             Set<LocalDate> completedDates, YearMonth yearMonth, HabitEntity entity) {
@@ -305,7 +309,8 @@ public class HabitService {
         for (LocalDate[] period : periods) {
             LocalDate periodStart = period[0];
             LocalDate periodEnd = period[1];
-            if (periodStart.isBefore(habitCreatedDate) || periodStart.isAfter(today)) {
+            // Skip if the period ended before the habit existed, or hasn't started yet (future)
+            if (periodEnd.isBefore(habitCreatedDate) || periodStart.isAfter(today)) {
                 result.add(CompletionStatus.NA);
             } else {
                 boolean done = completedDates.stream()
