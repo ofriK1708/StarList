@@ -220,10 +220,18 @@ function MainApp() {
   const [isEditHabitModalOpen, setIsEditHabitModalOpen] = useState(false);
   const [habitToEdit, setHabitToEdit] = useState<HabitResponse | null>(null);
 
+  /** Re-fetches the full habit list so monthCompletions is always fresh. */
+  const refreshHabits = async () => {
+    const updated = await habitsApi.getHabits();
+    setHabits(updated);
+  };
+
   const handleHabitCheck = async (habitId: number) => {
     try {
       const response = await habitsApi.completeHabit(habitId);
       setLocalCoins(response.newTotalCoins);
+      // Optimistic streak/date update so the button disables immediately,
+      // then refresh to get the correct monthCompletions for the ring.
       setHabits(habits.map(habit => {
         if (habit.habitId === habitId) {
           const today = new Date().toISOString().split('T')[0];
@@ -233,6 +241,7 @@ function MainApp() {
       }));
       triggerConfetti();
       showToast(`Habit Logged! +${response.coinsEarned} coins`);
+      await refreshHabits();
     } catch (error) {
       showToast("Error", "error");
     }
@@ -240,9 +249,9 @@ function MainApp() {
 
   const handleAddHabit = async (habitData: AddHabitRequest) => {
     try {
-      const newHabit = await habitsApi.createHabit(habitData);
-      setHabits([newHabit, ...habits]);
+      await habitsApi.createHabit(habitData);
       setIsAddHabitModalOpen(false);
+      await refreshHabits();
     } catch (error) {
       console.error(error);
     }
@@ -250,9 +259,9 @@ function MainApp() {
 
   const handleUpdateHabit = async (habitId: number, data: UpdateHabitRequest) => {
     try {
-      const updatedHabit = await habitsApi.updateHabit(habitId, data);
-      setHabits(habits.map(habit => habit.habitId === habitId ? { ...habit, ...updatedHabit } : habit));
+      await habitsApi.updateHabit(habitId, data);
       setIsEditHabitModalOpen(false);
+      await refreshHabits();
     } catch (error) {
       console.error(error);
     }
