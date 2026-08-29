@@ -426,7 +426,13 @@ function MainApp() {
         <div className="flex-1 overflow-hidden">
           {currentScreen === 'galaxy' && <GalaxyView coinBalance={coinBalance} planets={planets} />}
           {currentScreen === 'tasks' && <TaskDashboard tasks={tasks} onTaskToggle={handleTaskToggle} onQuickAdd={() => setIsAddTaskModalOpen(true)} onOpenChat={() => setCurrentScreen('chat')} onTaskDelete={handleTaskDelete} />}
-          {currentScreen === 'habits' && <HabitTracker habits={habits} onHabitCheck={handleHabitCheck} onAddHabitClick={() => setIsAddHabitModalOpen(true)} onEditHabitClick={(h) => { setHabitToEdit(h); setIsEditHabitModalOpen(true); }} onDeleteHabit={handleDeleteHabit} />}
+          {currentScreen === 'habits' && <HabitTracker habits={habits.filter(h => {
+            if (h.frequency !== 'MULTI_DAY') return true;
+            // JS getDay(): 0=Sun…6=Sat → convert to ISO 1=Mon…7=Sun
+            const jsDay = new Date().getDay();
+            const isoDay = jsDay === 0 ? 7 : jsDay;
+            return h.scheduledDaysOfWeek?.includes(isoDay) ?? false;
+          })} onHabitCheck={handleHabitCheck} onAddHabitClick={() => setIsAddHabitModalOpen(true)} onEditHabitClick={(h) => { setHabitToEdit(h); setIsEditHabitModalOpen(true); }} onDeleteHabit={handleDeleteHabit} />}
           {currentScreen === 'chat' && <AIChat messages={chatMessages} onSendMessage={handleSendMessage} onAddTask={() => {}} onDailyBriefing={handleDailyBriefing} isLoading={isAiLoading} />}
           {currentScreen === 'shop' && <Shop items={shopItems as any} coinBalance={coinBalance} onPurchase={handlePurchase} />}
           {currentScreen === 'statistics' && <Statistics tasks={tasks as any} habits={habits} totalCoinsEarned={coinBalance + spentCoins} currentCoins={coinBalance} shopItems={shopItems} />}

@@ -32,6 +32,7 @@ import service.dto.MarkHabitDoneResponse;
 import service.dto.UpdateHabitRequest;
 import service.exceptions.HabitAlreadyCompletedTodayException;
 import service.exceptions.HabitNotFoundException;
+import service.exceptions.HabitNotScheduledTodayException;
 
 @Slf4j
 @Service
@@ -184,6 +185,12 @@ public class HabitService {
         HabitEntity entity = loadActiveHabit(habitId);
         LocalDate today = LocalDate.now();
         LocalDate[] period = habitPeriodCalculator.currentPeriod(entity, today);
+
+        // MULTI_DAY returns null when today is not a scheduled day
+        if (period == null) {
+            throw new HabitNotScheduledTodayException(habitId);
+        }
+
         LocalDate periodStart = period[0];
         LocalDate periodEnd = period[1];
 
