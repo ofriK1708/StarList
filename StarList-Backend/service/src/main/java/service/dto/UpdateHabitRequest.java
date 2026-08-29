@@ -1,5 +1,6 @@
 package service.dto;
 
+import java.util.List;
 import lombok.Builder;
 import model.enums.DifficultyLevel;
 import model.enums.HabitFrequency;
@@ -18,5 +19,7 @@ public record UpdateHabitRequest(
         Integer scheduledDayOfWeek,
         ScheduledTimeType scheduledTimeType,
         Integer scheduledHour,
-        Integer customIntervalDays
+        Integer customIntervalDays,
+        /** ISO days of week (1=Mon…7=Sun) for MULTI_DAY habits; 2–6 values. */
+        List<Integer> scheduledDaysOfWeek
 ) {}

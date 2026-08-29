@@ -4,6 +4,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.ArrayList;
 import lombok.extern.slf4j.Slf4j;
 import model.enums.ReferenceType;
 import model.enums.TransactionType;
@@ -66,18 +67,16 @@ public class HabitMissScheduler {
 
         int penaltiesApplied = 0;
         for (HabitEntity habit : habits) {
-            LocalDate[] expiredPeriod = resolveExpiredPeriod(habit, today, yesterday);
-            if (expiredPeriod == null) {
-                // No period expired for this frequency/day combination — skip silently
-                continue;
-            }
+            List<LocalDate[]> expiredPeriods = resolveExpiredPeriods(habit, today, yesterday);
+            for (LocalDate[] expiredPeriod : expiredPeriods) {
 
-            boolean wasCompleted = habitCompletionRepository
-                    .existsByHabit_IdAndCompletedDateBetween(habit.getId(), expiredPeriod[0], expiredPeriod[1]);
+                boolean wasCompleted = habitCompletionRepository
+                        .existsByHabit_IdAndCompletedDateBetween(habit.getId(), expiredPeriod[0], expiredPeriod[1]);
 
-            if (!wasCompleted) {
-                applyMissPenalty(habit, expiredPeriod);
-                penaltiesApplied++;
+                if (!wasCompleted) {
+                    applyMissPenalty(habit, expiredPeriod);
+                    penaltiesApplied++;
+                }
             }
         }
 
@@ -87,32 +86,53 @@ public class HabitMissScheduler {
     // ── private helpers ────────────────────────────────────────────────────────
 
     /**
-     * Returns the period {@code [start, end]} that just expired as of {@code today},
-     * or {@code null} if no period expired for this habit on this day.
-     *
-     * <p>The scheduler calls this for every habit on every run. Returning {@code null}
-     * is the signal to skip — it is not an error.
+     * Returns all periods that expired as of {@code today} for this habit.
+     * Most frequencies return zero or one period; MULTI_DAY can return multiple
+     * (one per scheduled day that falls on yesterday, which is at most one in practice,
+     * but the list contract keeps the call-site loop simple).
      */
-    private LocalDate[] resolveExpiredPeriod(HabitEntity habit, LocalDate today, LocalDate yesterday) {
+    private List<LocalDate[]> resolveExpiredPeriods(HabitEntity habit, LocalDate today, LocalDate yesterday) {
         return switch (habit.getFrequency()) {
-            // DAILY: a new period starts every day, so yesterday's single-day period always just expired.
-            case DAILY -> new LocalDate[]{yesterday, yesterday};
-
-            // WEEKLY: the ISO week runs Mon→Sun. A week expires the moment Monday begins.
-            // We only check on Mondays to avoid re-penalising on Tue–Sun of the same week.
-            case WEEKLY -> {
-                if (today.getDayOfWeek() != DayOfWeek.MONDAY) yield null;
-                LocalDate lastMonday = today.minusDays(7);
-                LocalDate lastSunday = yesterday; // yesterday is always Sunday when today is Monday
-                yield new LocalDate[]{lastMonday, lastSunday};
+            // DAILY: yesterday's single-day slot always just expired.
+            case DAILY -> {
+                List<LocalDate[]> r = new ArrayList<>();
+                r.add(new LocalDate[]{yesterday, yesterday});
+                yield r;
             }
 
-            // CUSTOM: intervals are anchored to the habit's creation date.
-            // We ask: did the period containing yesterday end yesterday?
-            // If yes, that period just expired. If no, yesterday was mid-period — skip.
+            // WEEKLY: the ISO week expires the moment Monday begins.
+            // Only check on Mondays to avoid re-penalising on Tue–Sun.
+            case WEEKLY -> {
+                if (today.getDayOfWeek() != DayOfWeek.MONDAY) yield List.<LocalDate[]>of();
+                LocalDate lastMonday = today.minusDays(7);
+                LocalDate lastSunday = yesterday; // always Sunday when today is Monday
+                List<LocalDate[]> r = new ArrayList<>();
+                r.add(new LocalDate[]{lastMonday, lastSunday});
+                yield r;
+            }
+
+            // CUSTOM: check if the period containing yesterday ended yesterday.
             case CUSTOM -> {
                 LocalDate[] period = habitPeriodCalculator.currentPeriod(habit, yesterday);
-                yield period[1].equals(yesterday) ? period : null;
+                if (period != null && period[1].equals(yesterday)) {
+                    List<LocalDate[]> r = new ArrayList<>();
+                    r.add(period);
+                    yield r;
+                }
+                yield List.<LocalDate[]>of();
+            }
+
+            // MULTI_DAY: each selected weekday is an independent single-day slot.
+            // If yesterday was one of the scheduled days, that slot just expired.
+            case MULTI_DAY -> {
+                List<Integer> days = habit.getScheduledDaysOfWeek();
+                int yesterdayIso = yesterday.getDayOfWeek().getValue();
+                if (days != null && days.contains(yesterdayIso)) {
+                    List<LocalDate[]> r = new ArrayList<>();
+                    r.add(new LocalDate[]{yesterday, yesterday});
+                    yield r;
+                }
+                yield List.<LocalDate[]>of();
             }
         };
     }

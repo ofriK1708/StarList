@@ -17,6 +17,7 @@ function habitToFreqConfig(habit: HabitResponse): FrequencyConfig {
         scheduledTimeType: habit.scheduledTimeType,
         scheduledHour: habit.scheduledHour,
         customIntervalDays: (habit.customIntervalDays as 7 | 14 | 30 | null) ?? null,
+        scheduledDaysOfWeek: habit.scheduledDaysOfWeek ?? null,
     };
 }
 
@@ -29,6 +30,7 @@ export function EditHabitModal({ isOpen, onClose, habitToEdit, onUpdate }: EditH
         scheduledTimeType: null,
         scheduledHour: null,
         customIntervalDays: null,
+        scheduledDaysOfWeek: null,
     });
 
     useEffect(() => {
@@ -47,6 +49,9 @@ export function EditHabitModal({ isOpen, onClose, habitToEdit, onUpdate }: EditH
             if (!freqConfig.scheduledDayOfWeek) return false;
         }
         if (freqConfig.frequency === "CUSTOM" && !freqConfig.customIntervalDays) return false;
+        if (freqConfig.frequency === "MULTI_DAY") {
+            if (!freqConfig.scheduledDaysOfWeek || freqConfig.scheduledDaysOfWeek.length < 2) return false;
+        }
         return true;
     };
 
@@ -62,6 +67,7 @@ export function EditHabitModal({ isOpen, onClose, habitToEdit, onUpdate }: EditH
             scheduledTimeType: freqConfig.scheduledTimeType ?? undefined,
             scheduledHour: freqConfig.scheduledHour ?? undefined,
             customIntervalDays: freqConfig.customIntervalDays ?? undefined,
+            scheduledDaysOfWeek: freqConfig.scheduledDaysOfWeek ?? undefined,
         });
     };
 

@@ -1,6 +1,6 @@
 import api from './api';
 
-export type HabitFrequency = 'DAILY' | 'WEEKLY' | 'CUSTOM';
+export type HabitFrequency = 'DAILY' | 'WEEKLY' | 'CUSTOM' | 'MULTI_DAY';
 export type DifficultyLevel = 'EASY' | 'MEDIUM' | 'HARD';
 /** Informational time-of-day preference; does not gate completion. */
 export type ScheduledTimeType = 'MORNING' | 'AFTERNOON' | 'EVENING' | 'CUSTOM';
@@ -21,6 +21,8 @@ export interface FrequencyConfig {
     scheduledHour?: number;
     /** Interval in days (7, 14, or 30). Required for CUSTOM. */
     customIntervalDays?: number;
+    /** ISO days of week (1=Mon…7=Sun); 2–6 values. Required for MULTI_DAY. */
+    scheduledDaysOfWeek?: number[];
 }
 
 export interface HabitResponse {
@@ -44,6 +46,8 @@ export interface HabitResponse {
     scheduledHour: number | null;
     /** Interval in days (7, 14, or 30). Present for CUSTOM. */
     customIntervalDays: number | null;
+    /** ISO days of week (1=Mon…7=Sun). Present for MULTI_DAY. */
+    scheduledDaysOfWeek: number[] | null;
     /** Unit for streak display. */
     streakUnit: StreakUnit;
     /**

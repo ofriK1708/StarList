@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.Builder;
 import model.enums.DifficultyLevel;
 import model.enums.HabitFrequency;
@@ -26,5 +27,8 @@ public record AddHabitRequest(
         @Min(0) @Max(23) Integer scheduledHour,
 
         /** Required when frequency is CUSTOM. Must be one of: 7, 14, 30. */
-        Integer customIntervalDays
+        Integer customIntervalDays,
+
+        /** Required when frequency is MULTI_DAY. ISO days of week (1=Mon…7=Sun); 2–6 values. */
+        List<Integer> scheduledDaysOfWeek
 ) {}

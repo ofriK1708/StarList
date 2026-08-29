@@ -8,6 +8,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import model.enums.HabitFrequency;
 import org.springframework.stereotype.Component;
@@ -34,6 +35,15 @@ public class HabitPeriodCalculator {
                 yield new LocalDate[]{monday, monday.plusDays(6)};
             }
             case CUSTOM -> customPeriodContaining(habit, today);
+            // For MULTI_DAY, a "current period" only exists if today is one of the scheduled days.
+            // Returns [today, today] when applicable; otherwise null signals no active period.
+            case MULTI_DAY -> {
+                List<Integer> days = habit.getScheduledDaysOfWeek();
+                int todayIso = today.getDayOfWeek().getValue();
+                yield (days != null && days.contains(todayIso))
+                        ? new LocalDate[]{today, today}
+                        : null;
+            }
         };
     }
 
@@ -41,6 +51,11 @@ public class HabitPeriodCalculator {
      * Returns true if the habit is WEEKLY and today falls after the scheduled day of week
      * in the current ISO week — meaning the completion is "late" and incurs a penalty.
      * Always returns false for DAILY and CUSTOM habits.
+     */
+    /**
+     * Returns true if the habit is WEEKLY and today falls after the scheduled day of week
+     * in the current ISO week — meaning the completion is "late" and incurs a penalty.
+     * Always returns false for DAILY, CUSTOM, and MULTI_DAY habits.
      */
     public boolean isLateCompletion(HabitEntity habit, LocalDate today) {
         if (habit.getFrequency() != HabitFrequency.WEEKLY) return false;
@@ -65,6 +80,9 @@ public class HabitPeriodCalculator {
             case DAILY -> dailyPeriodsForMonth(yearMonth);
             case WEEKLY -> weeklyPeriodsForMonth(habit, yearMonth);
             case CUSTOM -> customPeriodsForMonth(habit, yearMonth);
+            // MULTI_DAY: one [day, day] segment for every occurrence of every selected weekday in the month.
+            // Days within a week are emitted in day-of-month order (Monday before Wednesday, etc.).
+            case MULTI_DAY -> multiDayPeriodsForMonth(habit, yearMonth);
         };
     }
 
@@ -120,6 +138,20 @@ public class HabitPeriodCalculator {
             LocalDate periodEnd = periodStart.plusDays(intervalDays - 1);
             result.add(new LocalDate[]{periodStart, periodEnd});
             periodStart = periodStart.plusDays(intervalDays);
+        }
+        return result;
+    }
+
+    private List<LocalDate[]> multiDayPeriodsForMonth(HabitEntity habit, YearMonth yearMonth) {
+        List<Integer> scheduledDays = habit.getScheduledDaysOfWeek();
+        if (scheduledDays == null || scheduledDays.isEmpty()) return Collections.emptyList();
+
+        List<LocalDate[]> result = new ArrayList<>();
+        for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
+            LocalDate date = yearMonth.atDay(day);
+            if (scheduledDays.contains(date.getDayOfWeek().getValue())) {
+                result.add(new LocalDate[]{date, date});
+            }
         }
         return result;
     }
