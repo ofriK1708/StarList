@@ -1,0 +1,159 @@
+import { HabitFrequency, ScheduledTimeType } from "@/services/habitsApi.ts";
+
+const DAY_LABELS: { value: number; label: string }[] = [
+    { value: 1, label: "Mon" },
+    { value: 2, label: "Tue" },
+    { value: 3, label: "Wed" },
+    { value: 4, label: "Thu" },
+    { value: 5, label: "Fri" },
+    { value: 6, label: "Sat" },
+    { value: 7, label: "Sun" },
+];
+
+const INTERVAL_OPTIONS: { value: 7 | 14 | 30; label: string }[] = [
+    { value: 7,  label: "Every week" },
+    { value: 14, label: "Every 2 weeks" },
+    { value: 30, label: "Every month" },
+];
+
+const TIME_OPTIONS: { value: ScheduledTimeType; label: string }[] = [
+    { value: "MORNING",   label: "Morning" },
+    { value: "AFTERNOON", label: "Afternoon" },
+    { value: "EVENING",   label: "Evening" },
+    { value: "CUSTOM",    label: "Custom hour" },
+];
+
+export interface FrequencyConfig {
+    frequency: HabitFrequency;
+    scheduledDayOfWeek: number | null;
+    scheduledTimeType: ScheduledTimeType | null;
+    scheduledHour: number | null;
+    customIntervalDays: 7 | 14 | 30 | null;
+}
+
+interface Props {
+    value: FrequencyConfig;
+    onChange: (next: FrequencyConfig) => void;
+}
+
+/** Shared frequency-config section used by AddHabitModal and EditHabitModal. */
+export function FrequencyConfigSection({ value, onChange }: Props) {
+    const { frequency, scheduledDayOfWeek, scheduledTimeType, scheduledHour, customIntervalDays } = value;
+
+    const set = (patch: Partial<FrequencyConfig>) => onChange({ ...value, ...patch });
+
+    const handleFrequency = (f: HabitFrequency) => {
+        // Reset sub-fields that don't apply to the newly selected frequency
+        set({
+            frequency: f,
+            scheduledDayOfWeek: f === "DAILY" ? null : scheduledDayOfWeek,
+            customIntervalDays: f === "CUSTOM" ? (customIntervalDays ?? 7) : null,
+        });
+    };
+
+    const chipBase = "px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors cursor-pointer select-none";
+    const chipActive = "bg-blue-600 border-blue-500 text-white";
+    const chipInactive = "bg-slate-800 border-slate-600 text-slate-300 hover:border-slate-400";
+
+    return (
+        <div className="space-y-4">
+            {/* ── Frequency type ── */}
+            <div>
+                <label className="block text-sm text-slate-300 mb-2">Frequency</label>
+                <div className="flex gap-2">
+                    {(["DAILY", "WEEKLY", "CUSTOM"] as HabitFrequency[]).map((f) => (
+                        <button
+                            key={f}
+                            type="button"
+                            onClick={() => handleFrequency(f)}
+                            className={`flex-1 ${chipBase} ${frequency === f ? chipActive : chipInactive}`}
+                        >
+                            {f.charAt(0) + f.slice(1).toLowerCase()}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* ── Custom interval (CUSTOM only) ── */}
+            {frequency === "CUSTOM" && (
+                <div>
+                    <label className="block text-sm text-slate-300 mb-2">Repeat interval</label>
+                    <div className="flex gap-2">
+                        {INTERVAL_OPTIONS.map(({ value: v, label }) => (
+                            <button
+                                key={v}
+                                type="button"
+                                onClick={() => set({ customIntervalDays: v })}
+                                className={`flex-1 ${chipBase} ${customIntervalDays === v ? chipActive : chipInactive}`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Day of week (WEEKLY and CUSTOM) ── */}
+            {(frequency === "WEEKLY" || frequency === "CUSTOM") && (
+                <div>
+                    <label className="block text-sm text-slate-300 mb-2">
+                        {frequency === "WEEKLY" ? "Scheduled day" : "Anchor day"}
+                    </label>
+                    <div className="flex gap-1.5">
+                        {DAY_LABELS.map(({ value: v, label }) => (
+                            <button
+                                key={v}
+                                type="button"
+                                onClick={() => set({ scheduledDayOfWeek: v })}
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer
+                                    ${scheduledDayOfWeek === v ? chipActive : chipInactive}`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                    {(frequency === "WEEKLY" || frequency === "CUSTOM") && !scheduledDayOfWeek && (
+                        <p className="text-xs text-amber-400 mt-1">Please select a day.</p>
+                    )}
+                </div>
+            )}
+
+            {/* ── Time of day (all frequencies) ── */}
+            <div>
+                <label className="block text-sm text-slate-300 mb-2">
+                    Time of day <span className="text-slate-500 font-normal">(optional)</span>
+                </label>
+                <div className="flex gap-2">
+                    {TIME_OPTIONS.map(({ value: v, label }) => (
+                        <button
+                            key={v}
+                            type="button"
+                            onClick={() => set({
+                                scheduledTimeType: scheduledTimeType === v ? null : v,
+                                scheduledHour: scheduledTimeType === v || v !== "CUSTOM" ? null : scheduledHour,
+                            })}
+                            className={`flex-1 ${chipBase} ${scheduledTimeType === v ? chipActive : chipInactive}`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+
+                {scheduledTimeType === "CUSTOM" && (
+                    <div className="mt-2 flex items-center gap-2">
+                        <label className="text-sm text-slate-400 whitespace-nowrap">Hour (0–23):</label>
+                        <input
+                            type="number"
+                            min={0}
+                            max={23}
+                            value={scheduledHour ?? ""}
+                            onChange={(e) => set({ scheduledHour: e.target.value === "" ? null : Number(e.target.value) })}
+                            placeholder="e.g. 8"
+                            className="w-24 bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

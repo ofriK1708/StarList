@@ -24,7 +24,6 @@ export default defineConfig({
       '/ai': { target: 'http://localhost:8080', changeOrigin: true },
       '/store': { target: 'http://localhost:8080', changeOrigin: true },
       '/achievements': { target: 'http://localhost:8080', changeOrigin: true },
-      '/images': { target: 'http://localhost:8080', changeOrigin: true },
     },
   },
 })

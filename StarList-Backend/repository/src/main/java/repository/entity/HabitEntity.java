@@ -26,6 +26,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import model.enums.DifficultyLevel;
 import model.enums.HabitFrequency;
+import model.enums.ScheduledTimeType;
 
 @Getter
 @Setter
@@ -58,6 +59,19 @@ public class HabitEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "frequency", nullable = false, length = 16)
     private HabitFrequency frequency;
+
+    @Column(name = "scheduled_day_of_week")
+    private Integer scheduledDayOfWeek;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "scheduled_time_type", length = 16)
+    private ScheduledTimeType scheduledTimeType;
+
+    @Column(name = "scheduled_hour")
+    private Integer scheduledHour;
+
+    @Column(name = "custom_interval_days")
+    private Integer customIntervalDays;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "difficulty_level", nullable = false, length = 16)

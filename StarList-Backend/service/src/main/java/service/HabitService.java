@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import model.domain.Habit;
 import model.enums.CompletionStatus;
 import model.enums.DifficultyLevel;
+import model.enums.HabitFrequency;
 import model.enums.ReferenceType;
 import model.enums.TransactionType;
 import org.jspecify.annotations.NonNull;
@@ -43,10 +44,12 @@ public class HabitService {
     private final HabitRepository habitRepository;
     private final HabitMapper habitMapper;
     private final CoinCalculator coinCalculator;
+    private final HabitPeriodCalculator habitPeriodCalculator;
 
     public HabitService(UserService userService, HabitCompletionService habitCompletionService,
                         CoinTransactionService coinTransactionService, AchievementService achievementService,
-                        HabitRepository habitRepository, HabitMapper habitMapper, CoinCalculator coinCalculator) {
+                        HabitRepository habitRepository, HabitMapper habitMapper, CoinCalculator coinCalculator,
+                        HabitPeriodCalculator habitPeriodCalculator) {
         this.userService = userService;
         this.habitCompletionService = habitCompletionService;
         this.coinTransactionService = coinTransactionService;
@@ -54,6 +57,7 @@ public class HabitService {
         this.habitRepository = habitRepository;
         this.habitMapper = habitMapper;
         this.coinCalculator = coinCalculator;
+        this.habitPeriodCalculator = habitPeriodCalculator;
     }
 
     @Transactional
@@ -61,6 +65,8 @@ public class HabitService {
         log.info("About to add habit for user {}", userId);
 
         UserEntity userEntity = userService.findEntityById(userId);
+
+        validateFrequencyConfig(request.frequency(), request.scheduledDayOfWeek(), request.customIntervalDays());
 
         int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
         log.debug("Computed coins for {}: reward={}, penalty={}", request.difficultyLevel(), coins[0], coins[1]);
@@ -70,6 +76,10 @@ public class HabitService {
                 .title(request.title())
                 .description(request.description())
                 .frequency(request.frequency())
+                .scheduledDayOfWeek(request.scheduledDayOfWeek())
+                .scheduledTimeType(request.scheduledTimeType())
+                .scheduledHour(request.scheduledHour())
+                .customIntervalDays(request.customIntervalDays())
                 .difficultyLevel(request.difficultyLevel())
                 .coinReward(coins[0])
                 .coinPenalty(coins[1])
@@ -88,16 +98,13 @@ public class HabitService {
     public HabitResponse getHabit(Long habitId, YearMonth yearMonth) {
         log.info("About to get habit {} for {}", habitId, yearMonth);
 
-        Habit habit = habitMapper.toDomain(loadActiveHabit(habitId));
+        HabitEntity entity = loadActiveHabit(habitId);
         Map<Long, Set<LocalDate>> completionsMap =
                 habitCompletionService.getCompletedDatesForHabits(List.of(habitId), yearMonth);
-        LocalDate habitCreatedDate = habit.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate();
 
-        return HabitResponse.from(habit,
-                buildMonthCompletions(
-                        completionsMap.getOrDefault(habitId, Collections.emptySet()),
-                        yearMonth,
-                        habitCreatedDate));
+        return HabitResponse.from(
+                habitMapper.toDomain(entity),
+                buildMonthCompletions(completionsMap.getOrDefault(habitId, Collections.emptySet()), yearMonth, entity));
     }
 
     @Transactional(readOnly = true)
@@ -110,13 +117,12 @@ public class HabitService {
                 habitCompletionService.getCompletedDatesForHabits(habitIds, yearMonth);
 
         return entities.stream()
-                .map(habitMapper::toDomain)
-                .map(habit -> HabitResponse
-                        .from(habit,
-                                buildMonthCompletions(
-                                        completionsMap.getOrDefault(habit.getId(), Collections.emptySet()),
-                                        yearMonth,
-                                        habit.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate())))
+                .map(entity -> HabitResponse.from(
+                        habitMapper.toDomain(entity),
+                        buildMonthCompletions(
+                                completionsMap.getOrDefault(entity.getId(), Collections.emptySet()),
+                                yearMonth,
+                                entity)))
                 .toList();
     }
 
@@ -137,6 +143,10 @@ public class HabitService {
         if (request.description() != null) entity.setDescription(request.description());
         if (request.frequency() != null) entity.setFrequency(request.frequency());
         if (request.difficultyLevel() != null) entity.setDifficultyLevel(request.difficultyLevel());
+        if (request.scheduledDayOfWeek() != null) entity.setScheduledDayOfWeek(request.scheduledDayOfWeek());
+        if (request.scheduledTimeType() != null) entity.setScheduledTimeType(request.scheduledTimeType());
+        if (request.scheduledHour() != null) entity.setScheduledHour(request.scheduledHour());
+        if (request.customIntervalDays() != null) entity.setCustomIntervalDays(request.customIntervalDays());
 
         if (difficultyChanged) {
             int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
@@ -167,23 +177,33 @@ public class HabitService {
         log.info("About to complete habit {}", habitId);
 
         HabitEntity entity = loadActiveHabit(habitId);
+        LocalDate today = LocalDate.now();
+        LocalDate[] period = habitPeriodCalculator.currentPeriod(entity, today);
+        LocalDate periodStart = period[0];
+        LocalDate periodEnd = period[1];
 
-        if (habitCompletionService.existsToday(habitId)) {
+        boolean alreadyDone = entity.getFrequency() == HabitFrequency.DAILY
+                ? habitCompletionService.existsToday(habitId)
+                : habitCompletionService.existsForPeriod(habitId, periodStart, periodEnd);
+
+        if (alreadyDone) {
             throw new HabitAlreadyCompletedTodayException(habitId);
         }
 
-        LocalDate today = LocalDate.now();
-
+        boolean late = habitPeriodCalculator.isLateCompletion(entity, today);
         int oldBestStreak = entity.getBestStreak();
-        int newStreak = today.minusDays(1).equals(entity.getLastCompletedDate()) ?
+        int newStreak = isStreakContinued(entity, today, periodStart) ?
                 entity.getCurrentStreak() + 1 : 1;
         int newBestStreak = Math.max(newStreak, oldBestStreak);
 
-        int coinsEarned = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
-        log.debug("Habit {} '{}' completed: streak {} -> {}, best={}, coins={}",
-                habitId, entity.getTitle(), entity.getCurrentStreak(), newStreak, newBestStreak, coinsEarned);
-        UserEntity user = entity.getUser();
+        int baseCoins = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
+        int penalty = late ? (entity.getCoinPenalty() != null ? entity.getCoinPenalty() : 0) : 0;
+        int coinsEarned = Math.max(0, baseCoins - penalty);
 
+        log.debug("Habit {} '{}' completed: streak {} -> {}, best={}, late={}, coins={}",
+                habitId, entity.getTitle(), entity.getCurrentStreak(), newStreak, newBestStreak, late, coinsEarned);
+
+        UserEntity user = entity.getUser();
         try {
             habitCompletionService.record(entity, user, today, coinsEarned, newStreak);
         } catch (DataIntegrityViolationException e) {
@@ -209,6 +229,46 @@ public class HabitService {
                 .build();
     }
 
+    /**
+     * Returns true if the user's last completion falls within the period immediately preceding the current one.
+     *
+     * <ul>
+     *   <li>DAILY — last completed yesterday</li>
+     *   <li>WEEKLY — last completed anywhere in the previous ISO week</li>
+     *   <li>CUSTOM — last completed within the period ending the day before the current period starts</li>
+     * </ul>
+     */
+    private boolean isStreakContinued(HabitEntity entity, LocalDate today, LocalDate currentPeriodStart) {
+        LocalDate last = entity.getLastCompletedDate();
+        if (last == null) return false;
+        return switch (entity.getFrequency()) {
+            case DAILY -> today.minusDays(1).equals(last);
+            case WEEKLY -> {
+                LocalDate prevWeekStart = currentPeriodStart.minusWeeks(1);
+                LocalDate prevWeekEnd = currentPeriodStart.minusDays(1);
+                yield !last.isBefore(prevWeekStart) && !last.isAfter(prevWeekEnd);
+            }
+            case CUSTOM -> {
+                LocalDate prevPeriodEnd = currentPeriodStart.minusDays(1);
+                LocalDate prevPeriodStart = prevPeriodEnd.minusDays(entity.getCustomIntervalDays() - 1);
+                yield !last.isBefore(prevPeriodStart) && !last.isAfter(prevPeriodEnd);
+            }
+        };
+    }
+
+    private void validateFrequencyConfig(HabitFrequency frequency, Integer scheduledDayOfWeek, Integer customIntervalDays) {
+        if (frequency == HabitFrequency.WEEKLY || frequency == HabitFrequency.CUSTOM) {
+            if (scheduledDayOfWeek == null || scheduledDayOfWeek < 1 || scheduledDayOfWeek > 7) {
+                throw new IllegalArgumentException("scheduledDayOfWeek (1–7) is required for WEEKLY and CUSTOM habits");
+            }
+        }
+        if (frequency == HabitFrequency.CUSTOM) {
+            if (customIntervalDays == null || (customIntervalDays != 7 && customIntervalDays != 14 && customIntervalDays != 30)) {
+                throw new IllegalArgumentException("customIntervalDays must be 7, 14, or 30");
+            }
+        }
+    }
+
     @Transactional
     public void deleteHabit(Long habitId) {
         log.info("About to delete habit {}", habitId);
@@ -220,38 +280,47 @@ public class HabitService {
     }
 
     /**
-     * Builds a per-day {@link CompletionStatus} array for the given month.
+     * Builds a per-period {@link CompletionStatus} list for the given month, driven by the habit's frequency.
+     *
+     * <p>Periods are determined by {@link HabitPeriodCalculator#periodsForMonth}: one slot per expected completion
+     * (one per day for DAILY, one per scheduled-day-of-week for WEEKLY, one per interval window for CUSTOM).
+     * The length of the returned list equals the number of radial segments shown on the frontend.
      *
      * <ul>
-     *   <li>{@code DONE} — day is in the past or today, on/after {@code habitCreatedDate}, and appears in {@code
-     *   completedDates}</li>
-     *   <li>{@code MISSED} — day is in the past, on/after {@code habitCreatedDate}, and not in {@code completedDates
-     *   }</li>
-     *   <li>{@code NA} — day is today and not marked yet, OR in the future, OR before the habit was created</li>
+     *   <li>{@code DONE} — at least one completion date falls within {@code [periodStart, periodEnd]}</li>
+     *   <li>{@code MISSED} — period has fully elapsed ({@code periodEnd < today}), habit existed before the
+     *   period ended, and no completion recorded</li>
+     *   <li>{@code NA} — period hasn't started yet, period is still ongoing, or the habit was created after
+     *   the period already ended</li>
      * </ul>
+     *
+     * <p>Note: for WEEKLY habits the period window starts on Monday but the habit may be created mid-week.
+     * We use {@code periodEnd} (not {@code periodStart}) for the creation-date guard so that mid-week creation
+     * still allows the current period to be completed and counted.
      */
     private List<CompletionStatus> buildMonthCompletions(
-            Set<LocalDate> completedDates, YearMonth yearMonth, LocalDate habitCreatedDate) {
+            Set<LocalDate> completedDates, YearMonth yearMonth, HabitEntity entity) {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        log.debug("Building month completions for {}: habitCreatedDate={}, today={}, completedDates={}",
-                yearMonth, habitCreatedDate, today, completedDates);
-        List<CompletionStatus> result = new ArrayList<>(yearMonth.lengthOfMonth());
-        for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
-            LocalDate date = yearMonth.atDay(day);
-            if (date.isAfter(today) || date.isBefore(habitCreatedDate)) {
+        LocalDate habitCreatedDate = entity.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate();
+        List<LocalDate[]> periods = habitPeriodCalculator.periodsForMonth(entity, yearMonth);
+        log.debug("Building month completions for {}: frequency={}, periods={}, completedDates={}",
+                yearMonth, entity.getFrequency(), periods.size(), completedDates);
+        List<CompletionStatus> result = new ArrayList<>(periods.size());
+        for (LocalDate[] period : periods) {
+            LocalDate periodStart = period[0];
+            LocalDate periodEnd = period[1];
+            // Skip if the period ended before the habit existed, or hasn't started yet (future)
+            if (periodEnd.isBefore(habitCreatedDate) || periodStart.isAfter(today)) {
                 result.add(CompletionStatus.NA);
-                log.debug("Date {} is {}, marking as NA", date,
-                        date.isAfter(today) ? "in the future" : "before habit creation");
-            } else if (completedDates.contains(date)) {
-                result.add(CompletionStatus.DONE);
-                log.debug("Date {} is in completedDates, marking as DONE", date);
             } else {
-                if (date.isEqual(today)) {
-                    result.add(CompletionStatus.NA);
-                    log.debug("Date {} is today, not in completedDates yet, marking as NA", date);
-                } else {
+                boolean done = completedDates.stream()
+                        .anyMatch(d -> !d.isBefore(periodStart) && !d.isAfter(periodEnd));
+                if (done) {
+                    result.add(CompletionStatus.DONE);
+                } else if (periodEnd.isBefore(today)) {
                     result.add(CompletionStatus.MISSED);
-                    log.debug("Date {} is not in completedDates, marking as MISSED", date);
+                } else {
+                    result.add(CompletionStatus.NA);
                 }
             }
         }

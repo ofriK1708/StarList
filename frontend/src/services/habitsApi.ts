@@ -2,6 +2,26 @@ import api from './api';
 
 export type HabitFrequency = 'DAILY' | 'WEEKLY' | 'CUSTOM';
 export type DifficultyLevel = 'EASY' | 'MEDIUM' | 'HARD';
+/** Informational time-of-day preference; does not gate completion. */
+export type ScheduledTimeType = 'MORNING' | 'AFTERNOON' | 'EVENING' | 'CUSTOM';
+/** Unit used for streak display: "day" (DAILY), "week" (WEEKLY), "period" (CUSTOM). */
+export type StreakUnit = 'day' | 'week' | 'period';
+
+/**
+ * Frequency-config fields shared by AddHabitRequest and UpdateHabitRequest.
+ * All fields are optional at the type level; backend validation enforces
+ * which are required depending on the chosen frequency.
+ */
+export interface FrequencyConfig {
+    /** ISO day-of-week (1=Mon…7=Sun). Required for WEEKLY and CUSTOM. */
+    scheduledDayOfWeek?: number;
+    /** Time-of-day preference (informational only). */
+    scheduledTimeType?: ScheduledTimeType;
+    /** Hour (0–23) when scheduledTimeType is CUSTOM. */
+    scheduledHour?: number;
+    /** Interval in days (7, 14, or 30). Required for CUSTOM. */
+    customIntervalDays?: number;
+}
 
 export interface HabitResponse {
     habitId: number;
@@ -17,10 +37,24 @@ export interface HabitResponse {
     lastCompletedDate: string | null;
     createdAt: string;
     isActive: boolean;
-    monthCompletions?: string[];
+    /** ISO day-of-week (1=Mon…7=Sun). Present for WEEKLY and CUSTOM. */
+    scheduledDayOfWeek: number | null;
+    scheduledTimeType: ScheduledTimeType | null;
+    /** Hour (0–23) when scheduledTimeType is CUSTOM. */
+    scheduledHour: number | null;
+    /** Interval in days (7, 14, or 30). Present for CUSTOM. */
+    customIntervalDays: number | null;
+    /** Unit for streak display. */
+    streakUnit: StreakUnit;
+    /**
+     * Per-period completion statuses for the requested month.
+     * Length equals the number of radial segments (days for DAILY,
+     * scheduled-day occurrences for WEEKLY, interval windows for CUSTOM).
+     */
+    monthCompletions?: Array<'DONE' | 'MISSED' | 'NA'>;
 }
 
-export interface AddHabitRequest {
+export interface AddHabitRequest extends FrequencyConfig {
     title: string;
     description?: string;
     frequency: HabitFrequency;
@@ -35,7 +69,7 @@ export interface MarkHabitDoneResponse {
     bestStreak: number;
 }
 
-export interface UpdateHabitRequest {
+export interface UpdateHabitRequest extends FrequencyConfig {
     title?: string;
     description?: string;
     frequency?: HabitFrequency;

@@ -4,6 +4,7 @@ import model.enums.DifficultyLevel;
 import model.enums.HabitFrequency;
 import model.enums.ReferenceType;
 import model.enums.TransactionType;
+import java.time.DayOfWeek;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,6 +22,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,6 +53,7 @@ class HabitServiceTest {
     @Mock UserService userService;
     @Mock HabitMapper habitMapper;
     @Mock CoinCalculator coinCalculator;
+    @Mock HabitPeriodCalculator habitPeriodCalculator;
 
     @InjectMocks HabitService habitService;
 
@@ -71,8 +74,11 @@ class HabitServiceTest {
                 .user(user)
                 .build();
 
+        LocalDate today = LocalDate.now();
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
+        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
 
         MarkHabitDoneResponse response = habitService.completeHabit(7L);
@@ -103,8 +109,11 @@ class HabitServiceTest {
                 .user(user)
                 .build();
 
+        LocalDate today = LocalDate.now();
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
+        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.MEDIUM, 6)).thenReturn(25);
 
         MarkHabitDoneResponse response = habitService.completeHabit(7L);
@@ -129,8 +138,11 @@ class HabitServiceTest {
                 .user(user)
                 .build();
 
+        LocalDate today = LocalDate.now();
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
+        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
 
         MarkHabitDoneResponse response = habitService.completeHabit(7L);
@@ -152,8 +164,11 @@ class HabitServiceTest {
                 .user(user)
                 .build();
 
+        LocalDate today = LocalDate.now();
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
+        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
 
         habitService.completeHabit(7L);
@@ -176,8 +191,11 @@ class HabitServiceTest {
                 .frequency(HabitFrequency.DAILY).currentStreak(0).bestStreak(0)
                 .totalCompletions(0).lastCompletedDate(null).user(user).build();
 
+        LocalDate today = LocalDate.now();
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
+        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
         doThrow(new DataIntegrityViolationException("unique constraint"))
                 .when(habitCompletionService).record(any(), any(), any(), any(int.class), any(int.class));
@@ -195,8 +213,11 @@ class HabitServiceTest {
                 .frequency(HabitFrequency.DAILY).currentStreak(3).bestStreak(5)
                 .totalCompletions(3).lastCompletedDate(LocalDate.now().minusDays(1)).user(user).build();
 
+        LocalDate today = LocalDate.now();
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
+        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 4)).thenReturn(15);
         doThrow(new DataIntegrityViolationException("unique constraint"))
                 .when(habitCompletionService).record(any(), any(), any(), any(int.class), any(int.class));
@@ -213,10 +234,12 @@ class HabitServiceTest {
     @Test
     void completeHabit_alreadyCompletedToday_throwsHabitAlreadyCompletedTodayException() {
         HabitEntity habit = HabitEntity.builder()
-                .id(7L).currentStreak(1).bestStreak(1).totalCompletions(1)
+                .id(7L).frequency(HabitFrequency.DAILY).currentStreak(1).bestStreak(1).totalCompletions(1)
                 .build();
 
+        LocalDate today = LocalDate.now();
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(true);
 
         assertThatThrownBy(() -> habitService.completeHabit(7L))
@@ -239,13 +262,15 @@ class HabitServiceTest {
     void getHabit_daysBeforeCreation_markedNA() {
         YearMonth march2026 = YearMonth.of(2026, 3);
         Instant createdAtDay10 = LocalDate.of(2026, 3, 10).atStartOfDay().toInstant(ZoneOffset.UTC);
-        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.DAILY)
+                .createdAt(createdAtDay10).build();
         Habit habit = Habit.builder().id(1L).createdAt(createdAtDay10).build();
 
         when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(habitMapper.toDomain(entity)).thenReturn(habit);
         when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), march2026))
                 .thenReturn(Map.of());
+        when(habitPeriodCalculator.periodsForMonth(entity, march2026)).thenReturn(dailyPeriods(march2026));
 
         HabitResponse response = habitService.getHabit(1L, march2026);
 
@@ -261,13 +286,15 @@ class HabitServiceTest {
         YearMonth march2026 = YearMonth.of(2026, 3);
         Instant createdAtDay1 = LocalDate.of(2026, 3, 1).atStartOfDay().toInstant(ZoneOffset.UTC);
         LocalDate day5 = LocalDate.of(2026, 3, 5);
-        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.DAILY)
+                .createdAt(createdAtDay1).build();
         Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
 
         when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(habitMapper.toDomain(entity)).thenReturn(habit);
         when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), march2026))
                 .thenReturn(Map.of(1L, Set.of(day5)));
+        when(habitPeriodCalculator.periodsForMonth(entity, march2026)).thenReturn(dailyPeriods(march2026));
 
         HabitResponse response = habitService.getHabit(1L, march2026);
 
@@ -278,13 +305,15 @@ class HabitServiceTest {
     void getHabit_todayWithoutCompletion_markedNA() {
         YearMonth currentMonth = YearMonth.now();
         Instant createdAtDay1 = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
-        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.DAILY)
+                .createdAt(createdAtDay1).build();
         Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
 
         when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(habitMapper.toDomain(entity)).thenReturn(habit);
         when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), currentMonth))
                 .thenReturn(Map.of());
+        when(habitPeriodCalculator.periodsForMonth(entity, currentMonth)).thenReturn(dailyPeriods(currentMonth));
 
         HabitResponse response = habitService.getHabit(1L, currentMonth);
 
@@ -298,13 +327,15 @@ class HabitServiceTest {
         YearMonth currentMonth = YearMonth.now();
         Instant createdAtDay1 = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
         LocalDate today = LocalDate.now();
-        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.DAILY)
+                .createdAt(createdAtDay1).build();
         Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
 
         when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(habitMapper.toDomain(entity)).thenReturn(habit);
         when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), currentMonth))
                 .thenReturn(Map.of(1L, Set.of(today)));
+        when(habitPeriodCalculator.periodsForMonth(entity, currentMonth)).thenReturn(dailyPeriods(currentMonth));
 
         HabitResponse response = habitService.getHabit(1L, currentMonth);
 
@@ -316,13 +347,15 @@ class HabitServiceTest {
     void getHabit_pastDayWithoutCompletion_markedMissed() {
         YearMonth currentMonth = YearMonth.now();
         Instant createdAtDay1 = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
-        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.DAILY)
+                .createdAt(createdAtDay1).build();
         Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
 
         when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(habitMapper.toDomain(entity)).thenReturn(habit);
         when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), currentMonth))
                 .thenReturn(Map.of());
+        when(habitPeriodCalculator.periodsForMonth(entity, currentMonth)).thenReturn(dailyPeriods(currentMonth));
 
         HabitResponse response = habitService.getHabit(1L, currentMonth);
 
@@ -340,13 +373,15 @@ class HabitServiceTest {
     void getHabit_todayAndFutureDays_markedNA() {
         YearMonth currentMonth = YearMonth.now();
         Instant createdAtDay1 = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
-        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.DAILY)
+                .createdAt(createdAtDay1).build();
         Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
 
         when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(habitMapper.toDomain(entity)).thenReturn(habit);
         when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), currentMonth))
                 .thenReturn(Map.of());
+        when(habitPeriodCalculator.periodsForMonth(entity, currentMonth)).thenReturn(dailyPeriods(currentMonth));
 
         HabitResponse response = habitService.getHabit(1L, currentMonth);
 
@@ -363,13 +398,15 @@ class HabitServiceTest {
         YearMonth currentMonth = YearMonth.now();
         LocalDate today = LocalDate.now();
         Instant createdAtToday = today.atStartOfDay().toInstant(ZoneOffset.UTC);
-        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.DAILY)
+                .createdAt(createdAtToday).build();
         Habit habit = Habit.builder().id(1L).createdAt(createdAtToday).build();
 
         when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(habitMapper.toDomain(entity)).thenReturn(habit);
         when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), currentMonth))
                 .thenReturn(Map.of());
+        when(habitPeriodCalculator.periodsForMonth(entity, currentMonth)).thenReturn(dailyPeriods(currentMonth));
 
         HabitResponse response = habitService.getHabit(1L, currentMonth);
 
@@ -382,13 +419,15 @@ class HabitServiceTest {
     void getHabit_arrayLength_matchesMonthDays() {
         YearMonth feb2026 = YearMonth.of(2026, 2);
         Instant createdAtDay1 = LocalDate.of(2026, 2, 1).atStartOfDay().toInstant(ZoneOffset.UTC);
-        HabitEntity entity = HabitEntity.builder().id(1L).build();
+        HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.DAILY)
+                .createdAt(createdAtDay1).build();
         Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
 
         when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(habitMapper.toDomain(entity)).thenReturn(habit);
         when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), feb2026))
                 .thenReturn(Map.of());
+        when(habitPeriodCalculator.periodsForMonth(entity, feb2026)).thenReturn(dailyPeriods(feb2026));
 
         HabitResponse response = habitService.getHabit(1L, feb2026);
 
@@ -402,8 +441,10 @@ class HabitServiceTest {
         LocalDate day3 = LocalDate.of(2026, 3, 3);
         LocalDate day7 = LocalDate.of(2026, 3, 7);
         UserEntity user = UserEntity.builder().id(1L).build();
-        HabitEntity entity1 = HabitEntity.builder().id(10L).user(user).build();
-        HabitEntity entity2 = HabitEntity.builder().id(20L).user(user).build();
+        HabitEntity entity1 = HabitEntity.builder().id(10L).user(user).frequency(HabitFrequency.DAILY)
+                .createdAt(createdAtDay1).build();
+        HabitEntity entity2 = HabitEntity.builder().id(20L).user(user).frequency(HabitFrequency.DAILY)
+                .createdAt(createdAtDay1).build();
         Habit habit1 = Habit.builder().id(10L).createdAt(createdAtDay1).build();
         Habit habit2 = Habit.builder().id(20L).createdAt(createdAtDay1).build();
 
@@ -413,6 +454,8 @@ class HabitServiceTest {
         when(habitMapper.toDomain(entity2)).thenReturn(habit2);
         when(habitCompletionService.getCompletedDatesForHabits(List.of(10L, 20L), march2026))
                 .thenReturn(Map.of(10L, Set.of(day3), 20L, Set.of(day7)));
+        when(habitPeriodCalculator.periodsForMonth(entity1, march2026)).thenReturn(dailyPeriods(march2026));
+        when(habitPeriodCalculator.periodsForMonth(entity2, march2026)).thenReturn(dailyPeriods(march2026));
 
         List<HabitResponse> responses = habitService.getUserHabits(1L, march2026);
 
@@ -436,5 +479,176 @@ class HabitServiceTest {
 
         assertThatThrownBy(() -> habitService.completeHabit(7L))
                 .isInstanceOf(HabitNotFoundException.class);
+    }
+
+    // ── completeHabit WEEKLY ──────────────────────────────────────────────────
+
+    @Test
+    void completeHabit_weekly_onTime_fullReward() {
+        LocalDate today = LocalDate.now();
+        LocalDate periodStart = today.with(DayOfWeek.MONDAY);
+        LocalDate periodEnd = periodStart.plusDays(6);
+
+        UserEntity user = UserEntity.builder().id(1L).totalCoins(0).lifetimeCoinsEarned(0).build();
+        HabitEntity habit = HabitEntity.builder()
+                .id(10L).title("Weekly run").difficultyLevel(DifficultyLevel.MEDIUM)
+                .frequency(HabitFrequency.WEEKLY).scheduledDayOfWeek(5) // Friday
+                .currentStreak(0).bestStreak(0).totalCompletions(0)
+                .lastCompletedDate(null).user(user).build();
+
+        when(habitRepository.findById(10L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{periodStart, periodEnd});
+        when(habitCompletionService.existsForPeriod(10L, periodStart, periodEnd)).thenReturn(false);
+        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
+        when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.MEDIUM, 1)).thenReturn(20);
+
+        MarkHabitDoneResponse response = habitService.completeHabit(10L);
+
+        assertThat(response.coinsEarned()).isEqualTo(20); // no penalty
+        assertThat(response.currentStreak()).isEqualTo(1);
+    }
+
+    @Test
+    void completeHabit_weekly_late_penaltyDeducted() {
+        LocalDate today = LocalDate.now();
+        LocalDate periodStart = today.with(DayOfWeek.MONDAY);
+        LocalDate periodEnd = periodStart.plusDays(6);
+
+        UserEntity user = UserEntity.builder().id(1L).totalCoins(0).lifetimeCoinsEarned(0).build();
+        HabitEntity habit = HabitEntity.builder()
+                .id(10L).title("Weekly run").difficultyLevel(DifficultyLevel.MEDIUM)
+                .frequency(HabitFrequency.WEEKLY).scheduledDayOfWeek(3) // Wednesday
+                .coinPenalty(10)
+                .currentStreak(0).bestStreak(0).totalCompletions(0)
+                .lastCompletedDate(null).user(user).build();
+
+        when(habitRepository.findById(10L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{periodStart, periodEnd});
+        when(habitCompletionService.existsForPeriod(10L, periodStart, periodEnd)).thenReturn(false);
+        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(true);
+        when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.MEDIUM, 1)).thenReturn(20);
+
+        MarkHabitDoneResponse response = habitService.completeHabit(10L);
+
+        assertThat(response.coinsEarned()).isEqualTo(10); // 20 reward - 10 penalty
+        assertThat(response.currentStreak()).isEqualTo(1); // streak still counts
+    }
+
+    @Test
+    void completeHabit_weekly_alreadyDoneThisPeriod_throws() {
+        LocalDate today = LocalDate.now();
+        LocalDate periodStart = today.with(DayOfWeek.MONDAY);
+        LocalDate periodEnd = periodStart.plusDays(6);
+
+        HabitEntity habit = HabitEntity.builder()
+                .id(10L).frequency(HabitFrequency.WEEKLY).currentStreak(1).bestStreak(1).totalCompletions(1).build();
+
+        when(habitRepository.findById(10L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{periodStart, periodEnd});
+        when(habitCompletionService.existsForPeriod(10L, periodStart, periodEnd)).thenReturn(true);
+
+        assertThatThrownBy(() -> habitService.completeHabit(10L))
+                .isInstanceOf(HabitAlreadyCompletedTodayException.class);
+        verifyNoInteractions(coinTransactionService, userService);
+    }
+
+    // ── getHabit WEEKLY / CUSTOM monthCompletions ────────────────────────────
+
+    @Test
+    void getHabit_weekly_segmentCountEqualsOccurrencesOfDayInMonth() {
+        // Mondays in August 2026: 3, 10, 17, 24, 31 → 5 periods
+        YearMonth aug2026 = YearMonth.of(2026, 8);
+        Instant createdAt = LocalDate.of(2026, 8, 1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.WEEKLY)
+                .scheduledDayOfWeek(1).createdAt(createdAt).build();
+        Habit habit = Habit.builder().id(1L).createdAt(createdAt).frequency(HabitFrequency.WEEKLY).build();
+
+        // Periods: Aug 3-9, Aug 10-16, Aug 17-23, Aug 24-30, Aug 31-Sep 6
+        List<LocalDate[]> weeklyPeriods = List.of(
+                new LocalDate[]{LocalDate.of(2026, 8, 3), LocalDate.of(2026, 8, 9)},
+                new LocalDate[]{LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 16)},
+                new LocalDate[]{LocalDate.of(2026, 8, 17), LocalDate.of(2026, 8, 23)},
+                new LocalDate[]{LocalDate.of(2026, 8, 24), LocalDate.of(2026, 8, 30)},
+                new LocalDate[]{LocalDate.of(2026, 8, 31), LocalDate.of(2026, 9, 6)}
+        );
+
+        when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), aug2026))
+                .thenReturn(Map.of(1L, Set.of(LocalDate.of(2026, 8, 10)))); // completed on 2nd Monday
+        when(habitPeriodCalculator.periodsForMonth(entity, aug2026)).thenReturn(weeklyPeriods);
+
+        HabitResponse response = habitService.getHabit(1L, aug2026);
+
+        assertThat(response.monthCompletions()).hasSize(5);
+        // Period 0 (Aug 3-9): no completion, ended in past → MISSED
+        assertThat(response.monthCompletions().get(0)).isEqualTo(CompletionStatus.MISSED);
+        // Period 1 (Aug 10-16): completed Aug 10 → DONE
+        assertThat(response.monthCompletions().get(1)).isEqualTo(CompletionStatus.DONE);
+    }
+
+    @Test
+    void getHabit_custom_30day_twoSegmentsInAugust() {
+        YearMonth aug2026 = YearMonth.of(2026, 8);
+        Instant createdAt = LocalDate.of(2026, 8, 1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.CUSTOM)
+                .customIntervalDays(30).createdAt(createdAt).build();
+        Habit habit = Habit.builder().id(1L).createdAt(createdAt).frequency(HabitFrequency.CUSTOM).build();
+
+        List<LocalDate[]> customPeriods = List.of(
+                new LocalDate[]{LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 30)},
+                new LocalDate[]{LocalDate.of(2026, 8, 31), LocalDate.of(2026, 9, 29)}
+        );
+
+        when(habitRepository.findById(1L)).thenReturn(Optional.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(1L), aug2026))
+                .thenReturn(Map.of(1L, Set.of(LocalDate.of(2026, 8, 15)))); // completed in first period
+        when(habitPeriodCalculator.periodsForMonth(entity, aug2026)).thenReturn(customPeriods);
+
+        HabitResponse response = habitService.getHabit(1L, aug2026);
+
+        assertThat(response.monthCompletions()).hasSize(2);
+        // Period 0 (Aug 1–30): completed Aug 15 → DONE
+        assertThat(response.monthCompletions().get(0)).isEqualTo(CompletionStatus.DONE);
+        // Period 1 (Aug 31–Sep 29): ongoing → NA
+        assertThat(response.monthCompletions().get(1)).isEqualTo(CompletionStatus.NA);
+    }
+
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    /** Generates one [day, day] period per calendar day in the month, mirroring DAILY frequency logic. */
+    private List<LocalDate[]> dailyPeriods(YearMonth yearMonth) {
+        List<LocalDate[]> periods = new ArrayList<>(yearMonth.lengthOfMonth());
+        for (int d = 1; d <= yearMonth.lengthOfMonth(); d++) {
+            LocalDate date = yearMonth.atDay(d);
+            periods.add(new LocalDate[]{date, date});
+        }
+        return periods;
+    }
+
+    @Test
+    void completeHabit_custom_withinPeriod_allowed() {
+        LocalDate today = LocalDate.now();
+        LocalDate periodStart = today.withDayOfMonth(1);
+        LocalDate periodEnd = periodStart.plusDays(29);
+
+        UserEntity user = UserEntity.builder().id(1L).totalCoins(0).lifetimeCoinsEarned(0).build();
+        HabitEntity habit = HabitEntity.builder()
+                .id(20L).title("Monthly review").difficultyLevel(DifficultyLevel.HARD)
+                .frequency(HabitFrequency.CUSTOM).customIntervalDays(30)
+                .currentStreak(0).bestStreak(0).totalCompletions(0)
+                .lastCompletedDate(null).user(user).build();
+
+        when(habitRepository.findById(20L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{periodStart, periodEnd});
+        when(habitCompletionService.existsForPeriod(20L, periodStart, periodEnd)).thenReturn(false);
+        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
+        when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.HARD, 1)).thenReturn(40);
+
+        MarkHabitDoneResponse response = habitService.completeHabit(20L);
+
+        assertThat(response.coinsEarned()).isEqualTo(40);
+        assertThat(response.currentStreak()).isEqualTo(1);
     }
 }

@@ -8,6 +8,7 @@ import model.domain.Habit;
 import model.enums.CompletionStatus;
 import model.enums.DifficultyLevel;
 import model.enums.HabitFrequency;
+import model.enums.ScheduledTimeType;
 
 @Builder
 public record HabitResponse(
@@ -24,6 +25,13 @@ public record HabitResponse(
         LocalDate lastCompletedDate,
         Instant createdAt,
         Boolean isActive,
+        /** ISO day of week (1=Mon…7=Sun). Present for WEEKLY and CUSTOM; null for DAILY. */
+        Integer scheduledDayOfWeek,
+        ScheduledTimeType scheduledTimeType,
+        Integer scheduledHour,
+        Integer customIntervalDays,
+        /** "day" for DAILY, "week" for WEEKLY, "period" for CUSTOM. */
+        String streakUnit,
         List<CompletionStatus> monthCompletions
 ) {
 
@@ -43,10 +51,15 @@ public record HabitResponse(
                 .lastCompletedDate(habit.getLastCompletedDate())
                 .createdAt(habit.getCreatedAt())
                 .isActive(habit.getIsActive())
+                .scheduledDayOfWeek(habit.getScheduledDayOfWeek())
+                .scheduledTimeType(habit.getScheduledTimeType())
+                .scheduledHour(habit.getScheduledHour())
+                .customIntervalDays(habit.getCustomIntervalDays())
+                .streakUnit(streakUnitFor(habit.getFrequency()))
                 .build();
     }
 
-    /** Factory for GET responses — includes pre-computed per-day completion statuses for the month. */
+    /** Factory for GET responses — includes pre-computed per-period completion statuses for the month. */
     public static HabitResponse from(Habit habit, List<CompletionStatus> monthCompletions) {
         return HabitResponse.builder()
                 .habitId(habit.getId())
@@ -62,7 +75,21 @@ public record HabitResponse(
                 .lastCompletedDate(habit.getLastCompletedDate())
                 .createdAt(habit.getCreatedAt())
                 .isActive(habit.getIsActive())
+                .scheduledDayOfWeek(habit.getScheduledDayOfWeek())
+                .scheduledTimeType(habit.getScheduledTimeType())
+                .scheduledHour(habit.getScheduledHour())
+                .customIntervalDays(habit.getCustomIntervalDays())
+                .streakUnit(streakUnitFor(habit.getFrequency()))
                 .monthCompletions(monthCompletions)
                 .build();
+    }
+
+    private static String streakUnitFor(HabitFrequency frequency) {
+        if (frequency == null) return "day";
+        return switch (frequency) {
+            case WEEKLY -> "week";
+            case CUSTOM -> "period";
+            default -> "day";
+        };
     }
 }
