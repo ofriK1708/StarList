@@ -5,6 +5,7 @@ public enum TransactionType {
     HABIT_COMPLETION,
     ITEM_PURCHASE,
     STREAK_PENALTY,
-    DEADLINE_PENALTY
+    DEADLINE_PENALTY,
+    HABIT_MISS
 }
 

@@ -1,6 +1,7 @@
 package repository.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -12,6 +13,8 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import java.util.List;
+import repository.converter.IntegerListConverter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import jakarta.persistence.Table;
@@ -72,6 +75,14 @@ public class HabitEntity {
 
     @Column(name = "custom_interval_days")
     private Integer customIntervalDays;
+
+    /**
+     * ISO days of week selected for MULTI_DAY habits (1=Mon … 7=Sun), stored as a
+     * comma-separated string (e.g. "1,3,5"). Null for all other frequencies.
+     */
+    @Convert(converter = IntegerListConverter.class)
+    @Column(name = "scheduled_days_of_week", length = 20)
+    private List<Integer> scheduledDaysOfWeek;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "difficulty_level", nullable = false, length = 16)

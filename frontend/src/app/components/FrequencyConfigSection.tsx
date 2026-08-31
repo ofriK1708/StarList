@@ -1,4 +1,5 @@
 import { HabitFrequency, ScheduledTimeType } from "@/services/habitsApi.ts";
+import { Check } from "lucide-react";
 
 const DAY_LABELS: { value: number; label: string }[] = [
     { value: 1, label: "Mon" },
@@ -29,6 +30,8 @@ export interface FrequencyConfig {
     scheduledTimeType: ScheduledTimeType | null;
     scheduledHour: number | null;
     customIntervalDays: 7 | 14 | 30 | null;
+    /** ISO days of week (1=Mon…7=Sun). Required for MULTI_DAY; null otherwise. */
+    scheduledDaysOfWeek: number[] | null;
 }
 
 interface Props {
@@ -38,7 +41,7 @@ interface Props {
 
 /** Shared frequency-config section used by AddHabitModal and EditHabitModal. */
 export function FrequencyConfigSection({ value, onChange }: Props) {
-    const { frequency, scheduledDayOfWeek, scheduledTimeType, scheduledHour, customIntervalDays } = value;
+    const { frequency, scheduledDayOfWeek, scheduledTimeType, scheduledHour, customIntervalDays, scheduledDaysOfWeek } = value;
 
     const set = (patch: Partial<FrequencyConfig>) => onChange({ ...value, ...patch });
 
@@ -46,9 +49,18 @@ export function FrequencyConfigSection({ value, onChange }: Props) {
         // Reset sub-fields that don't apply to the newly selected frequency
         set({
             frequency: f,
-            scheduledDayOfWeek: f === "DAILY" ? null : scheduledDayOfWeek,
+            scheduledDayOfWeek: f === "DAILY" || f === "MULTI_DAY" ? null : scheduledDayOfWeek,
             customIntervalDays: f === "CUSTOM" ? (customIntervalDays ?? 7) : null,
+            scheduledDaysOfWeek: f === "MULTI_DAY" ? (scheduledDaysOfWeek ?? []) : null,
         });
+    };
+
+    const toggleMultiDay = (dayValue: number) => {
+        const current = scheduledDaysOfWeek ?? [];
+        const next = current.includes(dayValue)
+            ? current.filter(d => d !== dayValue)
+            : [...current, dayValue].sort((a, b) => a - b);
+        set({ scheduledDaysOfWeek: next });
     };
 
     const chipBase = "px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors cursor-pointer select-none";
@@ -60,15 +72,15 @@ export function FrequencyConfigSection({ value, onChange }: Props) {
             {/* ── Frequency type ── */}
             <div>
                 <label className="block text-sm text-slate-300 mb-2">Frequency</label>
-                <div className="flex gap-2">
-                    {(["DAILY", "WEEKLY", "CUSTOM"] as HabitFrequency[]).map((f) => (
+                <div className="flex gap-2 flex-wrap">
+                    {(["DAILY", "WEEKLY", "CUSTOM", "MULTI_DAY"] as HabitFrequency[]).map((f) => (
                         <button
                             key={f}
                             type="button"
                             onClick={() => handleFrequency(f)}
-                            className={`flex-1 ${chipBase} ${frequency === f ? chipActive : chipInactive}`}
+                            className={`flex-1 min-w-[70px] ${chipBase} ${frequency === f ? chipActive : chipInactive}`}
                         >
-                            {f.charAt(0) + f.slice(1).toLowerCase()}
+                            {f === "MULTI_DAY" ? "Multi-Day" : f.charAt(0) + f.slice(1).toLowerCase()}
                         </button>
                     ))}
                 </div>
@@ -90,6 +102,39 @@ export function FrequencyConfigSection({ value, onChange }: Props) {
                             </button>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* ── Multi-day selection (MULTI_DAY only) ── */}
+            {frequency === "MULTI_DAY" && (
+                <div>
+                    <label className="block text-sm text-slate-300 mb-2">
+                        Select days <span className="text-slate-500 font-normal">(pick 2–6)</span>
+                    </label>
+                    <div className="flex gap-1.5">
+                        {DAY_LABELS.map(({ value: v, label }) => {
+                            const selected = (scheduledDaysOfWeek ?? []).includes(v);
+                            return (
+                                <button
+                                    key={v}
+                                    type="button"
+                                    onClick={() => toggleMultiDay(v)}
+                                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer relative
+                                        ${selected ? chipActive : chipInactive}`}
+                                >
+                                    {label}
+                                    {selected && (
+                                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full flex items-center justify-center">
+                                            <Check className="w-2 h-2 text-white stroke-[3]" />
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {(scheduledDaysOfWeek ?? []).length < 2 && (
+                        <p className="text-xs text-amber-400 mt-1">Please select at least 2 days.</p>
+                    )}
                 </div>
             )}
 

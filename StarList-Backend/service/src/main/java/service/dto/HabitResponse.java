@@ -9,6 +9,7 @@ import model.enums.CompletionStatus;
 import model.enums.DifficultyLevel;
 import model.enums.HabitFrequency;
 import model.enums.ScheduledTimeType;
+import java.util.List;
 
 @Builder
 public record HabitResponse(
@@ -30,7 +31,9 @@ public record HabitResponse(
         ScheduledTimeType scheduledTimeType,
         Integer scheduledHour,
         Integer customIntervalDays,
-        /** "day" for DAILY, "week" for WEEKLY, "period" for CUSTOM. */
+        /** ISO days of week (1=Mon…7=Sun). Present for MULTI_DAY; null for other frequencies. */
+        List<Integer> scheduledDaysOfWeek,
+        /** "day" for DAILY and MULTI_DAY, "week" for WEEKLY, "period" for CUSTOM. */
         String streakUnit,
         List<CompletionStatus> monthCompletions
 ) {
@@ -55,6 +58,7 @@ public record HabitResponse(
                 .scheduledTimeType(habit.getScheduledTimeType())
                 .scheduledHour(habit.getScheduledHour())
                 .customIntervalDays(habit.getCustomIntervalDays())
+                .scheduledDaysOfWeek(habit.getScheduledDaysOfWeek())
                 .streakUnit(streakUnitFor(habit.getFrequency()))
                 .build();
     }
@@ -79,6 +83,7 @@ public record HabitResponse(
                 .scheduledTimeType(habit.getScheduledTimeType())
                 .scheduledHour(habit.getScheduledHour())
                 .customIntervalDays(habit.getCustomIntervalDays())
+                .scheduledDaysOfWeek(habit.getScheduledDaysOfWeek())
                 .streakUnit(streakUnitFor(habit.getFrequency()))
                 .monthCompletions(monthCompletions)
                 .build();
@@ -89,7 +94,7 @@ public record HabitResponse(
         return switch (frequency) {
             case WEEKLY -> "week";
             case CUSTOM -> "period";
-            default -> "day";
+            case MULTI_DAY, DAILY -> "day";
         };
     }
 }

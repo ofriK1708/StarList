@@ -12,7 +12,7 @@ public interface HabitCompletionRepository extends JpaRepository<HabitCompletion
     /**
      * Returns true if the habit has any completion record with a date
      * in the inclusive range [{@code start}, {@code end}].
-     * Used for WEEKLY and CUSTOM period duplicate checks.
+     * Used for WEEKLY and CUSTOM period duplicate checks and miss-penalty detection.
      */
     boolean existsByHabit_IdAndCompletedDateBetween(Long habitId, LocalDate start, LocalDate end);
 

@@ -15,6 +15,7 @@ const DEFAULT_FREQ_CONFIG: FrequencyConfig = {
     scheduledTimeType: null,
     scheduledHour: null,
     customIntervalDays: null,
+    scheduledDaysOfWeek: null,
 };
 
 export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
@@ -30,6 +31,9 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
             if (!freqConfig.scheduledDayOfWeek) return false;
         }
         if (freqConfig.frequency === "CUSTOM" && !freqConfig.customIntervalDays) return false;
+        if (freqConfig.frequency === "MULTI_DAY") {
+            if (!freqConfig.scheduledDaysOfWeek || freqConfig.scheduledDaysOfWeek.length < 2) return false;
+        }
         return true;
     };
 
@@ -45,6 +49,7 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
             scheduledTimeType: freqConfig.scheduledTimeType ?? undefined,
             scheduledHour: freqConfig.scheduledHour ?? undefined,
             customIntervalDays: freqConfig.customIntervalDays ?? undefined,
+            scheduledDaysOfWeek: freqConfig.scheduledDaysOfWeek ?? undefined,
         });
 
         setTitle("");

@@ -67,6 +67,9 @@ public class HabitService {
         UserEntity userEntity = userService.findEntityById(userId);
 
         validateFrequencyConfig(request.frequency(), request.scheduledDayOfWeek(), request.customIntervalDays());
+        if (request.frequency() == HabitFrequency.MULTI_DAY) {
+            validateMultiDayConfig(request.scheduledDaysOfWeek());
+        }
 
         int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
         log.debug("Computed coins for {}: reward={}, penalty={}", request.difficultyLevel(), coins[0], coins[1]);
@@ -80,6 +83,7 @@ public class HabitService {
                 .scheduledTimeType(request.scheduledTimeType())
                 .scheduledHour(request.scheduledHour())
                 .customIntervalDays(request.customIntervalDays())
+                .scheduledDaysOfWeek(request.scheduledDaysOfWeek())
                 .difficultyLevel(request.difficultyLevel())
                 .coinReward(coins[0])
                 .coinPenalty(coins[1])
@@ -147,6 +151,7 @@ public class HabitService {
         if (request.scheduledTimeType() != null) entity.setScheduledTimeType(request.scheduledTimeType());
         if (request.scheduledHour() != null) entity.setScheduledHour(request.scheduledHour());
         if (request.customIntervalDays() != null) entity.setCustomIntervalDays(request.customIntervalDays());
+        if (request.scheduledDaysOfWeek() != null) entity.setScheduledDaysOfWeek(request.scheduledDaysOfWeek());
 
         if (difficultyChanged) {
             int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
@@ -253,10 +258,28 @@ public class HabitService {
                 LocalDate prevPeriodStart = prevPeriodEnd.minusDays(entity.getCustomIntervalDays() - 1);
                 yield !last.isBefore(prevPeriodStart) && !last.isAfter(prevPeriodEnd);
             }
+            // MULTI_DAY: streak counts consecutive completed days, regardless of which scheduled day.
+            // The previous completion just needs to be on a scheduled day, and it counts if it was "yesterday"
+            // in streak terms. We treat it like DAILY — last must be the immediately preceding scheduled day.
+            case MULTI_DAY -> {
+                // Walk backwards from today to find the previous scheduled day
+                List<Integer> scheduledDays = entity.getScheduledDaysOfWeek();
+                if (scheduledDays == null || scheduledDays.isEmpty()) yield false;
+                LocalDate prev = today.minusDays(1);
+                while (!prev.isBefore(last) || true) {
+                    if (scheduledDays.contains(prev.getDayOfWeek().getValue())) {
+                        yield last.equals(prev);
+                    }
+                    if (prev.equals(last)) break;
+                    prev = prev.minusDays(1);
+                }
+                yield false;
+            }
         };
     }
 
-    private void validateFrequencyConfig(HabitFrequency frequency, Integer scheduledDayOfWeek, Integer customIntervalDays) {
+    private void validateFrequencyConfig(HabitFrequency frequency, Integer scheduledDayOfWeek,
+                                          Integer customIntervalDays) {
         if (frequency == HabitFrequency.WEEKLY || frequency == HabitFrequency.CUSTOM) {
             if (scheduledDayOfWeek == null || scheduledDayOfWeek < 1 || scheduledDayOfWeek > 7) {
                 throw new IllegalArgumentException("scheduledDayOfWeek (1–7) is required for WEEKLY and CUSTOM habits");
@@ -266,6 +289,16 @@ public class HabitService {
             if (customIntervalDays == null || (customIntervalDays != 7 && customIntervalDays != 14 && customIntervalDays != 30)) {
                 throw new IllegalArgumentException("customIntervalDays must be 7, 14, or 30");
             }
+        }
+    }
+
+    private void validateMultiDayConfig(List<Integer> scheduledDaysOfWeek) {
+        if (scheduledDaysOfWeek == null || scheduledDaysOfWeek.size() < 2 || scheduledDaysOfWeek.size() > 6) {
+            throw new IllegalArgumentException("MULTI_DAY habits require 2–6 scheduled days of week");
+        }
+        boolean allValid = scheduledDaysOfWeek.stream().allMatch(d -> d >= 1 && d <= 7);
+        if (!allValid) {
+            throw new IllegalArgumentException("scheduledDaysOfWeek values must be 1 (Mon) through 7 (Sun)");
         }
     }
 

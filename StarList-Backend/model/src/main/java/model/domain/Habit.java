@@ -2,6 +2,7 @@ package model.domain;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -45,6 +46,12 @@ public class Habit {
      * Null for DAILY and WEEKLY.
      */
     private Integer customIntervalDays;
+
+    /**
+     * ISO days of week selected for MULTI_DAY habits (1=Mon … 7=Sun).
+     * Contains 2–6 values. Null for all other frequencies.
+     */
+    private List<Integer> scheduledDaysOfWeek;
 
     private DifficultyLevel difficultyLevel;
 
