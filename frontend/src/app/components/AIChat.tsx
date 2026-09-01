@@ -64,9 +64,8 @@ export function AIChat({ messages, onSendMessage, onAddTask, onDailyBriefing, is
             <Button
               onClick={onDailyBriefing}
               disabled={isLoading}
-              variant="outline"
               size="sm"
-              className="border-purple-500/50 text-purple-300 hover:bg-purple-500/20 disabled:opacity-50"
+              className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
             >
               <Sparkles className="w-4 h-4 mr-1" />
               Briefing
@@ -74,9 +73,8 @@ export function AIChat({ messages, onSendMessage, onAddTask, onDailyBriefing, is
             <Button
               onClick={handleNewChat}
               disabled={isLoading}
-              variant="outline"
               size="sm"
-              className="border-slate-600 text-slate-400 hover:bg-slate-700 disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
             >
               <RefreshCw className="w-4 h-4 mr-1" />
               New Chat

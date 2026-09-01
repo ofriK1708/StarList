@@ -1,7 +1,8 @@
 package service.dto;
 
 import jakarta.validation.constraints.Future;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import lombok.Builder;
 import model.enums.DifficultyLevel;
@@ -12,9 +13,9 @@ import model.enums.DifficultyLevel;
  */
 @Builder
 public record UpdateTaskRequest(
-        String title,
-        String description,
+        @Size(max = 120) String title,
+        @Size(max = 1000) String description,
         DifficultyLevel difficultyLevel,
-        @Positive Integer durationMinutes,
+        @PositiveOrZero Integer durationMinutes,
         @Future Instant dueDate
 ) {}

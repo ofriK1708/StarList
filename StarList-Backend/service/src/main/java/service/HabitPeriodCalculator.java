@@ -59,8 +59,10 @@ public class HabitPeriodCalculator {
      */
     public boolean isLateCompletion(HabitEntity habit, LocalDate today) {
         if (habit.getFrequency() != HabitFrequency.WEEKLY) return false;
+        Integer scheduledDay = habit.getScheduledDayOfWeek();
+        if (scheduledDay == null) return false;
         int todayIso = today.getDayOfWeek().getValue(); // 1=Mon … 7=Sun
-        return todayIso > habit.getScheduledDayOfWeek();
+        return todayIso > scheduledDay;
     }
 
     /**
@@ -107,8 +109,10 @@ public class HabitPeriodCalculator {
     }
 
     private List<LocalDate[]> weeklyPeriodsForMonth(HabitEntity habit, YearMonth yearMonth) {
+        Integer scheduledDay = habit.getScheduledDayOfWeek();
+        if (scheduledDay == null) return Collections.emptyList();
         List<LocalDate[]> result = new ArrayList<>(5);
-        DayOfWeek targetDay = DayOfWeek.of(habit.getScheduledDayOfWeek());
+        DayOfWeek targetDay = DayOfWeek.of(scheduledDay);
         // First occurrence of the scheduled day in the month
         LocalDate first = yearMonth.atDay(1).with(TemporalAdjusters.nextOrSame(targetDay));
         while (!first.isAfter(yearMonth.atEndOfMonth())) {

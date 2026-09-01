@@ -153,6 +153,13 @@ public class HabitService {
         if (request.customIntervalDays() != null) entity.setCustomIntervalDays(request.customIntervalDays());
         if (request.scheduledDaysOfWeek() != null) entity.setScheduledDaysOfWeek(request.scheduledDaysOfWeek());
 
+        // Re-validate the resulting configuration so a frequency change can't leave the row
+        // inconsistent (e.g. WEEKLY/CUSTOM without scheduledDayOfWeek, MULTI_DAY without scheduledDaysOfWeek).
+        validateFrequencyConfig(entity.getFrequency(), entity.getScheduledDayOfWeek(), entity.getCustomIntervalDays());
+        if (entity.getFrequency() == HabitFrequency.MULTI_DAY) {
+            validateMultiDayConfig(entity.getScheduledDaysOfWeek());
+        }
+
         if (difficultyChanged) {
             int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
             entity.setCoinReward(coins[0]);

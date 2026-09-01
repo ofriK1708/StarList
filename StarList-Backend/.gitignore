@@ -33,5 +33,5 @@ build/
 .vscode/
 /.claude/settings.local.json
 ### env files ###
-.env
+app/.env
 .env.local
