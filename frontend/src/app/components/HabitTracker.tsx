@@ -1,4 +1,5 @@
-import { Check, Flame, Plus, Trash2, Edit2 } from "lucide-react";
+import { Check, Flame, Plus, Trash2, Edit2, ArrowUpDown } from "lucide-react";
+import { useState } from "react";
 import { Button } from "./ui/button";
 import { HabitResponse } from "@/services/habitsApi.ts";
 
@@ -10,41 +11,134 @@ interface HabitTrackerProps {
     onDeleteHabit: (id: number) => void;
 }
 
+type HabitSort = 'date' | 'name' | 'difficulty' | 'streak';
+type HabitFilter = 'all' | 'active' | 'completed';
+
+const DIFFICULTY_WEIGHT: Record<HabitResponse["difficultyLevel"], number> = { HARD: 3, MEDIUM: 2, EASY: 1 };
+
 export function HabitTracker({ habits, onHabitCheck, onAddHabitClick, onEditHabitClick, onDeleteHabit }: HabitTrackerProps) {
+    const [sortBy, setSortBy] = useState<HabitSort>('date');
+    const [filter, setFilter] = useState<HabitFilter>('all');
+
+    const sortedHabits = [...habits]
+        .filter((h) => {
+            if (filter === 'active') return !isCurrentPeriodDone(h);
+            if (filter === 'completed') return isCurrentPeriodDone(h);
+            return true;
+        })
+        .sort((a, b) => {
+            switch (sortBy) {
+                case 'name':
+                    return a.title.localeCompare(b.title);
+                case 'difficulty':
+                    return DIFFICULTY_WEIGHT[b.difficultyLevel] - DIFFICULTY_WEIGHT[a.difficultyLevel];
+                case 'streak':
+                    return b.currentStreak - a.currentStreak;
+                case 'date':
+                default:
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            }
+        });
+
     return (
-        <div className="w-full h-full bg-slate-900/50 overflow-y-auto p-6 animate-in fade-in duration-500">
-            <div className="max-w-5xl mx-auto">
-                <div className="flex justify-between items-center mb-10">
+        <div className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-y-auto scrollbar-hide">
+            {/* Header */}
+            <div className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700/50 px-6 py-4">
+                <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-white tracking-tight">Habits</h1>
-                        <p className="text-slate-400 text-sm">Maintain consistency to power the galaxy's core</p>
+                        <h1 className="text-2xl text-white/90">Habit Tracker</h1>
+                        <p className="text-sm text-slate-400">Maintain consistency to power the galaxy's core</p>
                     </div>
-                    <Button
-                        onClick={onAddHabitClick}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-lg shadow-indigo-900/20"
-                    >
-                        <Plus className="w-4 h-4" /> New Habit
-                    </Button>
+                    <div className="flex gap-3">
+                        <Button
+                            onClick={onAddHabitClick}
+                            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Add Habit
+                        </Button>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {habits.map((habit, index) => (
-                        <HabitRadialCard
-                            key={habit.habitId}
-                            habit={habit}
-                            onCheck={() => onHabitCheck(habit.habitId)}
-                            onEdit={() => onEditHabitClick(habit)}
-                            onDelete={() => onDeleteHabit(habit.habitId)}
-                            index={index}
-                        />
-                    ))}
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex gap-2">
+                        {(['all', 'active', 'completed'] as const).map((f) => (
+                            <button
+                                key={f}
+                                onClick={() => setFilter(f)}
+                                className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                                    filter === f
+                                        ? 'bg-slate-700 text-white'
+                                        : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300'
+                                }`}
+                            >
+                                {f.charAt(0).toUpperCase() + f.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50">
+                        <ArrowUpDown className="w-4 h-4 text-slate-400" />
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as HabitSort)}
+                            className="bg-transparent text-sm text-slate-300 focus:outline-none cursor-pointer appearance-none pr-4"
+                        >
+                            <option value="date" className="bg-slate-800">Sort by Newest</option>
+                            <option value="name" className="bg-slate-800">Sort by Name</option>
+                            <option value="difficulty" className="bg-slate-800">Sort by Difficulty</option>
+                            <option value="streak" className="bg-slate-800">Sort by Streak</option>
+                        </select>
+                    </div>
                 </div>
+            </div>
+
+            {/* Habit Grid */}
+            <div className="p-6 pb-24">
+                {sortedHabits.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400">
+                        <Flame className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>{habits.length === 0 ? 'No habits yet' : 'No habits match this filter'}</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-[repeat(auto-fill,320px)] justify-center gap-8">
+                        {sortedHabits.map((habit, index) => (
+                            <HabitRadialCard
+                                key={habit.habitId}
+                                habit={habit}
+                                onCheck={() => onHabitCheck(habit.habitId)}
+                                onEdit={() => onEditHabitClick(habit)}
+                                onDelete={() => onDeleteHabit(habit.habitId)}
+                                index={index}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+const TITLE_LINE_MAX = 20;
+
+/**
+ * Splits a habit title so it renders on at most two lines, each ≤ 20 chars.
+ * Prefers breaking on whitespace; falls back to a hard cut at 20 characters.
+ */
+function splitHabitTitle(title: string): string[] {
+    const t = title.trim();
+    if (t.length <= TITLE_LINE_MAX) return [t];
+
+    // Latest space within the first line's budget.
+    let breakAt = t.lastIndexOf(" ", TITLE_LINE_MAX);
+    // Use it only if the remainder also fits on one line; otherwise hard-cut.
+    if (breakAt <= 0 || t.length - breakAt - 1 > TITLE_LINE_MAX) {
+        return [t.slice(0, TITLE_LINE_MAX), t.slice(TITLE_LINE_MAX, TITLE_LINE_MAX * 2)];
+    }
+    return [t.slice(0, breakAt), t.slice(breakAt + 1, breakAt + 1 + TITLE_LINE_MAX)];
+}
 
 /** Returns true when the current period has already been completed. */
 function isCurrentPeriodDone(habit: HabitResponse): boolean {
@@ -55,6 +149,7 @@ function isCurrentPeriodDone(habit: HabitResponse): boolean {
 
     switch (habit.frequency) {
         case "DAILY":
+        case "MULTI_DAY":
             return habit.lastCompletedDate === new Date().toISOString().split("T")[0];
 
         case "WEEKLY": {
@@ -167,7 +262,11 @@ function HabitRadialCard({
 
             {/* ── Title + streak ── */}
             <div className="text-center mb-6 z-10">
-                <h3 className="text-xl font-bold text-white group-hover:text-blue-200 transition-colors">{habit.title}</h3>
+                <h3 className="text-xl font-bold text-white group-hover:text-blue-200 transition-colors leading-tight">
+                    {splitHabitTitle(habit.title).map((line, i) => (
+                        <span key={i} className="block">{line}</span>
+                    ))}
+                </h3>
                 <div className="flex items-center justify-center gap-1.5 text-orange-400 text-sm mt-1 font-medium">
                     <Flame className="w-4 h-4 fill-orange-400/20" />
                     <span>{habit.currentStreak} {streakUnit} streak</span>
@@ -187,10 +286,10 @@ function HabitRadialCard({
                             strokeClass = color.stroke;
                             glowStyle = { filter: `drop-shadow(0 0 6px ${color.glow})` };
                         } else if (status === "MISSED") {
-                            strokeClass = "text-rose-900";
+                            strokeClass = "text-rose-800";
                             glowStyle = undefined;
                         } else {
-                            strokeClass = "text-slate-800";
+                            strokeClass = "text-slate-600";
                             glowStyle = undefined;
                         }
                         return (
@@ -219,8 +318,8 @@ function HabitRadialCard({
                         const y = center - radius * Math.cos(theta);
                         const fill =
                             status === "DONE"   ? "white"   :
-                            status === "MISSED" ? "#881337" :
-                                                  "#1e293b";
+                            status === "MISSED" ? "#fb7185" :
+                                                  "#94a3b8";
                         const label = segmentLabel(habit.frequency, i);
                         // Show labels only when segments are large enough to read
                         const minSegForLabel = 8;

@@ -1,44 +1,58 @@
-import { useState } from "react";
-import { X, Target, Plus } from "lucide-react";
-import { AddTaskRequest } from "@/services/taskApi.ts";
+import { useState, useEffect } from "react";
+import { X, Edit2, Check } from "lucide-react";
+import { TaskResponse, UpdateTaskRequest, DifficultyLevel } from "@/services/taskApi.ts";
 import { TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from "@/services/validation.ts";
-import { DURATION_UNITS, DurationUnit, toMinutes } from "@/lib/duration.ts";
+import { DURATION_UNITS, DurationUnit, toMinutes, splitMinutes } from "@/lib/duration.ts";
 
-interface AddTaskModalProps {
+interface EditTaskModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAdd: (taskData: AddTaskRequest) => void;
+    taskToEdit: TaskResponse | null;
+    onUpdate: (taskId: number, taskData: UpdateTaskRequest) => void;
 }
 
-export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
+/** ISO string -> value accepted by <input type="datetime-local"> (local time, no seconds). */
+function toLocalInputValue(iso: string | null): string {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function EditTaskModal({ isOpen, onClose, taskToEdit, onUpdate }: EditTaskModalProps) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [difficulty, setDifficulty] = useState<'EASY' | 'MEDIUM' | 'HARD'>('MEDIUM');
+    const [difficulty, setDifficulty] = useState<DifficultyLevel>("MEDIUM");
     const [durationValue, setDurationValue] = useState<number>(30);
     const [durationUnit, setDurationUnit] = useState<DurationUnit>('minutes');
     const [dueDate, setDueDate] = useState<string>("");
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        if (taskToEdit) {
+            setTitle(taskToEdit.title);
+            setDescription(taskToEdit.description ?? "");
+            setDifficulty(taskToEdit.difficultyLevel);
+            const { value, unit } = splitMinutes(taskToEdit.durationMinutes ?? 30);
+            setDurationValue(value);
+            setDurationUnit(unit);
+            setDueDate(toLocalInputValue(taskToEdit.dueDate));
+        }
+    }, [taskToEdit]);
+
+    if (!isOpen || !taskToEdit) return null;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim()) return;
 
-        onAdd({
+        onUpdate(taskToEdit.taskId, {
             title,
             description,
             difficultyLevel: difficulty,
             durationMinutes: toMinutes(durationValue, durationUnit),
             dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
         });
-
-        setTitle("");
-        setDescription("");
-        setDifficulty("MEDIUM");
-        setDurationValue(30);
-        setDurationUnit('minutes');
-        setDueDate("");
-        onClose();
     };
 
     return (
@@ -47,8 +61,8 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
 
                 <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-800/50">
                     <h2 className="text-lg text-white font-medium flex items-center gap-2">
-                        <Target className="w-5 h-5 text-blue-400" />
-                        New Mission
+                        <Edit2 className="w-5 h-5 text-blue-400" />
+                        Edit Mission
                     </h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
                         <X className="w-5 h-5" />
@@ -88,7 +102,7 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
                             <select
                                 aria-label="Difficulty"
                                 value={difficulty}
-                                onChange={(e) => setDifficulty(e.target.value as 'EASY' | 'MEDIUM' | 'HARD')}
+                                onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
                                 className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
                             >
                                 <option value="EASY">Easy</option>
@@ -137,8 +151,8 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
                             Cancel
                         </button>
                         <button type="submit" className="flex-1 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 transition-colors">
-                            <Plus className="w-4 h-4" />
-                            Add Mission
+                            <Check className="w-4 h-4" />
+                            Save Changes
                         </button>
                     </div>
                 </form>
