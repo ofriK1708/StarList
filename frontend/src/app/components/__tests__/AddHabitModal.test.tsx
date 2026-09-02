@@ -11,6 +11,36 @@ const submit = () => screen.getByRole('button', { name: /Add Habit/i })
 describe('AddHabitModal', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it('keeps the form intact when the add request fails', async () => {
+    // The modal is only closed by the parent on success, so wiping the form on a failed
+    // submit strands the user on an empty "Daily" form with no idea what went wrong.
+    const p = { ...props(), onAdd: vi.fn().mockRejectedValue(new Error('boom')) }
+    render(<AddHabitModal {...p} />)
+
+    await userEvent.type(titleInput(), 'Gym days')
+    await userEvent.click(screen.getByRole('button', { name: 'Weekly' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Mon' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Thu' }))
+    await userEvent.click(submit())
+
+    expect(p.onAdd).toHaveBeenCalled()
+    expect(titleInput().value).toBe('Gym days')
+    expect(screen.getByRole('button', { name: 'Weekly' })).toHaveClass('bg-blue-600')
+    expect(screen.getByRole('button', { name: 'Mon' })).toHaveClass('bg-blue-600')
+    expect(screen.getByRole('button', { name: 'Thu' })).toHaveClass('bg-blue-600')
+  })
+
+  it('clears the form after a successful add', async () => {
+    const p = { ...props(), onAdd: vi.fn().mockResolvedValue(undefined) }
+    render(<AddHabitModal {...p} />)
+
+    await userEvent.type(titleInput(), 'Morning run')
+    await userEvent.click(submit())
+
+    expect(p.onAdd).toHaveBeenCalled()
+    expect(titleInput().value).toBe('')
+  })
+
   it('renders nothing when closed', () => {
     const { container } = render(<AddHabitModal {...props()} isOpen={false} />)
     expect(container).toBeEmptyDOMElement()

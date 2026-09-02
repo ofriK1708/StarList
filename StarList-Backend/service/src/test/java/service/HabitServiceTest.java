@@ -7,6 +7,7 @@ import model.enums.TransactionType;
 import java.time.DayOfWeek;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -14,6 +15,8 @@ import repository.api.HabitRepository;
 import repository.entity.HabitEntity;
 import repository.entity.UserEntity;
 import repository.mapper.HabitMapper;
+import service.dto.AddHabitRequest;
+import service.dto.AddHabitResponse;
 import service.dto.MarkHabitDoneResponse;
 import service.exceptions.HabitAlreadyCompletedTodayException;
 import service.exceptions.HabitNotFoundException;
@@ -462,6 +465,52 @@ class HabitServiceTest {
         assertThat(r1.monthCompletions().get(6)).isEqualTo(CompletionStatus.MISSED); // day 7 not completed for habit1
         assertThat(r2.monthCompletions().get(6)).isEqualTo(CompletionStatus.DONE);   // day 7 completed for habit2
         assertThat(r2.monthCompletions().get(2)).isEqualTo(CompletionStatus.MISSED); // day 3 not completed for habit2
+    }
+
+    // ── addHabit ──────────────────────────────────────────────────────────────
+
+    @Test
+    void addHabit_multiDayWithTwoDays_persistsScheduledDaysOfWeek() {
+        UserEntity user = UserEntity.builder().id(1L).build();
+        AddHabitRequest request = AddHabitRequest.builder()
+                .title("Gym days")
+                .frequency(HabitFrequency.MULTI_DAY)
+                .difficultyLevel(DifficultyLevel.MEDIUM)
+                .scheduledDaysOfWeek(List.of(1, 4))
+                .build();
+
+        when(userService.findEntityById(1L)).thenReturn(user);
+        when(coinCalculator.computeBaseCoins(DifficultyLevel.MEDIUM)).thenReturn(new int[]{25, 10});
+        when(habitMapper.fromDomain(any(), eq(user))).thenReturn(HabitEntity.builder().id(50L).build());
+        when(habitRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(habitMapper.toDomain(any(HabitEntity.class))).thenReturn(
+                Habit.builder().id(50L).title("Gym days").frequency(HabitFrequency.MULTI_DAY)
+                        .scheduledDaysOfWeek(List.of(1, 4)).build());
+
+        AddHabitResponse response = habitService.addHabit(1L, request);
+
+        assertThat(response.habitId()).isEqualTo(50L);
+        ArgumentCaptor<Habit> captor = ArgumentCaptor.forClass(Habit.class);
+        verify(habitMapper).fromDomain(captor.capture(), eq(user));
+        assertThat(captor.getValue().getFrequency()).isEqualTo(HabitFrequency.MULTI_DAY);
+        assertThat(captor.getValue().getScheduledDaysOfWeek()).containsExactly(1, 4);
+        assertThat(captor.getValue().getScheduledDayOfWeek()).isNull();
+    }
+
+    @Test
+    void addHabit_multiDayWithOnlyOneDay_isRejected() {
+        UserEntity user = UserEntity.builder().id(1L).build();
+        AddHabitRequest request = AddHabitRequest.builder()
+                .title("Gym days")
+                .frequency(HabitFrequency.MULTI_DAY)
+                .difficultyLevel(DifficultyLevel.MEDIUM)
+                .scheduledDaysOfWeek(List.of(1))
+                .build();
+
+        when(userService.findEntityById(1L)).thenReturn(user);
+
+        assertThatThrownBy(() -> habitService.addHabit(1L, request))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     // ── periodStatus ──────────────────────────────────────────────────────────

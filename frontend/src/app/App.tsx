@@ -268,6 +268,9 @@ function MainApp() {
       await refreshHabits();
     } catch (error) {
       console.error(error);
+      showToast("Couldn't add the habit. Please try again.", "error");
+      // Rethrow so the modal keeps the user's input instead of resetting to a blank form.
+      throw error;
     }
   };
 

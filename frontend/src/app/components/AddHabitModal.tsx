@@ -7,7 +7,8 @@ import { FrequencyConfig, FrequencyConfigSection } from "./FrequencyConfigSectio
 interface AddHabitModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAdd: (habitData: AddHabitRequest) => void;
+    /** May be async. If it rejects, the form is left untouched so the user keeps their input. */
+    onAdd: (habitData: AddHabitRequest) => void | Promise<void>;
 }
 
 const DEFAULT_FREQ_CONFIG: FrequencyConfig = {
@@ -23,6 +24,7 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
     const [title, setTitle] = useState("");
     const [difficulty, setDifficulty] = useState<DifficultyLevel>("MEDIUM");
     const [freqConfig, setFreqConfig] = useState<FrequencyConfig>(DEFAULT_FREQ_CONFIG);
+    const [submitting, setSubmitting] = useState(false);
 
     if (!isOpen) return null;
 
@@ -38,24 +40,32 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
         return true;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isValid()) return;
+        if (!isValid() || submitting) return;
 
-        onAdd({
-            title,
-            difficultyLevel: difficulty,
-            frequency: freqConfig.frequency,
-            scheduledDayOfWeek: freqConfig.scheduledDayOfWeek ?? undefined,
-            scheduledTimeType: freqConfig.scheduledTimeType ?? undefined,
-            scheduledHour: freqConfig.scheduledHour ?? undefined,
-            customIntervalDays: freqConfig.customIntervalDays ?? undefined,
-            scheduledDaysOfWeek: freqConfig.scheduledDaysOfWeek ?? undefined,
-        });
-
-        setTitle("");
-        setDifficulty("MEDIUM");
-        setFreqConfig(DEFAULT_FREQ_CONFIG);
+        setSubmitting(true);
+        try {
+            await onAdd({
+                title,
+                difficultyLevel: difficulty,
+                frequency: freqConfig.frequency,
+                scheduledDayOfWeek: freqConfig.scheduledDayOfWeek ?? undefined,
+                scheduledTimeType: freqConfig.scheduledTimeType ?? undefined,
+                scheduledHour: freqConfig.scheduledHour ?? undefined,
+                customIntervalDays: freqConfig.customIntervalDays ?? undefined,
+                scheduledDaysOfWeek: freqConfig.scheduledDaysOfWeek ?? undefined,
+            });
+            // Only clear once the habit actually exists. The parent closes the modal on success,
+            // so clearing on failure would strand the user on a blank "Daily" form instead.
+            setTitle("");
+            setDifficulty("MEDIUM");
+            setFreqConfig(DEFAULT_FREQ_CONFIG);
+        } catch {
+            // Parent reports the error; keep the user's input so they can retry.
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
