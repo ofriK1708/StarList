@@ -16,6 +16,12 @@ import service.dto.HabitResponse;
  */
 final class HabitCoachNotices {
 
+    /**
+     * Days past due before the wording escalates. Deliberately not 1 — a single missed day gets a
+     * plain statement of fact, so the assistant does not scold the user over one slip.
+     */
+    private static final int ESCALATE_AFTER_DAYS = 3;
+
     private HabitCoachNotices() {
     }
 
@@ -41,7 +47,50 @@ final class HabitCoachNotices {
      * @return the notice text, or {@link Optional#empty()} to say nothing about this habit
      */
     static Optional<String> forHabit(HabitResponse habit, LocalDate today) {
-        // TODO(ofri): implement the notice policy described above.
+        HabitPeriodStatus status = habit.periodStatus();
+
+        // Only an explicit false silences a habit: if isActive somehow arrives null we would rather
+        // over-remind than go silently quiet and hide the bug.
+        if (status == null
+                || !status.scheduledToday()
+                || status.completedThisPeriod()
+                || Boolean.FALSE.equals(habit.isActive())) {
+            return Optional.empty();
+        }
+
+        String title = habit.title();
+        String streak = " (streak: " + habit.currentStreak() + ")";
+        int daysLate = status.daysLate();
+
+        if (daysLate > 0) {
+            String late = daysLate + (daysLate == 1 ? " day" : " days");
+
+            // Most urgent first: the period closes tonight, so this is the final chance to log it.
+            if (today.equals(status.periodEnd())) {
+                return Optional.of("Last chance on \"" + title + "\" — it was due " + late
+                        + " ago and this period ends today. Logging it now still counts." + streak);
+            }
+            if (daysLate >= ESCALATE_AFTER_DAYS) {
+                return Optional.of("\"" + title + "\" is now " + late + " past due. Completing it late "
+                        + "restarts the streak, but it still counts — worth picking back up." + streak);
+            }
+            return Optional.of("\"" + title + "\" is " + late + " past due. Completing it late "
+                    + "will restart the streak." + streak);
+        }
+
+        if (status.daysUntilDue() == 0) {
+            return Optional.of("\"" + title + "\" is due today." + streak);
+        }
+        if (status.daysUntilDue() == 1) {
+            return Optional.of("\"" + title + "\" is due tomorrow." + streak);
+        }
+        if (today.equals(status.periodStart())) {
+            return Optional.of("New period started for \"" + title + "\" — due in "
+                    + status.daysUntilDue() + " days." + streak);
+        }
+
+        // Mid-period with nothing due soon. Staying quiet here is what stops a 30-day CUSTOM habit
+        // from emitting a notice every single day and flooding the prompt.
         return Optional.empty();
     }
 }
