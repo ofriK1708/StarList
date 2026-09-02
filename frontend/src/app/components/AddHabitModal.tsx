@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Flame, Plus } from "lucide-react";
 import { AddHabitRequest, DifficultyLevel } from "@/services/habitsApi.ts";
+import { TITLE_MAX_LENGTH } from "@/services/validation.ts";
 import { FrequencyConfig, FrequencyConfigSection } from "./FrequencyConfigSection.tsx";
 
 interface AddHabitModalProps {
@@ -77,10 +78,12 @@ export function AddHabitModal({ isOpen, onClose, onAdd }: AddHabitModalProps) {
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
+                            maxLength={TITLE_MAX_LENGTH}
                             placeholder="e.g., Morning run"
                             className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
                             required
                         />
+                        <p className="text-xs text-slate-500 mt-1 text-right">{title.length}/{TITLE_MAX_LENGTH}</p>
                     </div>
 
                     <div>

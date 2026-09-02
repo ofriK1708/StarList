@@ -1,5 +1,4 @@
-import { User as UserIcon, Mail, Trophy, Sparkles, Crown, Settings, LogOut } from "lucide-react";
-import { Button } from "./ui/button";
+import { User as UserIcon, Mail, Trophy, Sparkles, Crown, LogOut } from "lucide-react";
 import { useUser } from "../../context/UserContext";
 
 interface ProfileProps {
@@ -60,10 +59,6 @@ export function Profile({ user, coinBalance }: ProfileProps) {
                 <span>{user.email}</span>
               </div>
             </div>
-            <Button className="bg-slate-800 hover:bg-slate-700 text-white border border-slate-700">
-              <Settings className="w-4 h-4 mr-2" />
-              Edit
-            </Button>
           </div>
 
           {/* Coins */}

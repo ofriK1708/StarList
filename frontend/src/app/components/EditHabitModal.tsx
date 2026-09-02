@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Edit2, Check } from "lucide-react";
 import { HabitResponse, UpdateHabitRequest, DifficultyLevel } from "@/services/habitsApi.ts";
+import { TITLE_MAX_LENGTH } from "@/services/validation.ts";
 import { FrequencyConfig, FrequencyConfigSection } from "./FrequencyConfigSection.tsx";
 
 interface EditHabitModalProps {
@@ -91,9 +92,11 @@ export function EditHabitModal({ isOpen, onClose, habitToEdit, onUpdate }: EditH
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
+                            maxLength={TITLE_MAX_LENGTH}
                             className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
                             required
                         />
+                        <p className="text-xs text-slate-500 mt-1 text-right">{title.length}/{TITLE_MAX_LENGTH}</p>
                     </div>
 
                     <div>
