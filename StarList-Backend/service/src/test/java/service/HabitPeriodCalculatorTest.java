@@ -91,39 +91,83 @@ class HabitPeriodCalculatorTest {
         assertThat(period[1]).isEqualTo(LocalDate.of(2026, 8, 30));
     }
 
-    // ── isLateCompletion ───────────────────────────────────────────────────────
+    // ── daysLate ──────────────────────────────────────────────────────────────
+    // Reference week: Aug 10 2026 is a Monday, Aug 16 is the Sunday that ends it.
 
     @Test
-    void isLateCompletion_daily_alwaysFalse() {
+    void daysLate_daily_returnsZero() {
         HabitEntity h = dailyHabit();
-        assertThat(calc.isLateCompletion(h, LocalDate.of(2026, 8, 15))).isFalse();
+        assertThat(calc.daysLate(h, LocalDate.of(2026, 8, 15))).isZero();
     }
 
     @Test
-    void isLateCompletion_weekly_completedOnScheduledDay_false() {
-        HabitEntity h = weeklyHabit(3); // Wednesday = ISO 3
+    void daysLate_multiDay_onScheduledDay_returnsZero() {
+        HabitEntity h = multiDayHabit(List.of(1, 3, 5)); // Mon, Wed, Fri
         LocalDate wednesday = LocalDate.of(2026, 8, 12);
-        assertThat(calc.isLateCompletion(h, wednesday)).isFalse();
+        assertThat(calc.daysLate(h, wednesday)).isZero();
     }
 
     @Test
-    void isLateCompletion_weekly_completedBeforeScheduledDay_false() {
-        HabitEntity h = weeklyHabit(5); // Friday = ISO 5
+    void daysLate_multiDay_offScheduledDay_returnsZero() {
+        HabitEntity h = multiDayHabit(List.of(1, 3, 5)); // Mon, Wed, Fri
         LocalDate tuesday = LocalDate.of(2026, 8, 11);
-        assertThat(calc.isLateCompletion(h, tuesday)).isFalse();
+        assertThat(calc.daysLate(h, tuesday)).isZero();
     }
 
     @Test
-    void isLateCompletion_weekly_completedAfterScheduledDay_true() {
-        HabitEntity h = weeklyHabit(3); // Wednesday = ISO 3
-        LocalDate friday = LocalDate.of(2026, 8, 14); // ISO 5
-        assertThat(calc.isLateCompletion(h, friday)).isTrue();
+    void daysLate_weekly_onScheduledDay_returnsZero() {
+        HabitEntity h = weeklyHabit(3); // Wednesday
+        LocalDate wednesday = LocalDate.of(2026, 8, 12);
+        assertThat(calc.daysLate(h, wednesday)).isZero();
     }
 
     @Test
-    void isLateCompletion_custom_alwaysFalse() {
-        HabitEntity h = customHabit(14, LocalDate.of(2026, 8, 1));
-        assertThat(calc.isLateCompletion(h, LocalDate.of(2026, 8, 20))).isFalse();
+    void daysLate_weekly_beforeScheduledDay_returnsZero() {
+        HabitEntity h = weeklyHabit(5); // Friday
+        LocalDate tuesday = LocalDate.of(2026, 8, 11);
+        assertThat(calc.daysLate(h, tuesday)).isZero();
+    }
+
+    @Test
+    void daysLate_weekly_twoDaysAfterScheduledDay_returnsTwo() {
+        HabitEntity h = weeklyHabit(3); // Wednesday
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        assertThat(calc.daysLate(h, friday)).isEqualTo(2);
+    }
+
+    @Test
+    void daysLate_weekly_scheduledSunday_neverLate() {
+        // Sunday closes the ISO week, so there is no day left to be late on.
+        HabitEntity h = weeklyHabit(7);
+        LocalDate sunday = LocalDate.of(2026, 8, 16);
+        assertThat(calc.daysLate(h, sunday)).isZero();
+    }
+
+    @Test
+    void daysLate_weekly_nullScheduledDay_returnsZero() {
+        HabitEntity h = weeklyHabit(null);
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        assertThat(calc.daysLate(h, friday)).isZero();
+    }
+
+    @Test
+    void daysLate_custom_beforeDueWeekdayInWindow_returnsZero() {
+        // Period is Aug 1–Aug 30; due = last Wednesday on/before Aug 30 = Aug 26.
+        HabitEntity h = customHabit(30, LocalDate.of(2026, 8, 1), 3);
+        assertThat(calc.daysLate(h, LocalDate.of(2026, 8, 20))).isZero();
+    }
+
+    @Test
+    void daysLate_custom_afterDueWeekdayInWindow_returnsDaysSinceDue() {
+        // Due Aug 26, completing Aug 29 → 3 days late.
+        HabitEntity h = customHabit(30, LocalDate.of(2026, 8, 1), 3);
+        assertThat(calc.daysLate(h, LocalDate.of(2026, 8, 29))).isEqualTo(3);
+    }
+
+    @Test
+    void daysLate_custom_nullScheduledDay_returnsZero() {
+        HabitEntity h = customHabit(30, LocalDate.of(2026, 8, 1), null);
+        assertThat(calc.daysLate(h, LocalDate.of(2026, 8, 29))).isZero();
     }
 
     // ── periodsForMonth — DAILY ────────────────────────────────────────────────
@@ -226,7 +270,7 @@ class HabitPeriodCalculatorTest {
                 .build();
     }
 
-    private HabitEntity weeklyHabit(int scheduledDayOfWeek) {
+    private HabitEntity weeklyHabit(Integer scheduledDayOfWeek) {
         return HabitEntity.builder()
                 .id(1L)
                 .frequency(HabitFrequency.WEEKLY)
@@ -236,11 +280,25 @@ class HabitPeriodCalculatorTest {
     }
 
     private HabitEntity customHabit(int intervalDays, LocalDate createdDate) {
+        return customHabit(intervalDays, createdDate, null);
+    }
+
+    private HabitEntity customHabit(int intervalDays, LocalDate createdDate, Integer scheduledDayOfWeek) {
         return HabitEntity.builder()
                 .id(1L)
                 .frequency(HabitFrequency.CUSTOM)
                 .customIntervalDays(intervalDays)
+                .scheduledDayOfWeek(scheduledDayOfWeek)
                 .createdAt(createdDate.atStartOfDay().toInstant(ZoneOffset.UTC))
+                .build();
+    }
+
+    private HabitEntity multiDayHabit(List<Integer> scheduledDaysOfWeek) {
+        return HabitEntity.builder()
+                .id(1L)
+                .frequency(HabitFrequency.MULTI_DAY)
+                .scheduledDaysOfWeek(scheduledDaysOfWeek)
+                .createdAt(Instant.parse("2026-08-01T00:00:00Z"))
                 .build();
     }
 }

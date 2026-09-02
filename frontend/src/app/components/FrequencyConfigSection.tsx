@@ -17,6 +17,18 @@ const INTERVAL_OPTIONS: { value: 7 | 14 | 30; label: string }[] = [
     { value: 30, label: "Every month" },
 ];
 
+/** The chip the user picks. MULTI_DAY is not offered directly — see {@link applyDays}. */
+type FrequencyChip = "DAILY" | "WEEKLY" | "CUSTOM";
+
+const FREQUENCY_CHIPS: { value: FrequencyChip; label: string }[] = [
+    { value: "DAILY",  label: "Daily" },
+    { value: "WEEKLY", label: "Weekly" },
+    { value: "CUSTOM", label: "Custom" },
+];
+
+/** Seven selected days is just DAILY, so the weekly picker stops at six. */
+const MAX_WEEKLY_DAYS = 6;
+
 const TIME_OPTIONS: { value: ScheduledTimeType; label: string }[] = [
     { value: "MORNING",   label: "Morning" },
     { value: "AFTERNOON", label: "Afternoon" },
@@ -45,27 +57,69 @@ export function FrequencyConfigSection({ value, onChange }: Props) {
 
     const set = (patch: Partial<FrequencyConfig>) => onChange({ ...value, ...patch });
 
-    const handleFrequency = (f: HabitFrequency) => {
-        // Reset sub-fields that don't apply to the newly selected frequency
-        set({
-            frequency: f,
-            scheduledDayOfWeek: f === "DAILY" || f === "MULTI_DAY" ? null : scheduledDayOfWeek,
-            customIntervalDays: f === "CUSTOM" ? (customIntervalDays ?? 7) : null,
-            scheduledDaysOfWeek: f === "MULTI_DAY" ? (scheduledDaysOfWeek ?? []) : null,
-        });
+    // WEEKLY and MULTI_DAY are one control to the user; only the day count tells them apart.
+    const isWeekly = frequency === "WEEKLY" || frequency === "MULTI_DAY";
+    const activeChip: FrequencyChip = frequency === "MULTI_DAY" ? "WEEKLY" : (frequency as FrequencyChip);
+
+    /** Days currently ticked, read back from whichever shape the habit is stored in. */
+    const selectedDays: number[] =
+        frequency === "MULTI_DAY" ? (scheduledDaysOfWeek ?? [])
+            : frequency === "WEEKLY" && scheduledDayOfWeek ? [scheduledDayOfWeek]
+                : [];
+
+    /**
+     * One control, two backend shapes: a single day is a WEEKLY habit, several days is MULTI_DAY.
+     * Streak rules are identical either way — miss the day and the streak resets — so the split is
+     * invisible to the user. The only difference is that a WEEKLY habit can still be logged later
+     * in the same week for partial credit.
+     */
+    const applyDays = (days: number[]) => {
+        if (days.length > 1) {
+            set({
+                frequency: "MULTI_DAY",
+                scheduledDayOfWeek: null,
+                scheduledDaysOfWeek: days,
+                customIntervalDays: null,
+            });
+        } else {
+            set({
+                frequency: "WEEKLY",
+                scheduledDayOfWeek: days[0] ?? null,
+                scheduledDaysOfWeek: null,
+                customIntervalDays: null,
+            });
+        }
     };
 
-    const toggleMultiDay = (dayValue: number) => {
-        const current = scheduledDaysOfWeek ?? [];
-        const next = current.includes(dayValue)
-            ? current.filter(d => d !== dayValue)
-            : [...current, dayValue].sort((a, b) => a - b);
-        set({ scheduledDaysOfWeek: next });
+    const toggleWeekDay = (dayValue: number) => {
+        const next = selectedDays.includes(dayValue)
+            ? selectedDays.filter(d => d !== dayValue)
+            : [...selectedDays, dayValue].sort((a, b) => a - b);
+        if (next.length > MAX_WEEKLY_DAYS) return;
+        applyDays(next);
     };
+
+    const handleFrequency = (f: FrequencyChip) => {
+        if (f === "DAILY") {
+            set({ frequency: "DAILY", scheduledDayOfWeek: null, scheduledDaysOfWeek: null, customIntervalDays: null });
+        } else if (f === "CUSTOM") {
+            set({ frequency: "CUSTOM", scheduledDaysOfWeek: null, customIntervalDays: customIntervalDays ?? 7 });
+        } else {
+            applyDays(selectedDays); // keep any days already ticked
+        }
+    };
+
+    const hint =
+        activeChip === "DAILY" ? "Once every day."
+            : activeChip === "CUSTOM" ? "Once per interval — every week, 2 weeks or month."
+                : selectedDays.length > 1
+                    ? "On each day you pick. Each day counts on its own, so missing one breaks the streak."
+                    : "Once a week on the day you pick. Doing it later that week still counts, but resets the streak.";
 
     const chipBase = "px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors cursor-pointer select-none";
     const chipActive = "bg-blue-600 border-blue-500 text-white";
     const chipInactive = "bg-slate-800 border-slate-600 text-slate-300 hover:border-slate-400";
+    const dayBase = "flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer";
 
     return (
         <div className="space-y-4">
@@ -73,17 +127,18 @@ export function FrequencyConfigSection({ value, onChange }: Props) {
             <div>
                 <label className="block text-sm text-slate-300 mb-2">Frequency</label>
                 <div className="flex gap-2 flex-wrap">
-                    {(["DAILY", "WEEKLY", "CUSTOM", "MULTI_DAY"] as HabitFrequency[]).map((f) => (
+                    {FREQUENCY_CHIPS.map(({ value: f, label }) => (
                         <button
                             key={f}
                             type="button"
                             onClick={() => handleFrequency(f)}
-                            className={`flex-1 min-w-[70px] ${chipBase} ${frequency === f ? chipActive : chipInactive}`}
+                            className={`flex-1 min-w-[70px] ${chipBase} ${activeChip === f ? chipActive : chipInactive}`}
                         >
-                            {f === "MULTI_DAY" ? "Multi-Day" : f.charAt(0) + f.slice(1).toLowerCase()}
+                            {label}
                         </button>
                     ))}
                 </div>
+                <p className="text-xs text-slate-400 mt-2">{hint}</p>
             </div>
 
             {/* ── Custom interval (CUSTOM only) ── */}
@@ -105,22 +160,21 @@ export function FrequencyConfigSection({ value, onChange }: Props) {
                 </div>
             )}
 
-            {/* ── Multi-day selection (MULTI_DAY only) ── */}
-            {frequency === "MULTI_DAY" && (
+            {/* ── Weekly day picker (WEEKLY and MULTI_DAY) ── */}
+            {isWeekly && (
                 <div>
                     <label className="block text-sm text-slate-300 mb-2">
-                        Select days <span className="text-slate-500 font-normal">(pick 2–6)</span>
+                        Scheduled days <span className="text-slate-500 font-normal">(pick 1–6)</span>
                     </label>
                     <div className="flex gap-1.5">
                         {DAY_LABELS.map(({ value: v, label }) => {
-                            const selected = (scheduledDaysOfWeek ?? []).includes(v);
+                            const selected = selectedDays.includes(v);
                             return (
                                 <button
                                     key={v}
                                     type="button"
-                                    onClick={() => toggleMultiDay(v)}
-                                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer relative
-                                        ${selected ? chipActive : chipInactive}`}
+                                    onClick={() => toggleWeekDay(v)}
+                                    className={`${dayBase} relative ${selected ? chipActive : chipInactive}`}
                                 >
                                     {label}
                                     {selected && (
@@ -132,32 +186,29 @@ export function FrequencyConfigSection({ value, onChange }: Props) {
                             );
                         })}
                     </div>
-                    {(scheduledDaysOfWeek ?? []).length < 2 && (
-                        <p className="text-xs text-amber-400 mt-1">Please select at least 2 days.</p>
+                    {selectedDays.length === 0 && (
+                        <p className="text-xs text-amber-400 mt-1">Please select a day.</p>
                     )}
                 </div>
             )}
 
-            {/* ── Day of week (WEEKLY and CUSTOM) ── */}
-            {(frequency === "WEEKLY" || frequency === "CUSTOM") && (
+            {/* ── Anchor day (CUSTOM only) ── */}
+            {frequency === "CUSTOM" && (
                 <div>
-                    <label className="block text-sm text-slate-300 mb-2">
-                        {frequency === "WEEKLY" ? "Scheduled day" : "Anchor day"}
-                    </label>
+                    <label className="block text-sm text-slate-300 mb-2">Anchor day</label>
                     <div className="flex gap-1.5">
                         {DAY_LABELS.map(({ value: v, label }) => (
                             <button
                                 key={v}
                                 type="button"
                                 onClick={() => set({ scheduledDayOfWeek: v })}
-                                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer
-                                    ${scheduledDayOfWeek === v ? chipActive : chipInactive}`}
+                                className={`${dayBase} ${scheduledDayOfWeek === v ? chipActive : chipInactive}`}
                             >
                                 {label}
                             </button>
                         ))}
                     </div>
-                    {(frequency === "WEEKLY" || frequency === "CUSTOM") && !scheduledDayOfWeek && (
+                    {!scheduledDayOfWeek && (
                         <p className="text-xs text-amber-400 mt-1">Please select a day.</p>
                     )}
                 </div>

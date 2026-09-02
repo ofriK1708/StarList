@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, Lock, ShoppingCart } from "lucide-react";
+import { Sparkles, Lock, ShoppingCart, ArrowUpDown } from "lucide-react";
 import { Button } from "./ui/button";
 
 // 1. BASE URL FOR IMAGES - Change this to your AWS S3 URL later!
@@ -60,14 +60,23 @@ const itemStyles: Record<string, { gradient: string; glow: string }> = {
   }
 };
 
+type ShopSort = 'price-asc' | 'price-desc' | 'name';
+
 export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
   const [filter, setFilter] = useState<'all' | 'available' | 'owned'>('available');
+  const [sortBy, setSortBy] = useState<ShopSort>('price-asc');
 
-  const filteredItems = items.filter((item) => {
-    if (filter === 'available') return !item.unlocked;
-    if (filter === 'owned') return item.unlocked;
-    return true;
-  });
+  const filteredItems = items
+      .filter((item) => {
+        if (filter === 'available') return !item.unlocked;
+        if (filter === 'owned') return item.unlocked;
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'name') return a.name.localeCompare(b.name);
+        if (sortBy === 'price-desc') return b.price - a.price;
+        return a.price - b.price;
+      });
 
   return (
       <div className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-y-auto">
@@ -84,20 +93,35 @@ export function Shop({ items, coinBalance, onPurchase }: ShopProps) {
               <span className="text-sm text-yellow-200/80">Coins</span>
             </div>
           </div>
-          <div className="flex gap-2">
-            {(['all', 'available', 'owned'] as const).map((f) => (
-                <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-                        filter === f
-                            ? 'bg-slate-700 text-white'
-                            : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300'
-                    }`}
-                >
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
-                </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex gap-2">
+              {(['all', 'available', 'owned'] as const).map((f) => (
+                  <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                          filter === f
+                              ? 'bg-slate-700 text-white'
+                              : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300'
+                      }`}
+                  >
+                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50">
+              <ArrowUpDown className="w-4 h-4 text-slate-400" />
+              <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as ShopSort)}
+                  className="bg-transparent text-sm text-slate-300 focus:outline-none cursor-pointer appearance-none pr-4"
+              >
+                <option value="price-asc" className="bg-slate-800">Price: Low to High</option>
+                <option value="price-desc" className="bg-slate-800">Price: High to Low</option>
+                <option value="name" className="bg-slate-800">Sort by Name</option>
+              </select>
+            </div>
           </div>
         </div>
 
