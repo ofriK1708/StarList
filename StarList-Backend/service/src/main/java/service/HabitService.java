@@ -32,6 +32,7 @@ import service.dto.MarkHabitDoneResponse;
 import service.dto.UpdateHabitRequest;
 import service.exceptions.HabitAlreadyCompletedTodayException;
 import service.exceptions.HabitNotFoundException;
+import service.exceptions.HabitNotScheduledTodayException;
 
 @Slf4j
 @Service
@@ -191,6 +192,12 @@ public class HabitService {
         HabitEntity entity = loadActiveHabit(habitId);
         LocalDate today = LocalDate.now();
         LocalDate[] period = habitPeriodCalculator.currentPeriod(entity, today);
+
+        // MULTI_DAY returns null when today is not a scheduled day
+        if (period == null) {
+            throw new HabitNotScheduledTodayException(habitId);
+        }
+
         LocalDate periodStart = period[0];
         LocalDate periodEnd = period[1];
 
@@ -265,19 +272,20 @@ public class HabitService {
                 LocalDate prevPeriodStart = prevPeriodEnd.minusDays(entity.getCustomIntervalDays() - 1);
                 yield !last.isBefore(prevPeriodStart) && !last.isAfter(prevPeriodEnd);
             }
-            // MULTI_DAY: streak counts consecutive completed days, regardless of which scheduled day.
-            // The previous completion just needs to be on a scheduled day, and it counts if it was "yesterday"
-            // in streak terms. We treat it like DAILY — last must be the immediately preceding scheduled day.
+            // MULTI_DAY: the streak continues only if the user completed the slot
+            // immediately before the current one (no skipped slots).
+            // Walk backwards from yesterday — the first scheduled day we land on
+            // is the "previous slot". If last equals that day, streak is alive.
             case MULTI_DAY -> {
-                // Walk backwards from today to find the previous scheduled day
                 List<Integer> scheduledDays = entity.getScheduledDaysOfWeek();
                 if (scheduledDays == null || scheduledDays.isEmpty()) yield false;
                 LocalDate prev = today.minusDays(1);
-                while (!prev.isBefore(last) || true) {
+                // Search up to 7 days back (the longest gap between two selected days)
+                while (!prev.isBefore(today.minusDays(7))) {
                     if (scheduledDays.contains(prev.getDayOfWeek().getValue())) {
+                        // Found the previous slot — streak continues only if last was exactly here
                         yield last.equals(prev);
                     }
-                    if (prev.equals(last)) break;
                     prev = prev.minusDays(1);
                 }
                 yield false;

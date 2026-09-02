@@ -168,24 +168,30 @@ function isCurrentPeriodDone(habit: HabitResponse): boolean {
             windowStart.setDate(today.getDate() - interval + 1);
             return last >= windowStart;
         }
+
+        case "MULTI_DAY":
+            // Each slot is a single day — done if completed today
+            return habit.lastCompletedDate === new Date().toISOString().split("T")[0];
     }
 }
 
 /** Derives a label for each radial segment based on frequency. */
 function segmentLabel(frequency: HabitResponse["frequency"], index: number): string {
     switch (frequency) {
-        case "DAILY":   return String(index + 1);
-        case "WEEKLY":  return `W${index + 1}`;
-        case "CUSTOM":  return `P${index + 1}`;
+        case "DAILY":     return String(index + 1);
+        case "WEEKLY":    return `W${index + 1}`;
+        case "CUSTOM":    return `P${index + 1}`;
+        case "MULTI_DAY": return String(index + 1);
     }
 }
 
 /** Label shown in the center button when the period is already done. */
 function doneLabelFor(frequency: HabitResponse["frequency"]): string {
     switch (frequency) {
-        case "DAILY":  return "Day Logged";
-        case "WEEKLY": return "Week Logged";
-        case "CUSTOM": return "Period Logged";
+        case "DAILY":     return "Day Logged";
+        case "WEEKLY":    return "Week Logged";
+        case "CUSTOM":    return "Period Logged";
+        case "MULTI_DAY": return "Day Logged";
     }
 }
 
