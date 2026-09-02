@@ -36,6 +36,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -78,7 +79,6 @@ class HabitServiceTest {
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
-        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
 
         MarkHabitDoneResponse response = habitService.completeHabit(7L);
@@ -113,7 +113,6 @@ class HabitServiceTest {
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
-        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.MEDIUM, 6)).thenReturn(25);
 
         MarkHabitDoneResponse response = habitService.completeHabit(7L);
@@ -142,7 +141,6 @@ class HabitServiceTest {
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
-        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
 
         MarkHabitDoneResponse response = habitService.completeHabit(7L);
@@ -168,7 +166,6 @@ class HabitServiceTest {
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
-        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
 
         habitService.completeHabit(7L);
@@ -195,7 +192,6 @@ class HabitServiceTest {
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
-        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
         doThrow(new DataIntegrityViolationException("unique constraint"))
                 .when(habitCompletionService).record(any(), any(), any(), any(int.class), any(int.class));
@@ -217,7 +213,6 @@ class HabitServiceTest {
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
-        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 4)).thenReturn(15);
         doThrow(new DataIntegrityViolationException("unique constraint"))
                 .when(habitCompletionService).record(any(), any(), any(), any(int.class), any(int.class));
@@ -499,7 +494,6 @@ class HabitServiceTest {
         when(habitRepository.findById(10L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{periodStart, periodEnd});
         when(habitCompletionService.existsForPeriod(10L, periodStart, periodEnd)).thenReturn(false);
-        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.MEDIUM, 1)).thenReturn(20);
 
         MarkHabitDoneResponse response = habitService.completeHabit(10L);
@@ -509,7 +503,34 @@ class HabitServiceTest {
     }
 
     @Test
-    void completeHabit_weekly_late_penaltyDeducted() {
+    void completeHabit_weekly_completedAfterDueDay_streakResetsToOne() {
+        LocalDate today = LocalDate.now();
+        LocalDate periodStart = today.with(DayOfWeek.MONDAY);
+        LocalDate periodEnd = periodStart.plusDays(6);
+
+        UserEntity user = UserEntity.builder().id(1L).totalCoins(0).lifetimeCoinsEarned(0).build();
+        HabitEntity habit = HabitEntity.builder()
+                .id(10L).title("Weekly run").difficultyLevel(DifficultyLevel.MEDIUM)
+                .frequency(HabitFrequency.WEEKLY).scheduledDayOfWeek(1) // Monday
+                .currentStreak(4).bestStreak(4).totalCompletions(4)
+                // Completed in the previous ISO week, so isStreakContinued would otherwise extend it.
+                .lastCompletedDate(periodStart.minusDays(3))
+                .user(user).build();
+
+        when(habitRepository.findById(10L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{periodStart, periodEnd});
+        when(habitCompletionService.existsForPeriod(10L, periodStart, periodEnd)).thenReturn(false);
+        when(habitPeriodCalculator.daysLate(habit, today)).thenReturn(2);
+        when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.MEDIUM, 1)).thenReturn(20);
+
+        MarkHabitDoneResponse response = habitService.completeHabit(10L);
+
+        assertThat(response.currentStreak()).isEqualTo(1);
+        assertThat(habit.getCurrentStreak()).isEqualTo(1);
+    }
+
+    @Test
+    void completeHabit_weekly_completedAfterDueDay_noCoinsDeducted() {
         LocalDate today = LocalDate.now();
         LocalDate periodStart = today.with(DayOfWeek.MONDAY);
         LocalDate periodEnd = periodStart.plusDays(6);
@@ -518,20 +539,23 @@ class HabitServiceTest {
         HabitEntity habit = HabitEntity.builder()
                 .id(10L).title("Weekly run").difficultyLevel(DifficultyLevel.MEDIUM)
                 .frequency(HabitFrequency.WEEKLY).scheduledDayOfWeek(3) // Wednesday
-                .coinPenalty(10)
+                .coinPenalty(999) // legacy column — must be ignored entirely
                 .currentStreak(0).bestStreak(0).totalCompletions(0)
                 .lastCompletedDate(null).user(user).build();
 
         when(habitRepository.findById(10L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{periodStart, periodEnd});
         when(habitCompletionService.existsForPeriod(10L, periodStart, periodEnd)).thenReturn(false);
-        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(true);
+        when(habitPeriodCalculator.daysLate(habit, today)).thenReturn(4);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.MEDIUM, 1)).thenReturn(20);
 
         MarkHabitDoneResponse response = habitService.completeHabit(10L);
 
-        assertThat(response.coinsEarned()).isEqualTo(10); // 20 reward - 10 penalty
-        assertThat(response.currentStreak()).isEqualTo(1); // streak still counts
+        assertThat(response.coinsEarned()).isEqualTo(20); // full reward, nothing deducted
+        verify(coinTransactionService).record(eq(user), eq(20), eq(TransactionType.HABIT_COMPLETION),
+                eq(ReferenceType.HABIT), eq(10L), any());
+        verify(userService).addCoins(user, 20);
+        verify(userService, never()).spendCoins(any(), anyInt());
     }
 
     @Test
@@ -643,7 +667,6 @@ class HabitServiceTest {
         when(habitRepository.findById(20L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{periodStart, periodEnd});
         when(habitCompletionService.existsForPeriod(20L, periodStart, periodEnd)).thenReturn(false);
-        when(habitPeriodCalculator.isLateCompletion(habit, today)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.HARD, 1)).thenReturn(40);
 
         MarkHabitDoneResponse response = habitService.completeHabit(20L);

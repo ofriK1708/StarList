@@ -209,15 +209,17 @@ public class HabitService {
             throw new HabitAlreadyCompletedTodayException(habitId);
         }
 
-        boolean late = habitPeriodCalculator.isLateCompletion(entity, today);
+        // Completing after the due date breaks the streak. This is the only consequence of
+        // lateness — no coins are deducted. The reward then follows the reset streak, so a
+        // late completion also forfeits any streak multiplier it would otherwise have earned.
+        boolean late = habitPeriodCalculator.daysLate(entity, today) > 0;
         int oldBestStreak = entity.getBestStreak();
-        int newStreak = isStreakContinued(entity, today, periodStart) ?
-                entity.getCurrentStreak() + 1 : 1;
+        int newStreak = (!late && isStreakContinued(entity, today, periodStart))
+                ? entity.getCurrentStreak() + 1
+                : 1;
         int newBestStreak = Math.max(newStreak, oldBestStreak);
 
-        int baseCoins = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
-        int penalty = late ? (entity.getCoinPenalty() != null ? entity.getCoinPenalty() : 0) : 0;
-        int coinsEarned = Math.max(0, baseCoins - penalty);
+        int coinsEarned = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
 
         log.debug("Habit {} '{}' completed: streak {} -> {}, best={}, late={}, coins={}",
                 habitId, entity.getTitle(), entity.getCurrentStreak(), newStreak, newBestStreak, late, coinsEarned);
