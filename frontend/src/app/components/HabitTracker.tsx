@@ -12,7 +12,26 @@ interface HabitTrackerProps {
 }
 
 type HabitSort = 'date' | 'name' | 'difficulty' | 'streak';
-type HabitFilter = 'all' | 'active' | 'completed';
+type HabitFilter = 'all' | 'dueToday' | 'active' | 'completed';
+
+const FILTER_LABELS: Record<HabitFilter, string> = {
+    all: 'All',
+    dueToday: 'Due today',
+    active: 'Active',
+    completed: 'Completed',
+};
+
+/**
+ * True when the habit still needs doing today: scheduled today, not yet done this period,
+ * and its due date has arrived (or passed). Overdue habits count — they are still the things
+ * worth acting on now.
+ */
+function isDueToday(habit: HabitResponse): boolean {
+    const status = habit.periodStatus;
+    // Mutation responses carry no period context; fall back to "not done yet".
+    if (!status) return !isCurrentPeriodDone(habit);
+    return status.scheduledToday && !status.completedThisPeriod && status.daysUntilDue <= 0;
+}
 
 const DIFFICULTY_WEIGHT: Record<HabitResponse["difficultyLevel"], number> = { HARD: 3, MEDIUM: 2, EASY: 1 };
 
@@ -22,6 +41,7 @@ export function HabitTracker({ habits, onHabitCheck, onAddHabitClick, onEditHabi
 
     const sortedHabits = [...habits]
         .filter((h) => {
+            if (filter === 'dueToday') return isDueToday(h);
             if (filter === 'active') return !isCurrentPeriodDone(h);
             if (filter === 'completed') return isCurrentPeriodDone(h);
             return true;
@@ -62,7 +82,7 @@ export function HabitTracker({ habits, onHabitCheck, onAddHabitClick, onEditHabi
 
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex gap-2">
-                        {(['all', 'active', 'completed'] as const).map((f) => (
+                        {(['all', 'dueToday', 'active', 'completed'] as const).map((f) => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
@@ -72,7 +92,7 @@ export function HabitTracker({ habits, onHabitCheck, onAddHabitClick, onEditHabi
                                         : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300'
                                 }`}
                             >
-                                {f.charAt(0).toUpperCase() + f.slice(1)}
+                                {FILTER_LABELS[f]}
                             </button>
                         ))}
                     </div>

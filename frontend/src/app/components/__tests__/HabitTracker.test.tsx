@@ -78,6 +78,36 @@ describe('HabitTracker', () => {
     expect(screen.getByText('No habits yet')).toBeInTheDocument()
   })
 
+  it('"Due today" keeps only habits that still need doing today', async () => {
+    const status = (over: Record<string, unknown> = {}) => ({
+      periodStart: null, periodEnd: null, dueDate: null,
+      scheduledToday: true, completedThisPeriod: false, daysUntilDue: 0, daysLate: 0,
+      ...over,
+    })
+    render(
+      <HabitTracker
+        {...baseProps([
+          makeHabit({ habitId: 1, title: 'Due now', periodStatus: status() }),
+          makeHabit({ habitId: 2, title: 'Overdue', periodStatus: status({ daysUntilDue: -2, daysLate: 2 }) }),
+          makeHabit({ habitId: 3, title: 'Later this week', periodStatus: status({ daysUntilDue: 3 }) }),
+          makeHabit({ habitId: 4, title: 'Off day', periodStatus: status({ scheduledToday: false }) }),
+          makeHabit({
+            habitId: 5, title: 'Already done',
+            lastCompletedDate: todayStr(),
+            periodStatus: status({ completedThisPeriod: true }),
+          }),
+        ])}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Due today' }))
+
+    expect(headings()).toEqual(expect.arrayContaining(['Due now', 'Overdue']))
+    expect(headings()).not.toContain('Later this week')
+    expect(headings()).not.toContain('Off day')
+    expect(headings()).not.toContain('Already done')
+  })
+
   it('shows a filter-specific empty message when a filter hides everything', async () => {
     render(<HabitTracker {...baseProps([makeHabit({ title: 'Unfinished', lastCompletedDate: null })])} />)
     await userEvent.click(screen.getByRole('button', { name: 'Completed' }))
