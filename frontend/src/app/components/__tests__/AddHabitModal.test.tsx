@@ -56,15 +56,16 @@ describe('AddHabitModal', () => {
     )
   })
 
-  it('requires at least two days for a MULTI_DAY habit', async () => {
+  it('picking two days under Weekly submits a MULTI_DAY habit', async () => {
     const p = props()
     render(<AddHabitModal {...p} />)
     await userEvent.type(titleInput(), 'Gym days')
-    await userEvent.click(screen.getByRole('button', { name: 'Specific days' }))
-    expect(submit()).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Weekly' }))
+    expect(submit()).toBeDisabled() // no day picked yet
 
+    // One day is already a valid WEEKLY habit.
     await userEvent.click(screen.getByRole('button', { name: 'Mon' }))
-    expect(submit()).toBeDisabled()
+    expect(submit()).toBeEnabled()
     await userEvent.click(screen.getByRole('button', { name: 'Thu' }))
     expect(submit()).toBeEnabled()
 
