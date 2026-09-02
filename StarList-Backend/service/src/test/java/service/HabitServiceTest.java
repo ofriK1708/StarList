@@ -20,6 +20,7 @@ import service.exceptions.HabitNotFoundException;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -75,13 +76,13 @@ class HabitServiceTest {
                 .user(user)
                 .build();
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
 
-        MarkHabitDoneResponse response = habitService.completeHabit(7L);
+        MarkHabitDoneResponse response = habitService.completeHabit(7L, null);
 
         assertThat(response.habitId()).isEqualTo(7L);
         assertThat(response.currentStreak()).isEqualTo(1);
@@ -91,7 +92,7 @@ class HabitServiceTest {
         assertThat(habit.getCurrentStreak()).isEqualTo(1);
         assertThat(habit.getBestStreak()).isEqualTo(1);
         assertThat(habit.getTotalCompletions()).isEqualTo(1);
-        assertThat(habit.getLastCompletedDate()).isEqualTo(LocalDate.now());
+        assertThat(habit.getLastCompletedDate()).isEqualTo(LocalDate.now(ZoneOffset.UTC));
     }
 
     @Test
@@ -105,17 +106,17 @@ class HabitServiceTest {
                 .currentStreak(5)
                 .bestStreak(5)
                 .totalCompletions(5)
-                .lastCompletedDate(LocalDate.now().minusDays(1)) // completed yesterday
+                .lastCompletedDate(LocalDate.now(ZoneOffset.UTC).minusDays(1)) // completed yesterday
                 .user(user)
                 .build();
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.MEDIUM, 6)).thenReturn(25);
 
-        MarkHabitDoneResponse response = habitService.completeHabit(7L);
+        MarkHabitDoneResponse response = habitService.completeHabit(7L, null);
 
         assertThat(response.currentStreak()).isEqualTo(6);
         assertThat(response.bestStreak()).isEqualTo(6); // beats previous best of 5
@@ -133,17 +134,17 @@ class HabitServiceTest {
                 .currentStreak(10)
                 .bestStreak(10)
                 .totalCompletions(10)
-                .lastCompletedDate(LocalDate.now().minusDays(5)) // missed 4 days
+                .lastCompletedDate(LocalDate.now(ZoneOffset.UTC).minusDays(5)) // missed 4 days
                 .user(user)
                 .build();
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
 
-        MarkHabitDoneResponse response = habitService.completeHabit(7L);
+        MarkHabitDoneResponse response = habitService.completeHabit(7L, null);
 
         assertThat(response.currentStreak()).isEqualTo(1);
         assertThat(response.bestStreak()).isEqualTo(10); // best streak preserved
@@ -162,15 +163,15 @@ class HabitServiceTest {
                 .user(user)
                 .build();
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
 
-        habitService.completeHabit(7L);
+        habitService.completeHabit(7L, null);
 
-        verify(habitCompletionService).record(eq(habit), eq(user), eq(LocalDate.now()), eq(10), eq(1));
+        verify(habitCompletionService).record(eq(habit), eq(user), eq(LocalDate.now(ZoneOffset.UTC)), eq(10), eq(1));
         verify(coinTransactionService).record(
                 eq(user), eq(10), eq(TransactionType.HABIT_COMPLETION),
                 eq(ReferenceType.HABIT), eq(7L), any(String.class));
@@ -188,7 +189,7 @@ class HabitServiceTest {
                 .frequency(HabitFrequency.DAILY).currentStreak(0).bestStreak(0)
                 .totalCompletions(0).lastCompletedDate(null).user(user).build();
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
@@ -196,7 +197,7 @@ class HabitServiceTest {
         doThrow(new DataIntegrityViolationException("unique constraint"))
                 .when(habitCompletionService).record(any(), any(), any(), any(int.class), any(int.class));
 
-        assertThatThrownBy(() -> habitService.completeHabit(7L))
+        assertThatThrownBy(() -> habitService.completeHabit(7L, null))
                 .isInstanceOf(HabitAlreadyCompletedTodayException.class);
     }
 
@@ -207,9 +208,9 @@ class HabitServiceTest {
         HabitEntity habit = HabitEntity.builder()
                 .id(7L).title("Read daily").difficultyLevel(DifficultyLevel.EASY)
                 .frequency(HabitFrequency.DAILY).currentStreak(3).bestStreak(5)
-                .totalCompletions(3).lastCompletedDate(LocalDate.now().minusDays(1)).user(user).build();
+                .totalCompletions(3).lastCompletedDate(LocalDate.now(ZoneOffset.UTC).minusDays(1)).user(user).build();
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(false);
@@ -217,7 +218,7 @@ class HabitServiceTest {
         doThrow(new DataIntegrityViolationException("unique constraint"))
                 .when(habitCompletionService).record(any(), any(), any(), any(int.class), any(int.class));
 
-        assertThatThrownBy(() -> habitService.completeHabit(7L))
+        assertThatThrownBy(() -> habitService.completeHabit(7L, null))
                 .isInstanceOf(HabitAlreadyCompletedTodayException.class);
 
         verify(habitRepository, never()).save(any());
@@ -232,12 +233,12 @@ class HabitServiceTest {
                 .id(7L).frequency(HabitFrequency.DAILY).currentStreak(1).bestStreak(1).totalCompletions(1)
                 .build();
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{today, today});
         when(habitCompletionService.existsToday(7L)).thenReturn(true);
 
-        assertThatThrownBy(() -> habitService.completeHabit(7L))
+        assertThatThrownBy(() -> habitService.completeHabit(7L, null))
                 .isInstanceOf(HabitAlreadyCompletedTodayException.class);
 
         verifyNoInteractions(coinTransactionService, userService);
@@ -247,7 +248,7 @@ class HabitServiceTest {
     void completeHabit_habitNotFound_throwsHabitNotFoundException() {
         when(habitRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> habitService.completeHabit(99L))
+        assertThatThrownBy(() -> habitService.completeHabit(99L, null))
                 .isInstanceOf(HabitNotFoundException.class);
     }
 
@@ -267,7 +268,7 @@ class HabitServiceTest {
                 .thenReturn(Map.of());
         when(habitPeriodCalculator.periodsForMonth(entity, march2026)).thenReturn(dailyPeriods(march2026));
 
-        HabitResponse response = habitService.getHabit(1L, march2026);
+        HabitResponse response = habitService.getHabit(1L, march2026, null);
 
         List<CompletionStatus> mc = response.monthCompletions();
         for (int i = 0; i < 9; i++) {
@@ -291,7 +292,7 @@ class HabitServiceTest {
                 .thenReturn(Map.of(1L, Set.of(day5)));
         when(habitPeriodCalculator.periodsForMonth(entity, march2026)).thenReturn(dailyPeriods(march2026));
 
-        HabitResponse response = habitService.getHabit(1L, march2026);
+        HabitResponse response = habitService.getHabit(1L, march2026, null);
 
         assertThat(response.monthCompletions().get(4)).isEqualTo(CompletionStatus.DONE);
     }
@@ -310,9 +311,9 @@ class HabitServiceTest {
                 .thenReturn(Map.of());
         when(habitPeriodCalculator.periodsForMonth(entity, currentMonth)).thenReturn(dailyPeriods(currentMonth));
 
-        HabitResponse response = habitService.getHabit(1L, currentMonth);
+        HabitResponse response = habitService.getHabit(1L, currentMonth, null);
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         int todayIndex = today.getDayOfMonth() - 1;
         assertThat(response.monthCompletions().get(todayIndex)).isEqualTo(CompletionStatus.NA);
     }
@@ -321,7 +322,7 @@ class HabitServiceTest {
     void getHabit_todayWithCompletion_markedDone(){
         YearMonth currentMonth = YearMonth.now();
         Instant createdAtDay1 = currentMonth.atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.DAILY)
                 .createdAt(createdAtDay1).build();
         Habit habit = Habit.builder().id(1L).createdAt(createdAtDay1).build();
@@ -332,7 +333,7 @@ class HabitServiceTest {
                 .thenReturn(Map.of(1L, Set.of(today)));
         when(habitPeriodCalculator.periodsForMonth(entity, currentMonth)).thenReturn(dailyPeriods(currentMonth));
 
-        HabitResponse response = habitService.getHabit(1L, currentMonth);
+        HabitResponse response = habitService.getHabit(1L, currentMonth, null);
 
         int todayIndex = today.getDayOfMonth() - 1;
         assertThat(response.monthCompletions().get(todayIndex)).isEqualTo(CompletionStatus.DONE);
@@ -352,10 +353,10 @@ class HabitServiceTest {
                 .thenReturn(Map.of());
         when(habitPeriodCalculator.periodsForMonth(entity, currentMonth)).thenReturn(dailyPeriods(currentMonth));
 
-        HabitResponse response = habitService.getHabit(1L, currentMonth);
+        HabitResponse response = habitService.getHabit(1L, currentMonth, null);
 
         List<CompletionStatus> mc = response.monthCompletions();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         for (int day = 1; day <= currentMonth.lengthOfMonth(); day++) {
             if (currentMonth.atDay(day).isBefore(today)) {
                 assertThat(mc.get(day - 1)).as("day %d should be MISSED", day)
@@ -378,10 +379,10 @@ class HabitServiceTest {
                 .thenReturn(Map.of());
         when(habitPeriodCalculator.periodsForMonth(entity, currentMonth)).thenReturn(dailyPeriods(currentMonth));
 
-        HabitResponse response = habitService.getHabit(1L, currentMonth);
+        HabitResponse response = habitService.getHabit(1L, currentMonth, null);
 
         List<CompletionStatus> mc = response.monthCompletions();
-        int todayIndex = LocalDate.now().getDayOfMonth() - 1;
+        int todayIndex = LocalDate.now(ZoneOffset.UTC).getDayOfMonth() - 1;
         for (int i = todayIndex; i < mc.size(); i++) {
             assertThat(mc.get(i)).as("day %d should be NA (today/future)", i + 1)
                     .isEqualTo(CompletionStatus.NA);
@@ -391,7 +392,7 @@ class HabitServiceTest {
     @Test
     void getHabit_habitCreatedToday_allDaysNA() {
         YearMonth currentMonth = YearMonth.now();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         Instant createdAtToday = today.atStartOfDay().toInstant(ZoneOffset.UTC);
         HabitEntity entity = HabitEntity.builder().id(1L).frequency(HabitFrequency.DAILY)
                 .createdAt(createdAtToday).build();
@@ -403,7 +404,7 @@ class HabitServiceTest {
                 .thenReturn(Map.of());
         when(habitPeriodCalculator.periodsForMonth(entity, currentMonth)).thenReturn(dailyPeriods(currentMonth));
 
-        HabitResponse response = habitService.getHabit(1L, currentMonth);
+        HabitResponse response = habitService.getHabit(1L, currentMonth, null);
 
         assertThat(response.monthCompletions())
                 .hasSize(currentMonth.lengthOfMonth())
@@ -424,7 +425,7 @@ class HabitServiceTest {
                 .thenReturn(Map.of());
         when(habitPeriodCalculator.periodsForMonth(entity, feb2026)).thenReturn(dailyPeriods(feb2026));
 
-        HabitResponse response = habitService.getHabit(1L, feb2026);
+        HabitResponse response = habitService.getHabit(1L, feb2026, null);
 
         assertThat(response.monthCompletions()).hasSize(28);
     }
@@ -452,7 +453,7 @@ class HabitServiceTest {
         when(habitPeriodCalculator.periodsForMonth(entity1, march2026)).thenReturn(dailyPeriods(march2026));
         when(habitPeriodCalculator.periodsForMonth(entity2, march2026)).thenReturn(dailyPeriods(march2026));
 
-        List<HabitResponse> responses = habitService.getUserHabits(1L, march2026);
+        List<HabitResponse> responses = habitService.getUserHabits(1L, march2026, null);
 
         HabitResponse r1 = responses.stream().filter(r -> r.habitId().equals(10L)).findFirst().orElseThrow();
         HabitResponse r2 = responses.stream().filter(r -> r.habitId().equals(20L)).findFirst().orElseThrow();
@@ -472,15 +473,42 @@ class HabitServiceTest {
 
         when(habitRepository.findById(7L)).thenReturn(Optional.of(deleted));
 
-        assertThatThrownBy(() -> habitService.completeHabit(7L))
+        assertThatThrownBy(() -> habitService.completeHabit(7L, null))
                 .isInstanceOf(HabitNotFoundException.class);
+    }
+
+    // ── completeHabit timezone ────────────────────────────────────────────────
+
+    @Test
+    void completeHabit_userTimezoneAheadOfUtc_usesUserLocalDate() {
+        // Kiritimati is UTC+14 — the furthest-forward zone, so for 10 hours of every UTC day
+        // its calendar date is already tomorrow. The completion must be dated in the user's zone.
+        LocalDate localToday = LocalDate.now(ZoneId.of("Pacific/Kiritimati"));
+
+        UserEntity user = UserEntity.builder().id(1L).totalCoins(0).lifetimeCoinsEarned(0).build();
+        HabitEntity habit = HabitEntity.builder()
+                .id(7L).title("Read daily").difficultyLevel(DifficultyLevel.EASY)
+                .frequency(HabitFrequency.DAILY)
+                .currentStreak(0).bestStreak(0).totalCompletions(0)
+                .lastCompletedDate(null).user(user).build();
+
+        when(habitRepository.findById(7L)).thenReturn(Optional.of(habit));
+        when(habitPeriodCalculator.currentPeriod(habit, localToday))
+                .thenReturn(new LocalDate[]{localToday, localToday});
+        when(habitCompletionService.existsToday(7L)).thenReturn(false);
+        when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.EASY, 1)).thenReturn(10);
+
+        habitService.completeHabit(7L, "Pacific/Kiritimati");
+
+        assertThat(habit.getLastCompletedDate()).isEqualTo(localToday);
+        verify(habitCompletionService).record(eq(habit), eq(user), eq(localToday), anyInt(), anyInt());
     }
 
     // ── completeHabit WEEKLY ──────────────────────────────────────────────────
 
     @Test
     void completeHabit_weekly_onTime_fullReward() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         LocalDate periodStart = today.with(DayOfWeek.MONDAY);
         LocalDate periodEnd = periodStart.plusDays(6);
 
@@ -496,7 +524,7 @@ class HabitServiceTest {
         when(habitCompletionService.existsForPeriod(10L, periodStart, periodEnd)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.MEDIUM, 1)).thenReturn(20);
 
-        MarkHabitDoneResponse response = habitService.completeHabit(10L);
+        MarkHabitDoneResponse response = habitService.completeHabit(10L, null);
 
         assertThat(response.coinsEarned()).isEqualTo(20); // no penalty
         assertThat(response.currentStreak()).isEqualTo(1);
@@ -504,7 +532,7 @@ class HabitServiceTest {
 
     @Test
     void completeHabit_weekly_completedAfterDueDay_streakResetsToOne() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         LocalDate periodStart = today.with(DayOfWeek.MONDAY);
         LocalDate periodEnd = periodStart.plusDays(6);
 
@@ -523,7 +551,7 @@ class HabitServiceTest {
         when(habitPeriodCalculator.daysLate(habit, today)).thenReturn(2);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.MEDIUM, 1)).thenReturn(20);
 
-        MarkHabitDoneResponse response = habitService.completeHabit(10L);
+        MarkHabitDoneResponse response = habitService.completeHabit(10L, null);
 
         assertThat(response.currentStreak()).isEqualTo(1);
         assertThat(habit.getCurrentStreak()).isEqualTo(1);
@@ -531,7 +559,7 @@ class HabitServiceTest {
 
     @Test
     void completeHabit_weekly_completedAfterDueDay_noCoinsDeducted() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         LocalDate periodStart = today.with(DayOfWeek.MONDAY);
         LocalDate periodEnd = periodStart.plusDays(6);
 
@@ -549,7 +577,7 @@ class HabitServiceTest {
         when(habitPeriodCalculator.daysLate(habit, today)).thenReturn(4);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.MEDIUM, 1)).thenReturn(20);
 
-        MarkHabitDoneResponse response = habitService.completeHabit(10L);
+        MarkHabitDoneResponse response = habitService.completeHabit(10L, null);
 
         assertThat(response.coinsEarned()).isEqualTo(20); // full reward, nothing deducted
         verify(coinTransactionService).record(eq(user), eq(20), eq(TransactionType.HABIT_COMPLETION),
@@ -560,7 +588,7 @@ class HabitServiceTest {
 
     @Test
     void completeHabit_weekly_alreadyDoneThisPeriod_throws() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         LocalDate periodStart = today.with(DayOfWeek.MONDAY);
         LocalDate periodEnd = periodStart.plusDays(6);
 
@@ -571,7 +599,7 @@ class HabitServiceTest {
         when(habitPeriodCalculator.currentPeriod(habit, today)).thenReturn(new LocalDate[]{periodStart, periodEnd});
         when(habitCompletionService.existsForPeriod(10L, periodStart, periodEnd)).thenReturn(true);
 
-        assertThatThrownBy(() -> habitService.completeHabit(10L))
+        assertThatThrownBy(() -> habitService.completeHabit(10L, null))
                 .isInstanceOf(HabitAlreadyCompletedTodayException.class);
         verifyNoInteractions(coinTransactionService, userService);
     }
@@ -602,7 +630,7 @@ class HabitServiceTest {
                 .thenReturn(Map.of(1L, Set.of(LocalDate.of(2026, 8, 10)))); // completed on 2nd Monday
         when(habitPeriodCalculator.periodsForMonth(entity, aug2026)).thenReturn(weeklyPeriods);
 
-        HabitResponse response = habitService.getHabit(1L, aug2026);
+        HabitResponse response = habitService.getHabit(1L, aug2026, null);
 
         assertThat(response.monthCompletions()).hasSize(5);
         // Period 0 (Aug 3-9): no completion, ended in past → MISSED
@@ -630,7 +658,7 @@ class HabitServiceTest {
                 .thenReturn(Map.of(1L, Set.of(LocalDate.of(2026, 8, 15)))); // completed in first period
         when(habitPeriodCalculator.periodsForMonth(entity, aug2026)).thenReturn(customPeriods);
 
-        HabitResponse response = habitService.getHabit(1L, aug2026);
+        HabitResponse response = habitService.getHabit(1L, aug2026, null);
 
         assertThat(response.monthCompletions()).hasSize(2);
         // Period 0 (Aug 1–30): completed Aug 15 → DONE
@@ -653,7 +681,7 @@ class HabitServiceTest {
 
     @Test
     void completeHabit_custom_withinPeriod_allowed() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         LocalDate periodStart = today.withDayOfMonth(1);
         LocalDate periodEnd = periodStart.plusDays(29);
 
@@ -669,7 +697,7 @@ class HabitServiceTest {
         when(habitCompletionService.existsForPeriod(20L, periodStart, periodEnd)).thenReturn(false);
         when(coinCalculator.computeHabitCompletionReward(DifficultyLevel.HARD, 1)).thenReturn(40);
 
-        MarkHabitDoneResponse response = habitService.completeHabit(20L);
+        MarkHabitDoneResponse response = habitService.completeHabit(20L, null);
 
         assertThat(response.coinsEarned()).isEqualTo(40);
         assertThat(response.currentStreak()).isEqualTo(1);

@@ -100,34 +100,38 @@ public class HabitService {
     }
 
     @Transactional(readOnly = true)
-    public HabitResponse getHabit(Long habitId, YearMonth yearMonth) {
+    public HabitResponse getHabit(Long habitId, YearMonth yearMonth, String userTimezone) {
         log.info("About to get habit {} for {}", habitId, yearMonth);
 
+        LocalDate today = LocalDate.now(ZoneResolver.resolve(userTimezone));
         HabitEntity entity = loadActiveHabit(habitId);
         Map<Long, Set<LocalDate>> completionsMap =
                 habitCompletionService.getCompletedDatesForHabits(List.of(habitId), yearMonth);
+        Set<LocalDate> completedDates = completionsMap.getOrDefault(habitId, Collections.emptySet());
 
         return HabitResponse.from(
                 habitMapper.toDomain(entity),
-                buildMonthCompletions(completionsMap.getOrDefault(habitId, Collections.emptySet()), yearMonth, entity));
+                buildMonthCompletions(completedDates, yearMonth, entity, today));
     }
 
     @Transactional(readOnly = true)
-    public List<HabitResponse> getUserHabits(Long userId, YearMonth yearMonth) {
+    public List<HabitResponse> getUserHabits(Long userId, YearMonth yearMonth, String userTimezone) {
         log.info("About to list habits for user {} for {}", userId, yearMonth);
 
+        LocalDate today = LocalDate.now(ZoneResolver.resolve(userTimezone));
         List<HabitEntity> entities = habitRepository.findAllByUser_IdAndDeletedAtIsNull(userId);
         List<Long> habitIds = entities.stream().map(HabitEntity::getId).toList();
         Map<Long, Set<LocalDate>> completionsMap =
                 habitCompletionService.getCompletedDatesForHabits(habitIds, yearMonth);
 
         return entities.stream()
-                .map(entity -> HabitResponse.from(
-                        habitMapper.toDomain(entity),
-                        buildMonthCompletions(
-                                completionsMap.getOrDefault(entity.getId(), Collections.emptySet()),
-                                yearMonth,
-                                entity)))
+                .map(entity -> {
+                    Set<LocalDate> completedDates =
+                            completionsMap.getOrDefault(entity.getId(), Collections.emptySet());
+                    return HabitResponse.from(
+                            habitMapper.toDomain(entity),
+                            buildMonthCompletions(completedDates, yearMonth, entity, today));
+                })
                 .toList();
     }
 
@@ -186,11 +190,13 @@ public class HabitService {
      * @throws HabitNotFoundException              if the habit does not exist or is deleted
      */
     @Transactional
-    public MarkHabitDoneResponse completeHabit(Long habitId) {
+    public MarkHabitDoneResponse completeHabit(Long habitId, String userTimezone) {
         log.info("About to complete habit {}", habitId);
 
         HabitEntity entity = loadActiveHabit(habitId);
-        LocalDate today = LocalDate.now();
+        // "Today" decides which period the completion lands in and whether it is late, so it must
+        // be the user's calendar day, not the server's. Falls back to UTC when the client sends none.
+        LocalDate today = LocalDate.now(ZoneResolver.resolve(userTimezone));
         LocalDate[] period = habitPeriodCalculator.currentPeriod(entity, today);
 
         // MULTI_DAY returns null when today is not a scheduled day
@@ -349,8 +355,7 @@ public class HabitService {
      * still allows the current period to be completed and counted.
      */
     private List<CompletionStatus> buildMonthCompletions(
-            Set<LocalDate> completedDates, YearMonth yearMonth, HabitEntity entity) {
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+            Set<LocalDate> completedDates, YearMonth yearMonth, HabitEntity entity, LocalDate today) {
         LocalDate habitCreatedDate = entity.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate();
         List<LocalDate[]> periods = habitPeriodCalculator.periodsForMonth(entity, yearMonth);
         log.debug("Building month completions for {}: frequency={}, periods={}, completedDates={}",

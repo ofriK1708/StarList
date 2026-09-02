@@ -200,7 +200,7 @@ public class AiService {
 
         UserEntity userEntity = userService.findEntityById(userId);
         var tasks = taskService.getUserTasks(userId);
-        var habits = habitService.getUserHabits(userId, YearMonth.now());
+        var habits = habitService.getUserHabits(userId, YearMonth.now(), request.userTimezone());
 
         ChatCompletionCreateParams.Builder paramsBuilder = ChatCompletionCreateParams.builder()
                 .model(ChatModel.of(model))
@@ -216,7 +216,8 @@ public class AiService {
         List<Long> createdTaskIds = new ArrayList<>();
         List<Long> createdHabitIds = new ArrayList<>();
         Set<String> toolsUsed = new HashSet<>();
-        String aiMessage = runAgenticLoop(paramsBuilder, userId, userEntity, createdTaskIds, createdHabitIds, toolsUsed);
+        String aiMessage = runAgenticLoop(paramsBuilder, userId, userEntity, createdTaskIds, createdHabitIds,
+                toolsUsed, request.userTimezone());
 
         ConversationType conversationType = classifyConversation(toolsUsed);
 
@@ -270,7 +271,7 @@ public class AiService {
                                      List<service.dto.TaskResponse> taskList,
                                      List<service.dto.HabitResponse> habitList,
                                      String userTimezone) {
-        java.time.ZoneId zone = resolveZone(userTimezone);
+        java.time.ZoneId zone = ZoneResolver.resolve(userTimezone);
         java.time.ZonedDateTime nowLocal = java.time.ZonedDateTime.now(zone);
         java.time.ZonedDateTime nowUtc = nowLocal.withZoneSameInstant(ZoneOffset.UTC);
         LocalDate today = nowLocal.toLocalDate();
@@ -362,7 +363,8 @@ public class AiService {
                                   UserEntity userEntity,
                                   List<Long> createdTaskIds,
                                   List<Long> createdHabitIds,
-                                  Set<String> toolsUsed) {
+                                  Set<String> toolsUsed,
+                                  String userTimezone) {
         String finalResponse = "I'm sorry, I couldn't process your request. Please try again.";
 
         for (int iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
@@ -396,7 +398,7 @@ public class AiService {
                 log.debug("Executing AI tool: {}", toolName);
 
                 Object result = dispatchTool(toolName, toolCall.function(), userId,
-                        userEntity, createdTaskIds, createdHabitIds);
+                        userEntity, createdTaskIds, createdHabitIds, userTimezone);
 
                 String resultJson;
                 try {
@@ -421,11 +423,12 @@ public class AiService {
                                 Long userId,
                                 UserEntity userEntity,
                                 List<Long> createdTaskIds,
-                                List<Long> createdHabitIds) {
+                                List<Long> createdHabitIds,
+                                String userTimezone) {
         try {
             return switch (name) {
                 case "get_tasks" -> taskService.getUserTasks(userId);
-                case "get_habits" -> habitService.getUserHabits(userId, YearMonth.now());
+                case "get_habits" -> habitService.getUserHabits(userId, YearMonth.now(), userTimezone);
                 case "get_user_stats" -> Map.of(
                         "displayName", userEntity.getDisplayName(),
                         "totalCoins", userEntity.getTotalCoins(),
@@ -504,16 +507,6 @@ public class AiService {
             return ConversationType.STUDY_PLAN;
         }
         return ConversationType.GENERAL_CHAT;
-    }
-
-    private java.time.ZoneId resolveZone(String userTimezone) {
-        if (userTimezone == null || userTimezone.isBlank()) return ZoneOffset.UTC;
-        try {
-            return java.time.ZoneId.of(userTimezone);
-        } catch (Exception e) {
-            log.warn("Invalid timezone '{}', falling back to UTC", userTimezone);
-            return ZoneOffset.UTC;
-        }
     }
 
     private DifficultyLevel parseDifficulty(String value) {

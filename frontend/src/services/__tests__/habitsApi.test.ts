@@ -14,6 +14,9 @@ const mockApi = api as unknown as {
   delete: ReturnType<typeof vi.fn>
 }
 
+// The backend uses this to decide which calendar day a completion lands on.
+const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+
 describe('habitsApi', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -21,13 +24,15 @@ describe('habitsApi', () => {
     it('GETs /habits with no params when year/month omitted', async () => {
       mockApi.get.mockResolvedValue({ data: [] })
       await habitsApi.getHabits()
-      expect(mockApi.get).toHaveBeenCalledWith('/habits', { params: {} })
+      expect(mockApi.get).toHaveBeenCalledWith('/habits', { params: { userTimezone: tz } })
     })
 
     it('passes year and month as query params when both given', async () => {
       mockApi.get.mockResolvedValue({ data: [] })
       await habitsApi.getHabits(2026, 9)
-      expect(mockApi.get).toHaveBeenCalledWith('/habits', { params: { year: 2026, month: 9 } })
+      expect(mockApi.get).toHaveBeenCalledWith('/habits', {
+        params: { year: 2026, month: 9, userTimezone: tz },
+      })
     })
 
     it('normalizes id -> habitId when backend returns "id"', async () => {
@@ -67,7 +72,9 @@ describe('habitsApi', () => {
 
     const result = await habitsApi.completeHabit(2)
 
-    expect(mockApi.post).toHaveBeenCalledWith('/habits/2/complete')
+    expect(mockApi.post).toHaveBeenCalledWith('/habits/2/complete', null, {
+      params: { userTimezone: tz },
+    })
     expect(result.currentStreak).toBe(3)
   })
 

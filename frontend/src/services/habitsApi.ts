@@ -80,9 +80,24 @@ export interface UpdateHabitRequest extends FrequencyConfig {
     difficultyLevel?: DifficultyLevel;
 }
 
+/**
+ * The browser's IANA timezone (e.g. "Asia/Jerusalem"). The backend uses it to decide which
+ * calendar day a completion lands on, and therefore whether the habit was completed late.
+ */
+const userTimezone = (): string | undefined => {
+    try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+    } catch {
+        return undefined; // backend falls back to UTC
+    }
+};
+
 export const habitsApi = {
     getHabits: async (year?: number, month?: number): Promise<HabitResponse[]> => {
-        const params = year && month ? { year, month } : {};
+        const params = {
+            ...(year && month ? { year, month } : {}),
+            userTimezone: userTimezone(),
+        };
         const response = await api.get('/habits', { params });
         return response.data.map((h: any) => ({
             ...h,
@@ -95,7 +110,9 @@ export const habitsApi = {
         return { ...h, habitId: h.habitId || h.id };
     },
     completeHabit: async (habitId: number): Promise<MarkHabitDoneResponse> => {
-        const response = await api.post(`/habits/${habitId}/complete`);
+        const response = await api.post(`/habits/${habitId}/complete`, null, {
+            params: { userTimezone: userTimezone() },
+        });
         return response.data;
     },
     updateHabit: async (habitId: number, habit: UpdateHabitRequest): Promise<HabitResponse> => {
