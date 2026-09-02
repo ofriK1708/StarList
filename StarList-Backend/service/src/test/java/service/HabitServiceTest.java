@@ -464,6 +464,89 @@ class HabitServiceTest {
         assertThat(r2.monthCompletions().get(2)).isEqualTo(CompletionStatus.MISSED); // day 3 not completed for habit2
     }
 
+    // ── periodStatus ──────────────────────────────────────────────────────────
+
+    @Test
+    void getUserHabits_weeklyPastDueDate_periodStatusReportsDaysLate() {
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        YearMonth month = YearMonth.from(today);
+        LocalDate periodStart = today.with(DayOfWeek.MONDAY);
+        LocalDate periodEnd = periodStart.plusDays(6);
+        LocalDate due = today.minusDays(2);
+
+        UserEntity user = UserEntity.builder().id(1L).build();
+        HabitEntity entity = HabitEntity.builder().id(10L).user(user)
+                .frequency(HabitFrequency.WEEKLY).scheduledDayOfWeek(1)
+                .createdAt(periodStart.atStartOfDay().toInstant(ZoneOffset.UTC)).build();
+        Habit habit = Habit.builder().id(10L).createdAt(entity.getCreatedAt()).build();
+
+        when(habitRepository.findAllByUser_IdAndDeletedAtIsNull(1L)).thenReturn(List.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(10L), month)).thenReturn(Map.of());
+        when(habitPeriodCalculator.periodsForMonth(entity, month)).thenReturn(List.of());
+        when(habitPeriodCalculator.currentPeriod(entity, today))
+                .thenReturn(new LocalDate[]{periodStart, periodEnd});
+        when(habitPeriodCalculator.dueDate(entity, today)).thenReturn(due);
+
+        HabitResponse response = habitService.getUserHabits(1L, month, null).get(0);
+
+        assertThat(response.periodStatus().scheduledToday()).isTrue();
+        assertThat(response.periodStatus().completedThisPeriod()).isFalse();
+        assertThat(response.periodStatus().dueDate()).isEqualTo(due);
+        assertThat(response.periodStatus().daysLate()).isEqualTo(2);
+        assertThat(response.periodStatus().daysUntilDue()).isEqualTo(-2);
+    }
+
+    @Test
+    void getUserHabits_multiDayOffScheduledDay_periodStatusNotScheduledToday() {
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        YearMonth month = YearMonth.from(today);
+
+        UserEntity user = UserEntity.builder().id(1L).build();
+        HabitEntity entity = HabitEntity.builder().id(10L).user(user)
+                .frequency(HabitFrequency.MULTI_DAY).scheduledDaysOfWeek(List.of(1, 3))
+                .createdAt(today.atStartOfDay().toInstant(ZoneOffset.UTC)).build();
+        Habit habit = Habit.builder().id(10L).createdAt(entity.getCreatedAt()).build();
+
+        when(habitRepository.findAllByUser_IdAndDeletedAtIsNull(1L)).thenReturn(List.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(10L), month)).thenReturn(Map.of());
+        when(habitPeriodCalculator.periodsForMonth(entity, month)).thenReturn(List.of());
+        when(habitPeriodCalculator.currentPeriod(entity, today)).thenReturn(null); // off-schedule today
+
+        HabitResponse response = habitService.getUserHabits(1L, month, null).get(0);
+
+        assertThat(response.periodStatus().scheduledToday()).isFalse();
+        assertThat(response.periodStatus().periodStart()).isNull();
+        assertThat(response.periodStatus().daysLate()).isZero();
+    }
+
+    @Test
+    void getUserHabits_dailyCompletedToday_periodStatusCompletedThisPeriod() {
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        YearMonth month = YearMonth.from(today);
+
+        UserEntity user = UserEntity.builder().id(1L).build();
+        HabitEntity entity = HabitEntity.builder().id(10L).user(user)
+                .frequency(HabitFrequency.DAILY)
+                .createdAt(today.atStartOfDay().toInstant(ZoneOffset.UTC)).build();
+        Habit habit = Habit.builder().id(10L).createdAt(entity.getCreatedAt()).build();
+
+        when(habitRepository.findAllByUser_IdAndDeletedAtIsNull(1L)).thenReturn(List.of(entity));
+        when(habitMapper.toDomain(entity)).thenReturn(habit);
+        when(habitCompletionService.getCompletedDatesForHabits(List.of(10L), month))
+                .thenReturn(Map.of(10L, Set.of(today)));
+        when(habitPeriodCalculator.periodsForMonth(entity, month)).thenReturn(List.of());
+        when(habitPeriodCalculator.currentPeriod(entity, today)).thenReturn(new LocalDate[]{today, today});
+        when(habitPeriodCalculator.dueDate(entity, today)).thenReturn(today);
+
+        HabitResponse response = habitService.getUserHabits(1L, month, null).get(0);
+
+        assertThat(response.periodStatus().completedThisPeriod()).isTrue();
+        assertThat(response.periodStatus().daysUntilDue()).isZero();
+        assertThat(response.periodStatus().daysLate()).isZero();
+    }
+
     @Test
     void completeHabit_softDeletedHabit_throwsHabitNotFoundException() {
         HabitEntity deleted = HabitEntity.builder()

@@ -3,6 +3,7 @@ package service;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,6 +28,7 @@ import repository.entity.UserEntity;
 import repository.mapper.HabitMapper;
 import service.dto.AddHabitRequest;
 import service.dto.AddHabitResponse;
+import service.dto.HabitPeriodStatus;
 import service.dto.HabitResponse;
 import service.dto.MarkHabitDoneResponse;
 import service.dto.UpdateHabitRequest;
@@ -111,7 +113,8 @@ public class HabitService {
 
         return HabitResponse.from(
                 habitMapper.toDomain(entity),
-                buildMonthCompletions(completedDates, yearMonth, entity, today));
+                buildMonthCompletions(completedDates, yearMonth, entity, today),
+                buildPeriodStatus(entity, completedDates, today));
     }
 
     @Transactional(readOnly = true)
@@ -130,7 +133,8 @@ public class HabitService {
                             completionsMap.getOrDefault(entity.getId(), Collections.emptySet());
                     return HabitResponse.from(
                             habitMapper.toDomain(entity),
-                            buildMonthCompletions(completedDates, yearMonth, entity, today));
+                            buildMonthCompletions(completedDates, yearMonth, entity, today),
+                            buildPeriodStatus(entity, completedDates, today));
                 })
                 .toList();
     }
@@ -354,6 +358,44 @@ public class HabitService {
      * We use {@code periodEnd} (not {@code periodStart}) for the creation-date guard so that mid-week creation
      * still allows the current period to be completed and counted.
      */
+    /**
+     * Computes the state of the habit's current period so the AI assistant never has to derive it
+     * from {@code lastCompletedDate}. Uses the completion set already fetched for the month grid,
+     * so it costs no extra queries.
+     *
+     * <p>A MULTI_DAY habit on an off-scheduled day has no active period; that case returns a status
+     * with {@code scheduledToday=false} and null dates rather than null, so callers need only one guard.
+     */
+    private HabitPeriodStatus buildPeriodStatus(HabitEntity entity, Set<LocalDate> completedDates, LocalDate today) {
+        LocalDate[] period = habitPeriodCalculator.currentPeriod(entity, today);
+        if (period == null) {
+            return HabitPeriodStatus.builder()
+                    .scheduledToday(false)
+                    .completedThisPeriod(false)
+                    .build();
+        }
+
+        LocalDate periodStart = period[0];
+        LocalDate periodEnd = period[1];
+        LocalDate dueDate = habitPeriodCalculator.dueDate(entity, today);
+        boolean completed = completedDates.stream()
+                .anyMatch(d -> !d.isBefore(periodStart) && !d.isAfter(periodEnd));
+
+        // daysLate is the mirror of daysUntilDue, so deriving it here keeps the two consistent
+        // by construction and matches HabitPeriodCalculator.daysLate.
+        int daysUntilDue = (int) ChronoUnit.DAYS.between(today, dueDate);
+
+        return HabitPeriodStatus.builder()
+                .periodStart(periodStart)
+                .periodEnd(periodEnd)
+                .dueDate(dueDate)
+                .scheduledToday(true)
+                .completedThisPeriod(completed)
+                .daysUntilDue(daysUntilDue)
+                .daysLate(Math.max(0, -daysUntilDue))
+                .build();
+    }
+
     private List<CompletionStatus> buildMonthCompletions(
             Set<LocalDate> completedDates, YearMonth yearMonth, HabitEntity entity, LocalDate today) {
         LocalDate habitCreatedDate = entity.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate();
