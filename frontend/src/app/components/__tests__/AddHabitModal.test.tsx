@@ -60,7 +60,7 @@ describe('AddHabitModal', () => {
     const p = props()
     render(<AddHabitModal {...p} />)
     await userEvent.type(titleInput(), 'Gym days')
-    await userEvent.click(screen.getByRole('button', { name: 'Multi-Day' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Specific days' }))
     expect(submit()).toBeDisabled()
 
     await userEvent.click(screen.getByRole('button', { name: 'Mon' }))

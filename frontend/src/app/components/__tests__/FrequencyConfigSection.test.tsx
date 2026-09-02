@@ -59,7 +59,7 @@ describe('FrequencyConfigSection', () => {
   it('MULTI_DAY accumulates selected days in sorted order and warns below two', async () => {
     const onValue = vi.fn()
     render(<Harness onValue={onValue} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Multi-Day' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Specific days' }))
     expect(screen.getByText('Please select at least 2 days.')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Sat' })) // 6

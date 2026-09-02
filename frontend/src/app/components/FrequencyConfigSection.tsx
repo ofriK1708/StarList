@@ -17,6 +17,19 @@ const INTERVAL_OPTIONS: { value: 7 | 14 | 30; label: string }[] = [
     { value: 30, label: "Every month" },
 ];
 
+const FREQUENCY_OPTIONS: { value: HabitFrequency; label: string; hint: string }[] = [
+    { value: "DAILY", label: "Daily", hint: "Once every day." },
+    { value: "WEEKLY", label: "Weekly", hint: "Once a week, on the day you pick. Finishing it any day that week counts." },
+    { value: "CUSTOM", label: "Custom", hint: "Once per interval — every week, 2 weeks or month." },
+    {
+        value: "MULTI_DAY",
+        label: "Specific days",
+        // The distinction users miss: this is not "weekly with extra days" — every selected
+        // day is its own obligation, so missing one breaks the streak.
+        hint: "Every week, on each day you pick. Each day counts on its own, so missing one breaks the streak.",
+    },
+];
+
 const TIME_OPTIONS: { value: ScheduledTimeType; label: string }[] = [
     { value: "MORNING",   label: "Morning" },
     { value: "AFTERNOON", label: "Afternoon" },
@@ -73,17 +86,20 @@ export function FrequencyConfigSection({ value, onChange }: Props) {
             <div>
                 <label className="block text-sm text-slate-300 mb-2">Frequency</label>
                 <div className="flex gap-2 flex-wrap">
-                    {(["DAILY", "WEEKLY", "CUSTOM", "MULTI_DAY"] as HabitFrequency[]).map((f) => (
+                    {FREQUENCY_OPTIONS.map(({ value: f, label }) => (
                         <button
                             key={f}
                             type="button"
                             onClick={() => handleFrequency(f)}
                             className={`flex-1 min-w-[70px] ${chipBase} ${frequency === f ? chipActive : chipInactive}`}
                         >
-                            {f === "MULTI_DAY" ? "Multi-Day" : f.charAt(0) + f.slice(1).toLowerCase()}
+                            {label}
                         </button>
                     ))}
                 </div>
+                <p className="text-xs text-slate-400 mt-2">
+                    {FREQUENCY_OPTIONS.find((o) => o.value === frequency)?.hint}
+                </p>
             </div>
 
             {/* ── Custom interval (CUSTOM only) ── */}
