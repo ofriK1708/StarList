@@ -170,6 +170,7 @@ function isCurrentPeriodDone(habit: HabitResponse): boolean {
     switch (habit.frequency) {
         case "DAILY":
         case "MULTI_DAY":
+            // Both have single-day periods — done only if completed today.
             return habit.lastCompletedDate === new Date().toISOString().split("T")[0];
 
         case "WEEKLY": {
@@ -188,10 +189,6 @@ function isCurrentPeriodDone(habit: HabitResponse): boolean {
             windowStart.setDate(today.getDate() - interval + 1);
             return last >= windowStart;
         }
-
-        case "MULTI_DAY":
-            // Each slot is a single day — done if completed today
-            return habit.lastCompletedDate === new Date().toISOString().split("T")[0];
     }
 }
 
