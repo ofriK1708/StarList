@@ -12,7 +12,4 @@ public interface HabitRepository extends JpaRepository<HabitEntity, Long> {
     long countByUser_IdAndDeletedAtIsNull(Long userId);
 
     List<HabitEntity> findAllByUser_IdAndFrequencyAndDeletedAtIsNull(Long userId, HabitFrequency frequency);
-
-    /** Returns all active (non-deleted) habits across all users — used by the miss-penalty scheduler. */
-    List<HabitEntity> findAllByDeletedAtIsNull();
 }
