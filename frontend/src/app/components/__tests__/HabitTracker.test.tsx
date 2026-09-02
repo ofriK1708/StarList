@@ -43,6 +43,36 @@ const headings = () =>
 describe('HabitTracker', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it('disables Complete for a habit not scheduled today', async () => {
+    const habit = makeHabit({
+      habitId: 9,
+      title: 'Gym days',
+      frequency: 'MULTI_DAY',
+      scheduledDaysOfWeek: [1, 4],
+      periodStatus: { periodStart: null, periodEnd: null, dueDate: null, scheduledToday: false, completedThisPeriod: false, daysLate: 0, daysUntilDue: 0 },
+    })
+    const p = baseProps([habit])
+    render(<HabitTracker {...p} />)
+
+    const button = screen.getByText('Not today').closest('button')!
+    expect(button).toBeDisabled()
+
+    await userEvent.click(button)
+    expect(p.onHabitCheck).not.toHaveBeenCalled()
+  })
+
+  it('keeps Complete enabled on a scheduled day', () => {
+    const habit = makeHabit({
+      habitId: 9,
+      title: 'Gym days',
+      frequency: 'MULTI_DAY',
+      scheduledDaysOfWeek: [1, 4],
+      periodStatus: { periodStart: null, periodEnd: null, dueDate: null, scheduledToday: true, completedThisPeriod: false, daysLate: 0, daysUntilDue: 0 },
+    })
+    render(<HabitTracker {...baseProps([habit])} />)
+    expect(screen.getByText('Complete').closest('button')).toBeEnabled()
+  })
+
   it('shows "No habits yet" with an empty list', () => {
     render(<HabitTracker {...baseProps([])} />)
     expect(screen.getByText('No habits yet')).toBeInTheDocument()

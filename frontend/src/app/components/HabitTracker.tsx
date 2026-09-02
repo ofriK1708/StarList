@@ -1,4 +1,4 @@
-import { Check, Flame, Plus, Trash2, Edit2, ArrowUpDown } from "lucide-react";
+import { Check, Flame, Plus, Trash2, Edit2, ArrowUpDown, CalendarOff } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { HabitResponse } from "@/services/habitsApi.ts";
@@ -219,6 +219,9 @@ function HabitRadialCard({
 }) {
     const color = CARD_COLORS[index % CARD_COLORS.length];
     const isDone = isCurrentPeriodDone(habit);
+    // A MULTI_DAY habit is only completable on its scheduled days; the server rejects anything
+    // else with a 409. Trust its flag rather than recomputing the weekday here.
+    const notScheduledToday = habit.periodStatus?.scheduledToday === false;
 
     // monthCompletions drives the segment count; fall back to days-in-month for bare DAILY habits.
     const now = new Date();
@@ -351,11 +354,13 @@ function HabitRadialCard({
                 <div className="absolute inset-0 flex items-center justify-center">
                     <button
                         onClick={(e) => { e.stopPropagation(); onCheck(); }}
-                        disabled={isDone}
+                        disabled={isDone || notScheduledToday}
                         className={`w-32 h-32 rounded-full flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${
                             isDone
                                 ? "bg-transparent text-green-400 cursor-default"
-                                : "bg-slate-900 text-white hover:scale-105 border border-slate-700 hover:border-slate-500 shadow-2xl"
+                                : notScheduledToday
+                                    ? "bg-slate-900/60 text-slate-500 border border-slate-800 cursor-not-allowed"
+                                    : "bg-slate-900 text-white hover:scale-105 border border-slate-700 hover:border-slate-500 shadow-2xl"
                         }`}
                     >
                         {isDone ? (
@@ -364,6 +369,11 @@ function HabitRadialCard({
                                 <span className="text-[11px] mt-2 uppercase font-black tracking-tighter">
                                     {doneLabelFor(habit.frequency)}
                                 </span>
+                            </>
+                        ) : notScheduledToday ? (
+                            <>
+                                <CalendarOff className="w-12 h-12" />
+                                <span className="text-[11px] mt-2 uppercase font-black tracking-tighter">Not today</span>
                             </>
                         ) : (
                             <>

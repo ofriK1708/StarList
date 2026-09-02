@@ -25,6 +25,21 @@ export interface FrequencyConfig {
     scheduledDaysOfWeek?: number[];
 }
 
+/**
+ * Server-computed state of the habit's current period. Prefer these fields over deriving
+ * anything from lastCompletedDate on the client — the backend owns the calendar logic.
+ */
+export interface HabitPeriodStatus {
+    periodStart: string | null;
+    periodEnd: string | null;
+    dueDate: string | null;
+    /** False for a MULTI_DAY habit on a day it isn't scheduled. */
+    scheduledToday: boolean;
+    completedThisPeriod: boolean;
+    daysUntilDue: number;
+    daysLate: number;
+}
+
 export interface HabitResponse {
     habitId: number;
     title: string;
@@ -56,6 +71,8 @@ export interface HabitResponse {
      * scheduled-day occurrences for WEEKLY, interval windows for CUSTOM).
      */
     monthCompletions?: Array<'DONE' | 'MISSED' | 'NA'>;
+    /** Absent on mutation responses (create/update), which carry no period context. */
+    periodStatus?: HabitPeriodStatus;
 }
 
 export interface AddHabitRequest extends FrequencyConfig {
