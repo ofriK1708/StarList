@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.Builder;
 import model.enums.DifficultyLevel;
@@ -12,8 +13,8 @@ import model.enums.ScheduledTimeType;
 
 @Builder
 public record AddHabitRequest(
-        @NotBlank String title,
-        String description,
+        @NotBlank @Size(max = 120) String title,
+        @Size(max = 1000) String description,
         @NotNull HabitFrequency frequency,
         @NotNull DifficultyLevel difficultyLevel,
 

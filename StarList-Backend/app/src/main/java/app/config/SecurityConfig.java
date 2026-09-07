@@ -50,6 +50,8 @@ public class SecurityConfig {
      * <ul>
      *   <li>{@code POST /users} — called during sign-up before the backend user exists</li>
      *   <li>{@code GET /check/health} — liveness probe</li>
+     *   <li>{@code GET /images/**} — catalog cosmetic assets; plain {@code <img>} requests
+     *       carry no Authorization header, so these must stay public</li>
      * </ul>
      * All other requests require a valid Cognito JWT in the {@code Authorization: Bearer} header.
      */
@@ -63,6 +65,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST, "/users").permitAll()
                 .requestMatchers(HttpMethod.GET, "/health").permitAll()
+                .requestMatchers(HttpMethod.GET, "/images/**").permitAll()
                 .anyRequest().authenticated())
             .oauth2ResourceServer(oauth2 ->
                 oauth2.jwt(jwt -> {}));

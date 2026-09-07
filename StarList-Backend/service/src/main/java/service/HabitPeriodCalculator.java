@@ -10,7 +10,6 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import model.enums.HabitFrequency;
 import org.springframework.stereotype.Component;
 import repository.entity.HabitEntity;
 
@@ -47,20 +46,47 @@ public class HabitPeriodCalculator {
         };
     }
 
+
     /**
-     * Returns true if the habit is WEEKLY and today falls after the scheduled day of week
-     * in the current ISO week — meaning the completion is "late" and incurs a penalty.
-     * Always returns false for DAILY and CUSTOM habits.
+     * Returns the date by which this habit is expected to be completed within its current period.
+     *
+     * <ul>
+     *   <li>DAILY, MULTI_DAY — {@code today}; the period is a single day</li>
+     *   <li>WEEKLY — {@code scheduledDayOfWeek} within the current ISO week</li>
+     *   <li>CUSTOM — the last occurrence of {@code scheduledDayOfWeek} on or before the period end,
+     *       which bounds lateness at 6 days regardless of the interval length</li>
+     * </ul>
+     *
+     * @return the due date, or {@code null} when the habit has no active period today
+     *         (MULTI_DAY on an off-scheduled day)
      */
+    public LocalDate dueDate(HabitEntity habit, LocalDate today) {
+        LocalDate[] period = currentPeriod(habit, today);
+        if (period == null) return null;
+
+        Integer scheduledDay = habit.getScheduledDayOfWeek();
+        return switch (habit.getFrequency()) {
+            case DAILY, MULTI_DAY -> period[1];
+            // Defensive: scheduledDayOfWeek is required for WEEKLY and CUSTOM, but a null would
+            // otherwise NPE. Falling back to the period end makes the habit simply never late.
+            case WEEKLY -> scheduledDay == null ? period[1] : period[0].plusDays(scheduledDay - 1);
+            case CUSTOM -> scheduledDay == null ? period[1]
+                    : period[1].with(TemporalAdjusters.previousOrSame(DayOfWeek.of(scheduledDay)));
+        };
+    }
+
     /**
-     * Returns true if the habit is WEEKLY and today falls after the scheduled day of week
-     * in the current ISO week — meaning the completion is "late" and incurs a penalty.
-     * Always returns false for DAILY, CUSTOM, and MULTI_DAY habits.
+     * Returns how many days have elapsed since this habit's due date in the current period.
+     *
+     * <p>Always {@code 0} for DAILY and MULTI_DAY, whose period is a single day — there is no
+     * later day within the period on which a completion could be recorded.
+     *
+     * @return days past due, or {@code 0} when the habit is on time or cannot be late
      */
-    public boolean isLateCompletion(HabitEntity habit, LocalDate today) {
-        if (habit.getFrequency() != HabitFrequency.WEEKLY) return false;
-        int todayIso = today.getDayOfWeek().getValue(); // 1=Mon … 7=Sun
-        return todayIso > habit.getScheduledDayOfWeek();
+    public int daysLate(HabitEntity habit, LocalDate today) {
+        LocalDate due = dueDate(habit, today);
+        if (due == null) return 0;
+        return (int) Math.max(0, ChronoUnit.DAYS.between(due, today));
     }
 
     /**
@@ -107,8 +133,10 @@ public class HabitPeriodCalculator {
     }
 
     private List<LocalDate[]> weeklyPeriodsForMonth(HabitEntity habit, YearMonth yearMonth) {
+        Integer scheduledDay = habit.getScheduledDayOfWeek();
+        if (scheduledDay == null) return Collections.emptyList();
         List<LocalDate[]> result = new ArrayList<>(5);
-        DayOfWeek targetDay = DayOfWeek.of(habit.getScheduledDayOfWeek());
+        DayOfWeek targetDay = DayOfWeek.of(scheduledDay);
         // First occurrence of the scheduled day in the month
         LocalDate first = yearMonth.atDay(1).with(TemporalAdjusters.nextOrSame(targetDay));
         while (!first.isAfter(yearMonth.atEndOfMonth())) {

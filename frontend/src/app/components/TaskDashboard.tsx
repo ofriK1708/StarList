@@ -1,13 +1,15 @@
-import { Plus, MessageSquare, Circle, CheckCircle2, Clock, Trash2, Calendar, ArrowUpDown } from "lucide-react";
+import { Plus, MessageSquare, Circle, CheckCircle2, Clock, Trash2, Edit2, Calendar, ArrowUpDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { TaskResponse } from "@/services/taskApi.ts";
+import { formatDuration } from "@/lib/duration.ts";
 
 interface TaskDashboardProps {
   tasks: TaskResponse[];
   onTaskToggle: (taskId: number) => void;
   onQuickAdd: () => void;
   onOpenChat: () => void;
+  onTaskEdit: (task: TaskResponse) => void;
   onTaskDelete: (taskId: number) => void;
 }
 
@@ -23,9 +25,9 @@ const difficultyLabels = {
   HARD: 'Hard',
 };
 
-export function TaskDashboard({ tasks, onTaskToggle, onQuickAdd, onOpenChat, onTaskDelete }: TaskDashboardProps) {
+export function TaskDashboard({ tasks, onTaskToggle, onQuickAdd, onOpenChat, onTaskEdit, onTaskDelete }: TaskDashboardProps) {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
-  const [sortBy, setSortBy] = useState<'date' | 'difficulty' | 'name'>('date');
+  const [sortBy, setSortBy] = useState<'date' | 'difficulty' | 'name' | 'duration'>('date');
 
   const filteredAndSortedTasks = tasks
       .filter(task => {
@@ -47,6 +49,9 @@ export function TaskDashboard({ tasks, onTaskToggle, onQuickAdd, onOpenChat, onT
         }
         if (sortBy === 'name') {
           return a.title.localeCompare(b.title);
+        }
+        if (sortBy === 'duration') {
+          return (a.durationMinutes ?? 0) - (b.durationMinutes ?? 0);
         }
         return 0;
       });
@@ -115,6 +120,7 @@ export function TaskDashboard({ tasks, onTaskToggle, onQuickAdd, onOpenChat, onT
                 <option value="date" className="bg-slate-800">Sort by Date</option>
                 <option value="difficulty" className="bg-slate-800">Sort by Difficulty</option>
                 <option value="name" className="bg-slate-800">Sort by Name</option>
+                <option value="duration" className="bg-slate-800">Sort by Duration</option>
               </select>
             </div>
           </div>
@@ -163,16 +169,28 @@ export function TaskDashboard({ tasks, onTaskToggle, onQuickAdd, onOpenChat, onT
                                   {difficultyLabels[task.difficultyLevel]}
                                 </span>
                               {!isCompleted && (
-                                  <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onTaskDelete(task.taskId);
-                                      }}
-                                      className="text-slate-500 hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-red-500/10"
-                                      title="Delete task"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
+                                  <>
+                                    <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onTaskEdit(task);
+                                        }}
+                                        className="text-slate-500 hover:text-blue-400 transition-colors p-1.5 rounded-md hover:bg-blue-500/10"
+                                        title="Edit task"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onTaskDelete(task.taskId);
+                                        }}
+                                        className="text-slate-500 hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-red-500/10"
+                                        title="Delete task"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </>
                               )}
                             </div>
                           </div>
@@ -188,7 +206,7 @@ export function TaskDashboard({ tasks, onTaskToggle, onQuickAdd, onOpenChat, onT
                               {task.durationMinutes && (
                                   <div className="flex items-center gap-1.5 text-slate-400 bg-slate-700/50 px-2 py-1 rounded">
                                     <Clock className="w-3.5 h-3.5" />
-                                    <span className="text-xs">{task.durationMinutes} min</span>
+                                    <span className="text-xs">{formatDuration(task.durationMinutes)}</span>
                                   </div>
                               )}
 

@@ -24,6 +24,15 @@ export interface AddTaskRequest {
     dueDate?: string | null;
 }
 
+/** Partial-update payload — only the provided fields are applied. */
+export interface UpdateTaskRequest {
+    title?: string;
+    description?: string;
+    difficultyLevel?: DifficultyLevel;
+    durationMinutes?: number;
+    dueDate?: string | null;
+}
+
 export interface MarkTaskDoneResponse {
     taskId: number;
     coinsEarned: number;
@@ -37,6 +46,10 @@ export const tasksApi = {
     },
     createTask: async (task: AddTaskRequest): Promise<TaskResponse> => {
         const response = await api.post('/tasks', task);
+        return response.data;
+    },
+    updateTask: async (taskId: number, task: UpdateTaskRequest): Promise<TaskResponse> => {
+        const response = await api.put(`/tasks/${taskId}`, task);
         return response.data;
     },
     completeTask: async (taskId: number): Promise<MarkTaskDoneResponse> => {

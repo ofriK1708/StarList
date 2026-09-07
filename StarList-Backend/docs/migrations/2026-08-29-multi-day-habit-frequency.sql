@@ -12,5 +12,11 @@ ALTER TABLE habits
     ADD COLUMN IF NOT EXISTS scheduled_days_of_week VARCHAR(20);
 
 -- MULTI_DAY is a new valid value for the frequency column.
--- No constraint change needed — frequency is stored as a free VARCHAR(16)
--- and validated at the application layer.
+--
+-- CORRECTION (2026-09-02): the note that previously stood here — that frequency is a free
+-- VARCHAR validated only in the application layer — was wrong. HabitEntity.frequency is
+-- @Enumerated(EnumType.STRING), and Hibernate 6 emits a CHECK constraint listing the enum
+-- values present when the column was created. ddl-auto=update never widens it, so inserting
+-- a MULTI_DAY habit fails with:
+--   ERROR: new row for relation "habits" violates check constraint "habits_frequency_check"
+-- See 2026-09-02-multi-day-frequency-check-constraint.sql, which must also be run.

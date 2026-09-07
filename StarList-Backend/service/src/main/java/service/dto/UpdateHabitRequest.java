@@ -1,5 +1,6 @@
 package service.dto;
 
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.Builder;
 import model.enums.DifficultyLevel;
@@ -12,8 +13,8 @@ import model.enums.ScheduledTimeType;
  */
 @Builder
 public record UpdateHabitRequest(
-        String title,
-        String description,
+        @Size(max = 120) String title,
+        @Size(max = 1000) String description,
         HabitFrequency frequency,
         DifficultyLevel difficultyLevel,
         Integer scheduledDayOfWeek,

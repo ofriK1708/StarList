@@ -37,6 +37,7 @@ StarList is a gamified productivity application that integrates task management 
 - Assist users in creating and defining tasks and habits
 - Determining their difficulty and duration
 - Tracking progress and improvements through discussions
+- Daily briefings and gentle, fact-based coach notices that nudge you toward habits that are due or overdue, without penalizing missed days
 
 ### 📊 Statistics Dashboard:
 - Provides charts to track progress, patterns, and trends across tasks and habits.
@@ -49,10 +50,21 @@ StarList is a gamified productivity application that integrates task management 
 ## 🚀 Getting Started
 
 ### Prerequisites
-*right now not needed, maybe add that later.*
+- Java 25 and Maven (for `StarList-Backend`)
+- Node.js and pnpm/npm (for `frontend`)
+- A PostgreSQL database
+- An OpenAI API key (for the AI chat feature)
 
 ### Installation
-*right now not needed, maybe add that later.*
+1. **Backend** — from `StarList-Backend/`, configure your database and OpenAI credentials in `app/src/main/resources/application-dev.yml`, then run:
+   ```bash
+   mvn spring-boot:run -pl app
+   ```
+2. **Frontend** — from `frontend/`, install dependencies and start the dev server:
+   ```bash
+   npm install
+   npm run dev
+   ```
 
 ## 📖 Usage
 
@@ -89,22 +101,26 @@ StarList is a gamified productivity application that integrates task management 
 
 ## 🛠️ Technology Stack
 
-- **Language**: Java / _maybe more added later_
-- **Framework**: _To be determined_
-- **Database**: _To be determined_
-- **UI**: _To be determined_
+- **Backend**: Java 25, Spring Boot 4 (multi-module Maven project: `app`, `controller`, `service`, `repository`, `model`)
+- **Frontend**: React 18 + TypeScript, Vite, Tailwind CSS, Radix UI
+- **Database**: PostgreSQL
+- **AI**: OpenAI API (chat, daily briefings, and habit coach notices)
+- **Auth**: AWS Cognito
+- **Hosting**: AWS Elastic Beanstalk (backend), AWS Amplify (frontend), AWS RDS (database), AWS S3 (assets)
+- **Testing**: JUnit + Mockito (backend), Vitest + React Testing Library (frontend)
 
 ---
 
 ## 📋 Roadmap
 
 - [x] Initial project setup
-- [ ] Core task management system
-- [ ] Habit tracking functionality
-- [ ] Coin reward mechanism
-- [ ] Galaxy visualization system
-- [ ] User authentication
-- [ ] Data persistence
+- [x] Core task management system
+- [x] Habit tracking functionality
+- [x] Coin reward mechanism
+- [x] Galaxy visualization system
+- [x] User authentication
+- [x] Data persistence
+- [x] AI chat, daily briefings, and habit coach notices
 - [ ] Mobile responsiveness
 - [ ] Additional galaxy customization options
 - [ ] Social features (optional)

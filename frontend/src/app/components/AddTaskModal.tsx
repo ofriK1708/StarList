@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { X, Target, Plus } from "lucide-react";
 import { AddTaskRequest } from "@/services/taskApi.ts";
+import { TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from "@/services/validation.ts";
+import { DURATION_UNITS, DurationUnit, toMinutes } from "@/lib/duration.ts";
 
 interface AddTaskModalProps {
     isOpen: boolean;
@@ -12,7 +14,8 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [difficulty, setDifficulty] = useState<'EASY' | 'MEDIUM' | 'HARD'>('MEDIUM');
-    const [durationMinutes, setDurationMinutes] = useState<number>(30);
+    const [durationValue, setDurationValue] = useState<number>(30);
+    const [durationUnit, setDurationUnit] = useState<DurationUnit>('minutes');
     const [dueDate, setDueDate] = useState<string>("");
 
     if (!isOpen) return null;
@@ -25,14 +28,15 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
             title,
             description,
             difficultyLevel: difficulty,
-            durationMinutes,
+            durationMinutes: toMinutes(durationValue, durationUnit),
             dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
         });
 
         setTitle("");
         setDescription("");
         setDifficulty("MEDIUM");
-        setDurationMinutes(30);
+        setDurationValue(30);
+        setDurationUnit('minutes');
         setDueDate("");
         onClose();
     };
@@ -58,10 +62,12 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
+                            maxLength={TITLE_MAX_LENGTH}
                             placeholder="e.g., Finish OS Assignment"
                             className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
                             required
                         />
+                        <p className="text-xs text-slate-500 mt-1 text-right">{title.length}/{TITLE_MAX_LENGTH}</p>
                     </div>
 
                     <div>
@@ -69,15 +75,18 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
+                            maxLength={DESCRIPTION_MAX_LENGTH}
                             placeholder="Add some details..."
                             className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors resize-none h-20"
                         />
+                        <p className="text-xs text-slate-500 mt-1 text-right">{description.length}/{DESCRIPTION_MAX_LENGTH}</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm text-slate-300 mb-1">Difficulty</label>
                             <select
+                                aria-label="Difficulty"
                                 value={difficulty}
                                 onChange={(e) => setDifficulty(e.target.value as 'EASY' | 'MEDIUM' | 'HARD')}
                                 className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
@@ -88,15 +97,28 @@ export function AddTaskModal({ isOpen, onClose, onAdd }: AddTaskModalProps) {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm text-slate-300 mb-1">Duration (Min)</label>
-                            <input
-                                type="number"
-                                min="5"
-                                step="5"
-                                value={durationMinutes}
-                                onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                            />
+                            <label className="block text-sm text-slate-300 mb-1">Duration</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    aria-label="Duration amount"
+                                    value={durationValue}
+                                    onChange={(e) => setDurationValue(Number(e.target.value))}
+                                    className="w-full min-w-0 bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                                />
+                                <select
+                                    aria-label="Duration unit"
+                                    value={durationUnit}
+                                    onChange={(e) => setDurationUnit(e.target.value as DurationUnit)}
+                                    className="bg-slate-800 border border-slate-600 rounded-lg px-2 py-2 text-white focus:outline-none focus:border-blue-500 appearance-none"
+                                >
+                                    {DURATION_UNITS.map((u) => (
+                                        <option key={u.value} value={u.value}>{u.label}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
 

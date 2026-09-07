@@ -53,17 +53,19 @@ public class HabitController {
     public ResponseEntity<HabitResponse> getHabit(
             @PathVariable Long habitId,
             @RequestParam(required = false) @Min(2000) Integer year,
-            @RequestParam(required = false) @Min(1) @Max(12) Integer month) {
-        return ResponseEntity.ok(habitService.getHabit(habitId, resolveYearMonth(year, month)));
+            @RequestParam(required = false) @Min(1) @Max(12) Integer month,
+            @RequestParam(required = false) String userTimezone) {
+        return ResponseEntity.ok(habitService.getHabit(habitId, resolveYearMonth(year, month), userTimezone));
     }
 
     @GetMapping
     public ResponseEntity<List<HabitResponse>> getUserHabits(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) @Min(2000) Integer year,
-            @RequestParam(required = false) @Min(1) @Max(12) Integer month) {
+            @RequestParam(required = false) @Min(1) @Max(12) Integer month,
+            @RequestParam(required = false) String userTimezone) {
         Long userId = userService.getUserByCognitoSub(jwt.getSubject()).id();
-        return ResponseEntity.ok(habitService.getUserHabits(userId, resolveYearMonth(year, month)));
+        return ResponseEntity.ok(habitService.getUserHabits(userId, resolveYearMonth(year, month), userTimezone));
     }
 
     /** Returns the provided {@link YearMonth}, or the current month if either param is absent. */
@@ -79,9 +81,16 @@ public class HabitController {
         return ResponseEntity.ok(habitService.updateHabit(habitId, request));
     }
 
+    /**
+     * @param userTimezone IANA zone id from the client (e.g. "Asia/Jerusalem"). Decides which
+     *                     calendar day the completion lands on, and therefore whether it is late.
+     *                     Absent or unparseable values fall back to UTC.
+     */
     @PostMapping("/{habitId}/complete")
-    public ResponseEntity<MarkHabitDoneResponse> completeHabit(@PathVariable Long habitId) {
-        return ResponseEntity.ok(habitService.completeHabit(habitId));
+    public ResponseEntity<MarkHabitDoneResponse> completeHabit(
+            @PathVariable Long habitId,
+            @RequestParam(required = false) String userTimezone) {
+        return ResponseEntity.ok(habitService.completeHabit(habitId, userTimezone));
     }
 
     @DeleteMapping("/{habitId}")

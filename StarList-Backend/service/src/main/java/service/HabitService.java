@@ -3,6 +3,7 @@ package service;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,11 +28,13 @@ import repository.entity.UserEntity;
 import repository.mapper.HabitMapper;
 import service.dto.AddHabitRequest;
 import service.dto.AddHabitResponse;
+import service.dto.HabitPeriodStatus;
 import service.dto.HabitResponse;
 import service.dto.MarkHabitDoneResponse;
 import service.dto.UpdateHabitRequest;
 import service.exceptions.HabitAlreadyCompletedTodayException;
 import service.exceptions.HabitNotFoundException;
+import service.exceptions.HabitNotScheduledTodayException;
 
 @Slf4j
 @Service
@@ -99,34 +102,40 @@ public class HabitService {
     }
 
     @Transactional(readOnly = true)
-    public HabitResponse getHabit(Long habitId, YearMonth yearMonth) {
+    public HabitResponse getHabit(Long habitId, YearMonth yearMonth, String userTimezone) {
         log.info("About to get habit {} for {}", habitId, yearMonth);
 
+        LocalDate today = LocalDate.now(ZoneResolver.resolve(userTimezone));
         HabitEntity entity = loadActiveHabit(habitId);
         Map<Long, Set<LocalDate>> completionsMap =
                 habitCompletionService.getCompletedDatesForHabits(List.of(habitId), yearMonth);
+        Set<LocalDate> completedDates = completionsMap.getOrDefault(habitId, Collections.emptySet());
 
         return HabitResponse.from(
                 habitMapper.toDomain(entity),
-                buildMonthCompletions(completionsMap.getOrDefault(habitId, Collections.emptySet()), yearMonth, entity));
+                buildMonthCompletions(completedDates, yearMonth, entity, today),
+                buildPeriodStatus(entity, completedDates, today));
     }
 
     @Transactional(readOnly = true)
-    public List<HabitResponse> getUserHabits(Long userId, YearMonth yearMonth) {
+    public List<HabitResponse> getUserHabits(Long userId, YearMonth yearMonth, String userTimezone) {
         log.info("About to list habits for user {} for {}", userId, yearMonth);
 
+        LocalDate today = LocalDate.now(ZoneResolver.resolve(userTimezone));
         List<HabitEntity> entities = habitRepository.findAllByUser_IdAndDeletedAtIsNull(userId);
         List<Long> habitIds = entities.stream().map(HabitEntity::getId).toList();
         Map<Long, Set<LocalDate>> completionsMap =
                 habitCompletionService.getCompletedDatesForHabits(habitIds, yearMonth);
 
         return entities.stream()
-                .map(entity -> HabitResponse.from(
-                        habitMapper.toDomain(entity),
-                        buildMonthCompletions(
-                                completionsMap.getOrDefault(entity.getId(), Collections.emptySet()),
-                                yearMonth,
-                                entity)))
+                .map(entity -> {
+                    Set<LocalDate> completedDates =
+                            completionsMap.getOrDefault(entity.getId(), Collections.emptySet());
+                    return HabitResponse.from(
+                            habitMapper.toDomain(entity),
+                            buildMonthCompletions(completedDates, yearMonth, entity, today),
+                            buildPeriodStatus(entity, completedDates, today));
+                })
                 .toList();
     }
 
@@ -153,6 +162,13 @@ public class HabitService {
         if (request.customIntervalDays() != null) entity.setCustomIntervalDays(request.customIntervalDays());
         if (request.scheduledDaysOfWeek() != null) entity.setScheduledDaysOfWeek(request.scheduledDaysOfWeek());
 
+        // Re-validate the resulting configuration so a frequency change can't leave the row
+        // inconsistent (e.g. WEEKLY/CUSTOM without scheduledDayOfWeek, MULTI_DAY without scheduledDaysOfWeek).
+        validateFrequencyConfig(entity.getFrequency(), entity.getScheduledDayOfWeek(), entity.getCustomIntervalDays());
+        if (entity.getFrequency() == HabitFrequency.MULTI_DAY) {
+            validateMultiDayConfig(entity.getScheduledDaysOfWeek());
+        }
+
         if (difficultyChanged) {
             int[] coins = coinCalculator.computeBaseCoins(request.difficultyLevel());
             entity.setCoinReward(coins[0]);
@@ -178,12 +194,20 @@ public class HabitService {
      * @throws HabitNotFoundException              if the habit does not exist or is deleted
      */
     @Transactional
-    public MarkHabitDoneResponse completeHabit(Long habitId) {
+    public MarkHabitDoneResponse completeHabit(Long habitId, String userTimezone) {
         log.info("About to complete habit {}", habitId);
 
         HabitEntity entity = loadActiveHabit(habitId);
-        LocalDate today = LocalDate.now();
+        // "Today" decides which period the completion lands in and whether it is late, so it must
+        // be the user's calendar day, not the server's. Falls back to UTC when the client sends none.
+        LocalDate today = LocalDate.now(ZoneResolver.resolve(userTimezone));
         LocalDate[] period = habitPeriodCalculator.currentPeriod(entity, today);
+
+        // MULTI_DAY returns null when today is not a scheduled day
+        if (period == null) {
+            throw new HabitNotScheduledTodayException(habitId);
+        }
+
         LocalDate periodStart = period[0];
         LocalDate periodEnd = period[1];
 
@@ -195,15 +219,17 @@ public class HabitService {
             throw new HabitAlreadyCompletedTodayException(habitId);
         }
 
-        boolean late = habitPeriodCalculator.isLateCompletion(entity, today);
+        // Completing after the due date breaks the streak. This is the only consequence of
+        // lateness — no coins are deducted. The reward then follows the reset streak, so a
+        // late completion also forfeits any streak multiplier it would otherwise have earned.
+        boolean late = habitPeriodCalculator.daysLate(entity, today) > 0;
         int oldBestStreak = entity.getBestStreak();
-        int newStreak = isStreakContinued(entity, today, periodStart) ?
-                entity.getCurrentStreak() + 1 : 1;
+        int newStreak = (!late && isStreakContinued(entity, today, periodStart))
+                ? entity.getCurrentStreak() + 1
+                : 1;
         int newBestStreak = Math.max(newStreak, oldBestStreak);
 
-        int baseCoins = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
-        int penalty = late ? (entity.getCoinPenalty() != null ? entity.getCoinPenalty() : 0) : 0;
-        int coinsEarned = Math.max(0, baseCoins - penalty);
+        int coinsEarned = coinCalculator.computeHabitCompletionReward(entity.getDifficultyLevel(), newStreak);
 
         log.debug("Habit {} '{}' completed: streak {} -> {}, best={}, late={}, coins={}",
                 habitId, entity.getTitle(), entity.getCurrentStreak(), newStreak, newBestStreak, late, coinsEarned);
@@ -258,19 +284,20 @@ public class HabitService {
                 LocalDate prevPeriodStart = prevPeriodEnd.minusDays(entity.getCustomIntervalDays() - 1);
                 yield !last.isBefore(prevPeriodStart) && !last.isAfter(prevPeriodEnd);
             }
-            // MULTI_DAY: streak counts consecutive completed days, regardless of which scheduled day.
-            // The previous completion just needs to be on a scheduled day, and it counts if it was "yesterday"
-            // in streak terms. We treat it like DAILY — last must be the immediately preceding scheduled day.
+            // MULTI_DAY: the streak continues only if the user completed the slot
+            // immediately before the current one (no skipped slots).
+            // Walk backwards from yesterday — the first scheduled day we land on
+            // is the "previous slot". If last equals that day, streak is alive.
             case MULTI_DAY -> {
-                // Walk backwards from today to find the previous scheduled day
                 List<Integer> scheduledDays = entity.getScheduledDaysOfWeek();
                 if (scheduledDays == null || scheduledDays.isEmpty()) yield false;
                 LocalDate prev = today.minusDays(1);
-                while (!prev.isBefore(last) || true) {
+                // Search up to 7 days back (the longest gap between two selected days)
+                while (!prev.isBefore(today.minusDays(7))) {
                     if (scheduledDays.contains(prev.getDayOfWeek().getValue())) {
+                        // Found the previous slot — streak continues only if last was exactly here
                         yield last.equals(prev);
                     }
-                    if (prev.equals(last)) break;
                     prev = prev.minusDays(1);
                 }
                 yield false;
@@ -331,9 +358,46 @@ public class HabitService {
      * We use {@code periodEnd} (not {@code periodStart}) for the creation-date guard so that mid-week creation
      * still allows the current period to be completed and counted.
      */
+    /**
+     * Computes the state of the habit's current period so the AI assistant never has to derive it
+     * from {@code lastCompletedDate}. Uses the completion set already fetched for the month grid,
+     * so it costs no extra queries.
+     *
+     * <p>A MULTI_DAY habit on an off-scheduled day has no active period; that case returns a status
+     * with {@code scheduledToday=false} and null dates rather than null, so callers need only one guard.
+     */
+    private HabitPeriodStatus buildPeriodStatus(HabitEntity entity, Set<LocalDate> completedDates, LocalDate today) {
+        LocalDate[] period = habitPeriodCalculator.currentPeriod(entity, today);
+        if (period == null) {
+            return HabitPeriodStatus.builder()
+                    .scheduledToday(false)
+                    .completedThisPeriod(false)
+                    .build();
+        }
+
+        LocalDate periodStart = period[0];
+        LocalDate periodEnd = period[1];
+        LocalDate dueDate = habitPeriodCalculator.dueDate(entity, today);
+        boolean completed = completedDates.stream()
+                .anyMatch(d -> !d.isBefore(periodStart) && !d.isAfter(periodEnd));
+
+        // daysLate is the mirror of daysUntilDue, so deriving it here keeps the two consistent
+        // by construction and matches HabitPeriodCalculator.daysLate.
+        int daysUntilDue = (int) ChronoUnit.DAYS.between(today, dueDate);
+
+        return HabitPeriodStatus.builder()
+                .periodStart(periodStart)
+                .periodEnd(periodEnd)
+                .dueDate(dueDate)
+                .scheduledToday(true)
+                .completedThisPeriod(completed)
+                .daysUntilDue(daysUntilDue)
+                .daysLate(Math.max(0, -daysUntilDue))
+                .build();
+    }
+
     private List<CompletionStatus> buildMonthCompletions(
-            Set<LocalDate> completedDates, YearMonth yearMonth, HabitEntity entity) {
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+            Set<LocalDate> completedDates, YearMonth yearMonth, HabitEntity entity, LocalDate today) {
         LocalDate habitCreatedDate = entity.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate();
         List<LocalDate[]> periods = habitPeriodCalculator.periodsForMonth(entity, yearMonth);
         log.debug("Building month completions for {}: frequency={}, periods={}, completedDates={}",

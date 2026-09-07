@@ -9,16 +9,18 @@ import { Statistics } from "./components/Statistics";
 import { Profile } from "./components/Profile";
 import { NavigationBar } from "./components/NavigationBar";
 import { AddTaskModal } from "./components/AddTaskModal";
+import { EditTaskModal } from "./components/EditTaskModal";
 import { AddHabitModal } from "./components/AddHabitModal";
 import { EditHabitModal } from "./components/EditHabitModal";
 import { HabitTracker } from "./components/HabitTracker";
 import confetti from 'canvas-confetti';
 import { UserProvider, useUser } from "../context/UserContext";
-import { tasksApi, TaskResponse, AddTaskRequest } from "../services/taskApi";
+import { tasksApi, TaskResponse, AddTaskRequest, UpdateTaskRequest } from "../services/taskApi";
 import { habitsApi, HabitResponse, AddHabitRequest, UpdateHabitRequest } from "../services/habitsApi";
 import { storeApi, ItemCatalogResponse } from "../services/storeApi";
 import { aiApi } from "../services/aiApi";
 import { achievementsApi, AchievementResponse } from "../services/achievementsApi";
+import { markNewChat, readChatSince, turnsSince } from "../lib/aiChat";
 
 type Screen = 'tasks' | 'habits' | 'galaxy' | 'chat' | 'profile' | 'shop' | 'statistics';
 
@@ -217,6 +219,18 @@ function MainApp() {
     }
   };
 
+  const handleUpdateTask = async (taskId: number, data: UpdateTaskRequest) => {
+    try {
+      const updated = await tasksApi.updateTask(taskId, data);
+      setTasks(prev => prev.map(t => t.taskId === taskId ? updated : t));
+      setIsEditTaskModalOpen(false);
+      setTaskToEdit(null);
+    } catch (error) {
+      console.error(error);
+      showToast("Couldn't update the task. Please try again.", "error");
+    }
+  };
+
   const [isEditHabitModalOpen, setIsEditHabitModalOpen] = useState(false);
   const [habitToEdit, setHabitToEdit] = useState<HabitResponse | null>(null);
 
@@ -254,6 +268,9 @@ function MainApp() {
       await refreshHabits();
     } catch (error) {
       console.error(error);
+      showToast("Couldn't add the habit. Please try again.", "error");
+      // Rethrow so the modal keeps the user's input instead of resetting to a blank form.
+      throw error;
     }
   };
 
@@ -281,15 +298,17 @@ function MainApp() {
   const [chatHistoryLoaded, setChatHistoryLoaded] = useState(false);
 
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<TaskResponse | null>(null);
   const [isAddHabitModalOpen, setIsAddHabitModalOpen] = useState(false);
 
-  // Load chat history the first time the user opens the chat screen
+  // Load chat history the first time the user opens the chat screen. The backend
+  // stores every turn without a thread id, so we only restore turns from the
+  // current chat (since the last "New Chat"), tracked client-side.
   useEffect(() => {
     if (currentScreen === 'chat' && !chatHistoryLoaded && user) {
       aiApi.getHistory().then((history) => {
-        const historyMessages: ChatMessage[] = history
-          .slice()
-          .reverse()
+        const historyMessages: ChatMessage[] = turnsSince(history, readChatSince())
           .flatMap((turn) => [
             { id: `u-${turn.conversationId}`, type: 'user' as const, content: turn.userMessage, timestamp: new Date(turn.createdAt) },
             { id: `a-${turn.conversationId}`, type: 'ai' as const, content: turn.aiResponse, timestamp: new Date(turn.createdAt) },
@@ -313,10 +332,14 @@ function MainApp() {
 
   const handleSendMessage = async (message: string, newConversation?: boolean) => {
     if (newConversation) {
-      setChatMessages([]);
+      // Remember when this chat started so a refresh won't replay earlier chats.
+      markNewChat();
+    }
+    if (!message.trim()) {
+      // Empty priming call from "New Chat" — just clear the local thread.
+      if (newConversation) setChatMessages([]);
       return;
     }
-    if (!message.trim()) return;
 
     setChatMessages(prev => [...prev, {
       id: Date.now().toString(),
@@ -329,9 +352,15 @@ function MainApp() {
     try {
       const response = await aiApi.sendMessage({
         message,
-        newConversation: false,
+        newConversation: !!newConversation,
         userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
+      if (newConversation) {
+        // Anchor the "current chat" marker to this first turn's server timestamp
+        // (a small backstep absorbs client/server clock skew).
+        const anchor = new Date(response.createdAt).getTime();
+        if (Number.isFinite(anchor)) markNewChat(anchor - 1000);
+      }
       appendAiMessage(response.aiMessage);
       if (response.tasksCreated > 0) {
         const updatedTasks = await tasksApi.getTasks();
@@ -425,7 +454,8 @@ function MainApp() {
 
         <div className="flex-1 overflow-hidden">
           {currentScreen === 'galaxy' && <GalaxyView coinBalance={coinBalance} planets={planets} />}
-          {currentScreen === 'tasks' && <TaskDashboard tasks={tasks} onTaskToggle={handleTaskToggle} onQuickAdd={() => setIsAddTaskModalOpen(true)} onOpenChat={() => setCurrentScreen('chat')} onTaskDelete={handleTaskDelete} />}
+          {currentScreen === 'tasks' && <TaskDashboard tasks={tasks} onTaskToggle={handleTaskToggle} onQuickAdd={() => setIsAddTaskModalOpen(true)} onOpenChat={() => setCurrentScreen('chat')} onTaskEdit={(t) => { setTaskToEdit(t); setIsEditTaskModalOpen(true); }} onTaskDelete={handleTaskDelete} />}
+          {/* Every habit stays visible; HabitTracker disables completion on off-scheduled days. */}
           {currentScreen === 'habits' && <HabitTracker habits={habits} onHabitCheck={handleHabitCheck} onAddHabitClick={() => setIsAddHabitModalOpen(true)} onEditHabitClick={(h) => { setHabitToEdit(h); setIsEditHabitModalOpen(true); }} onDeleteHabit={handleDeleteHabit} />}
           {currentScreen === 'chat' && <AIChat messages={chatMessages} onSendMessage={handleSendMessage} onAddTask={() => {}} onDailyBriefing={handleDailyBriefing} isLoading={isAiLoading} />}
           {currentScreen === 'shop' && <Shop items={shopItems as any} coinBalance={coinBalance} onPurchase={handlePurchase} />}
@@ -434,6 +464,7 @@ function MainApp() {
         </div>
 
         <AddTaskModal isOpen={isAddTaskModalOpen} onClose={() => setIsAddTaskModalOpen(false)} onAdd={handleCreateNewTask} />
+        <EditTaskModal isOpen={isEditTaskModalOpen} onClose={() => { setIsEditTaskModalOpen(false); setTaskToEdit(null); }} taskToEdit={taskToEdit} onUpdate={handleUpdateTask} />
         <AddHabitModal isOpen={isAddHabitModalOpen} onClose={() => setIsAddHabitModalOpen(false)} onAdd={handleAddHabit} />
         <EditHabitModal isOpen={isEditHabitModalOpen} onClose={() => setIsEditHabitModalOpen(false)} habitToEdit={habitToEdit} onUpdate={handleUpdateHabit} />
         <NavigationBar currentScreen={currentScreen} onNavigate={setCurrentScreen} />

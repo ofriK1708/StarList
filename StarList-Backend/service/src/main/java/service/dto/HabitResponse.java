@@ -2,7 +2,6 @@ package service.dto;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
 import lombok.Builder;
 import model.domain.Habit;
 import model.enums.CompletionStatus;
@@ -35,7 +34,9 @@ public record HabitResponse(
         List<Integer> scheduledDaysOfWeek,
         /** "day" for DAILY and MULTI_DAY, "week" for WEEKLY, "period" for CUSTOM. */
         String streakUnit,
-        List<CompletionStatus> monthCompletions
+        List<CompletionStatus> monthCompletions,
+        /** Current-period state; {@code null} on mutation responses, which have no period context. */
+        HabitPeriodStatus periodStatus
 ) {
 
     /** Factory for mutation responses (create, update) — {@code monthCompletions} is {@code null}. */
@@ -86,6 +87,34 @@ public record HabitResponse(
                 .scheduledDaysOfWeek(habit.getScheduledDaysOfWeek())
                 .streakUnit(streakUnitFor(habit.getFrequency()))
                 .monthCompletions(monthCompletions)
+                .build();
+    }
+
+    /** Factory for GET responses that also carry current-period state for the AI assistant. */
+    public static HabitResponse from(Habit habit, List<CompletionStatus> monthCompletions,
+                                     HabitPeriodStatus periodStatus) {
+        return HabitResponse.builder()
+                .habitId(habit.getId())
+                .title(habit.getTitle())
+                .description(habit.getDescription())
+                .frequency(habit.getFrequency())
+                .difficultyLevel(habit.getDifficultyLevel())
+                .coinReward(habit.getCoinReward())
+                .coinPenalty(habit.getCoinPenalty())
+                .currentStreak(habit.getCurrentStreak())
+                .bestStreak(habit.getBestStreak())
+                .totalCompletions(habit.getTotalCompletions())
+                .lastCompletedDate(habit.getLastCompletedDate())
+                .createdAt(habit.getCreatedAt())
+                .isActive(habit.getIsActive())
+                .scheduledDayOfWeek(habit.getScheduledDayOfWeek())
+                .scheduledTimeType(habit.getScheduledTimeType())
+                .scheduledHour(habit.getScheduledHour())
+                .customIntervalDays(habit.getCustomIntervalDays())
+                .scheduledDaysOfWeek(habit.getScheduledDaysOfWeek())
+                .streakUnit(streakUnitFor(habit.getFrequency()))
+                .monthCompletions(monthCompletions)
+                .periodStatus(periodStatus)
                 .build();
     }
 
